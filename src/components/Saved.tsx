@@ -21,9 +21,6 @@ export default function Saved({ state, setState, onStartMemorizing }: SavedProps
   const [selectedVerseForShare, setSelectedVerseForShare] = useState<any>(null);
   const activePair = getCurrentTranslationPair(state);
   
-  const esDetail = TRANSLATION_DETAILS[activePair?.es || "RVR1960"] || TRANSLATION_DETAILS["RVR1960"];
-  const enDetail = TRANSLATION_DETAILS[activePair?.en || "KJV"] || TRANSLATION_DETAILS["KJV"];
-
   // For demo, we'll show some from MOCK_VERSES if savedVerses is empty
   const savedList = state.savedVerses.length > 0 
     ? MOCK_VERSES.filter(v => state.savedVerses.includes(v.id))
@@ -31,9 +28,30 @@ export default function Saved({ state, setState, onStartMemorizing }: SavedProps
 
   const filteredList = savedList.filter(v => {
     const { esText, enText } = getValidatedVerse(v, state);
-    return v.book.toLowerCase().includes(searchQuery.toLowerCase()) ||
-           (esText || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-           (enText || "").toLowerCase().includes(searchQuery.toLowerCase());
+    const query = searchQuery.toLowerCase().trim();
+    if (!query) return true;
+
+    const bookParts = v.book.toLowerCase().split(' / ');
+    const esBook = bookParts[0];
+    const enBook = bookParts[1] || esBook;
+    
+    const citationEs = `${esBook} ${v.chapter}:${v.verse}`.toLowerCase();
+    const citationEn = `${enBook} ${v.chapter}:${v.verse}`.toLowerCase();
+    const shortCitation = `${v.chapter}:${v.verse}`.toLowerCase();
+    const chapterOnly = `${esBook} ${v.chapter}`.toLowerCase();
+    const chapterOnlyEn = `${enBook} ${v.chapter}`.toLowerCase();
+    
+    return esBook.includes(query) ||
+           enBook.includes(query) ||
+           String(v.chapter) === query ||
+           String(v.verse) === query ||
+           citationEs.includes(query) ||
+           citationEn.includes(query) ||
+           shortCitation.includes(query) ||
+           chapterOnly.includes(query) ||
+           chapterOnlyEn.includes(query) ||
+           (esText || "").toLowerCase().includes(query) ||
+           (enText || "").toLowerCase().includes(query);
   });
 
   const removeSaved = (id: string) => {
@@ -85,15 +103,6 @@ export default function Saved({ state, setState, onStartMemorizing }: SavedProps
           <p className="text-sm font-medium text-earth-light dark:text-lavender-muted">
             {state.primaryLanguage === 'es' ? 'Versículos guardados y progreso.' : 'Saved verses and progress.'}
           </p>
-        </div>
-        <div className="flex items-center gap-2 bg-playful-purple/10 dark:bg-plum/20 px-3 py-1.5 rounded-full border border-playful-purple/20 dark:border-plum/30">
-          <Languages size={14} className="text-playful-purple dark:text-plum" />
-          <span className="text-[10px] font-black text-playful-purple dark:text-plum uppercase tracking-widest">
-            {state.memorizeMode === 'both' 
-              ? `${esDetail.label} / ${enDetail.label}`
-              : state.memorizeMode === 'es' ? esDetail.label : enDetail.label
-            }
-          </span>
         </div>
       </div>
 
@@ -199,7 +208,12 @@ export default function Saved({ state, setState, onStartMemorizing }: SavedProps
 
                 <div className="space-y-4 relative z-10">
                   {(state.memorizeMode === 'es' || state.memorizeMode === 'both') && (
-                    <div className="space-y-1">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[9px] font-black uppercase tracking-widest text-playful-purple/60 dark:text-plum/60 bg-playful-purple/5 dark:bg-plum/5 px-2 py-0.5 rounded border border-playful-purple/10 dark:border-plum/10">
+                          {activePair.es}
+                        </span>
+                      </div>
                       {esText ? (
                         <p className="text-xl font-serif leading-relaxed text-earth dark:text-ivory font-black">
                           {esText}
@@ -213,7 +227,12 @@ export default function Saved({ state, setState, onStartMemorizing }: SavedProps
                     </div>
                   )}
                   {(state.memorizeMode === 'en' || state.memorizeMode === 'both') && (
-                    <div className="space-y-1">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[9px] font-black uppercase tracking-widest text-golden/60 dark:text-gold/60 bg-golden/5 dark:bg-gold/5 px-2 py-0.5 rounded border border-golden/10 dark:border-gold/10">
+                          {activePair.en}
+                        </span>
+                      </div>
                       {enText ? (
                         <p className="text-lg font-serif leading-relaxed text-earth/80 dark:text-lavender-muted border-l-4 border-playful-purple/30 dark:border-plum/40 pl-4 bg-playful-purple/5 dark:bg-plum/5 py-3 rounded-r-xl font-medium">
                           {enText}
