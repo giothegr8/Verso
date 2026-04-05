@@ -61,11 +61,8 @@ export interface ReminderSettings {
 
 export interface AppState {
   primaryLanguage: "es" | "en";
-  languageMode: LanguageMode;
   memorizeMode: LanguageMode;
-  translationMode: TranslationMode;
-  activePairIndex: number; // Index in TRANSLATION_PAIRS (used in "default" mode)
-  customPair: TranslationPair; // Used in "custom" mode
+  selectedTranslations: TranslationPair; 
   theme: "light" | "dark" | "system";
   onboarded: boolean;
   savedVerses: string[]; // IDs

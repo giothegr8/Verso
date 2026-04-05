@@ -3,7 +3,7 @@ import { AppState, TRANSLATION_PAIRS, TRANSLATION_DETAILS } from "../types";
 import { VERSE_OF_THE_DAY, MOCK_VERSES } from "../constants";
 import { Globe, Play, Flame, Trophy, Sparkles, Languages, BookOpen, History, AlertCircle, Share2, Star, X } from "lucide-react";
 import React, { useState } from "react";
-import { getCurrentTranslationPair, getValidatedVerse } from "../utils/verseUtils";
+import { getCurrentTranslationPair, getValidatedVerse, getLocalizedBookName } from "../utils/verseUtils";
 import { handleShare } from "../utils/shareUtils";
 import { AnimatePresence } from "motion/react";
 import ShareModal from "./ShareModal";
@@ -19,6 +19,7 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [isQuickSwitchOpen, setIsQuickSwitchOpen] = useState(false);
   const activePair = getCurrentTranslationPair(state);
   
   const esDetail = TRANSLATION_DETAILS[activePair?.es || "RVR1960"] || TRANSLATION_DETAILS["RVR1960"];
@@ -99,18 +100,110 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
             </span>
           </motion.div>
         </div>
-        <div className="flex flex-col items-end gap-3">
-          <motion.div 
+        <div className="flex flex-col items-end gap-3 relative">
+          <motion.button 
             key={`${esDetail.label}-${enDetail.label}`}
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="flex items-center gap-2 bg-playful-purple/10 dark:bg-plum/20 px-4 py-2 rounded-2xl border border-playful-purple/20 dark:border-plum/30"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setIsQuickSwitchOpen(!isQuickSwitchOpen)}
+            className="flex items-center gap-2 bg-playful-purple/10 dark:bg-plum/20 px-4 py-2 rounded-2xl border border-playful-purple/20 dark:border-plum/30 transition-all hover:bg-playful-purple/20 dark:hover:bg-plum/30"
           >
             <Languages size={16} className="text-playful-purple dark:text-plum" />
             <span className="text-xs font-black text-playful-purple dark:text-plum uppercase tracking-widest">
-              {esDetail.label} / {enDetail.label}
+              {state.memorizeMode === 'both' 
+                ? `${esDetail.label} / ${enDetail.label}`
+                : state.memorizeMode === 'es' ? esDetail.label : enDetail.label
+              }
             </span>
-          </motion.div>
+          </motion.button>
+
+          {/* Quick Switch Menu */}
+          <AnimatePresence>
+            {isQuickSwitchOpen && (
+              <>
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="fixed inset-0 z-40"
+                  onClick={() => setIsQuickSwitchOpen(false)}
+                />
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9, y: 10, x: 20 }}
+                  animate={{ opacity: 1, scale: 1, y: 0, x: 0 }}
+                  exit={{ opacity: 0, scale: 0.9, y: 10, x: 20 }}
+                  className="absolute top-full right-0 mt-2 z-50 w-64 bg-white dark:bg-charcoal rounded-3xl shadow-2xl border border-earth/10 dark:border-white/10 p-4 space-y-4 overflow-hidden"
+                >
+                  <div className="flex items-center justify-between px-2">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-earth-light/60 dark:text-lavender-muted/60">
+                      {state.primaryLanguage === 'es' ? 'Cambio rápido' : 'Quick Switch'}
+                    </span>
+                    <button onClick={() => setIsQuickSwitchOpen(false)}>
+                      <X size={14} className="text-earth-light/40" />
+                    </button>
+                  </div>
+
+                  <div className="space-y-4 max-h-[60vh] overflow-y-auto custom-scrollbar pr-1">
+                    {/* Spanish Options */}
+                    {(state.memorizeMode === 'es' || state.memorizeMode === 'both') && (
+                      <div className="space-y-2">
+                        <p className="text-[9px] font-black uppercase tracking-widest text-playful-purple/60 px-2">
+                          {state.primaryLanguage === 'es' ? 'Español' : 'Spanish'}
+                        </p>
+                        <div className="grid grid-cols-1 gap-1">
+                          {['RVR1960', 'NVI', 'NBLA'].map((id) => (
+                            <button
+                              key={id}
+                              onClick={() => {
+                                setState(s => ({ 
+                                  ...s, 
+                                  selectedTranslations: { ...s.selectedTranslations, es: id as any } 
+                                }));
+                                setIsQuickSwitchOpen(false);
+                              }}
+                              className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all ${activePair.es === id ? 'bg-playful-purple text-white' : 'hover:bg-playful-purple/10 text-earth/60 dark:text-ivory/60'}`}
+                            >
+                              <span>{id}</span>
+                              {activePair.es === id && <Star size={10} fill="currentColor" />}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* English Options */}
+                    {(state.memorizeMode === 'en' || state.memorizeMode === 'both') && (
+                      <div className="space-y-2">
+                        <p className="text-[9px] font-black uppercase tracking-widest text-golden/60 px-2">
+                          {state.primaryLanguage === 'es' ? 'Inglés' : 'English'}
+                        </p>
+                        <div className="grid grid-cols-1 gap-1">
+                          {['KJV', 'NIV', 'NASB'].map((id) => (
+                            <button
+                              key={id}
+                              onClick={() => {
+                                setState(s => ({ 
+                                  ...s, 
+                                  selectedTranslations: { ...s.selectedTranslations, en: id as any } 
+                                }));
+                                setIsQuickSwitchOpen(false);
+                              }}
+                              className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all ${activePair.en === id ? 'bg-golden text-white' : 'hover:bg-golden/10 text-earth/60 dark:text-ivory/60'}`}
+                            >
+                              <span>{id}</span>
+                              {activePair.en === id && <Star size={10} fill="currentColor" />}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
         </div>
       </div>
 
@@ -155,7 +248,7 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
 
           <div className="relative space-y-10">
             <div className="space-y-8">
-              {(state.languageMode === 'es' || state.languageMode === 'both') && (
+              {(state.memorizeMode === 'es' || state.memorizeMode === 'both') && (
                 <div className="space-y-3">
                   <span className="text-[10px] font-black uppercase tracking-widest text-playful-purple/80 dark:text-plum/80">
                     {esDetail.name}
@@ -173,11 +266,11 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
                 </div>
               )}
 
-              {state.languageMode === 'both' && (
+              {state.memorizeMode === 'both' && (
                 <div className="h-px w-full bg-earth/10 dark:bg-white/10" />
               )}
 
-              {(state.languageMode === 'en' || state.languageMode === 'both') && (
+              {(state.memorizeMode === 'en' || state.memorizeMode === 'both') && (
                 <div className="space-y-3">
                   <span className="text-[10px] font-black uppercase tracking-widest text-golden/80">
                     {enDetail.name}
@@ -199,7 +292,7 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
             <div className="flex justify-between items-end pt-6 border-t border-earth/5 dark:border-white/5">
               <div className="space-y-1">
                 <h3 className="text-2xl font-serif font-black text-earth dark:text-ivory tracking-tight">
-                  {currentVerse.book} {currentVerse.chapter}:{currentVerse.verse}
+                  {getLocalizedBookName(currentVerse.book, state.memorizeMode)} {currentVerse.chapter}:{currentVerse.verse}
                 </h3>
                 <p className="text-[10px] font-black uppercase tracking-widest text-earth-light/60 dark:text-lavender-muted/60">
                   {isVotd 

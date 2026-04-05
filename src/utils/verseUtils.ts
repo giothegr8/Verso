@@ -4,10 +4,7 @@ import { AppState, TranslationPair, TRANSLATION_PAIRS, Verse, Translation } from
  * Gets the current translation pair based on the app state.
  */
 export function getCurrentTranslationPair(state: AppState): TranslationPair {
-  if (state.translationMode === "default") {
-    return TRANSLATION_PAIRS[state.activePairIndex] || TRANSLATION_PAIRS[0];
-  }
-  return state.customPair;
+  return state.selectedTranslations;
 }
 
 /**
@@ -51,8 +48,13 @@ export function getValidatedVerse(verse: Verse, state: AppState): {
 } {
   const activePair = getCurrentTranslationPair(state);
   
-  const esResult = validateVerseTranslation(verse, "es", activePair.es);
-  const enResult = validateVerseTranslation(verse, "en", activePair.en);
+  const esResult = (state.memorizeMode === 'es' || state.memorizeMode === 'both') 
+    ? validateVerseTranslation(verse, "es", activePair.es)
+    : { isValid: false };
+    
+  const enResult = (state.memorizeMode === 'en' || state.memorizeMode === 'both')
+    ? validateVerseTranslation(verse, "en", activePair.en)
+    : { isValid: false };
   
   return {
     esText: esResult.isValid ? verse.text.es[activePair.es] : null,
@@ -61,4 +63,17 @@ export function getValidatedVerse(verse: Verse, state: AppState): {
     enError: enResult.error,
     activePair
   };
+}
+
+/**
+ * Gets the localized book name based on the memorize mode.
+ */
+export function getLocalizedBookName(book: string, mode: "es" | "en" | "both"): string {
+  const parts = book.split(' / ');
+  const esBook = parts[0];
+  const enBook = parts[1] || parts[0];
+  
+  if (mode === 'es') return esBook;
+  if (mode === 'en') return enBook;
+  return book; // Return both for 'both' mode
 }

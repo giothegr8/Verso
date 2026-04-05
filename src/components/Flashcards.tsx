@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { AppState } from "../types";
 import { VERSE_OF_THE_DAY, MOCK_VERSES } from "../constants";
 import { ChevronLeft, ChevronRight, RotateCcw, Sparkles, BookOpen, Brain, HelpCircle, Trophy, Star, Bookmark, CheckCircle2 } from "lucide-react";
-import { getValidatedVerse, getCurrentTranslationPair } from "../utils/verseUtils";
+import { getValidatedVerse, getCurrentTranslationPair, getLocalizedBookName } from "../utils/verseUtils";
 import confetti from "canvas-confetti";
 
 interface FlashcardsProps {
@@ -82,7 +82,7 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
     });
   };
 
-  const showBilingual = state.languageMode === 'both';
+  const showBilingual = state.memorizeMode === 'both';
 
   // Split book names
   const [esBook, enBook] = useMemo(() => {
@@ -118,7 +118,7 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
     };
 
     // Reveal one random character in Spanish reference
-    if (state.languageMode === 'es' || state.languageMode === 'both') {
+    if (state.memorizeMode === 'es' || state.memorizeMode === 'both') {
       const esValid = getValidIndices(esRef, revealedIndices.es);
       if (esValid.length > 0) {
         const pick = esValid[Math.floor(Math.random() * esValid.length)];
@@ -127,7 +127,7 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
     }
 
     // Reveal one random character in English reference
-    if (state.languageMode === 'en' || state.languageMode === 'both') {
+    if (state.memorizeMode === 'en' || state.memorizeMode === 'both') {
       const enValid = getValidIndices(enRef, revealedIndices.en);
       if (enValid.length > 0) {
         const pick = enValid[Math.floor(Math.random() * enValid.length)];
@@ -240,11 +240,14 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.4 }}
-            className="text-xl text-earth-light dark:text-lavender-muted font-medium max-w-sm mx-auto"
+            className="text-xl text-earth-light dark:text-lavender-muted font-medium max-w-sm mx-auto flex items-center justify-center gap-2"
           >
-            {state.primaryLanguage === 'es' 
-              ? 'Has guardado este tesoro en tu corazón.' 
-              : 'You have hidden this treasure in your heart.'}
+            <span>
+              {state.primaryLanguage === 'es' 
+                ? 'Has guardado este tesoro en tu corazón.' 
+                : 'You have hidden this treasure in your heart.'}
+            </span>
+            <span className="text-gold/60 select-none">☺</span>
           </motion.p>
         </div>
 
@@ -318,10 +321,12 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
 
                     {/* Translation Labels */}
                     <div className="flex justify-center gap-2 mb-8">
-                      <span className="text-[10px] font-black uppercase tracking-tighter text-playful-purple bg-playful-purple/10 dark:bg-plum/20 px-2 py-0.5 rounded border border-playful-purple/20 dark:border-plum/30">
-                        {activePair.es}
-                      </span>
-                      {showBilingual && (
+                      {(state.memorizeMode === 'es' || state.memorizeMode === 'both') && (
+                        <span className="text-[10px] font-black uppercase tracking-tighter text-playful-purple bg-playful-purple/10 dark:bg-plum/20 px-2 py-0.5 rounded border border-playful-purple/20 dark:border-plum/30">
+                          {activePair.es}
+                        </span>
+                      )}
+                      {(state.memorizeMode === 'en' || state.memorizeMode === 'both') && (
                         <span className="text-[10px] font-black uppercase tracking-tighter text-golden bg-golden/10 dark:bg-gold/20 px-2 py-0.5 rounded border border-golden/20 dark:border-gold/30">
                           {activePair.en}
                         </span>
@@ -330,16 +335,16 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
 
                     {/* Reference Placeholder Area */}
                     <div className="flex flex-col justify-center items-center space-y-12">
-                      {(state.languageMode === 'es' || state.languageMode === 'both') && (
+                      {(state.memorizeMode === 'es' || state.memorizeMode === 'both') && (
                         <div className="space-y-2 w-full">
                           <p className="text-[10px] font-black uppercase tracking-widest text-earth-light/40 dark:text-lavender-muted/40 text-center mb-2">
-                            {state.primaryLanguage === 'es' ? 'Cita bíblica (ES)' : 'Cita bíblica (ES)'}
+                            {state.primaryLanguage === 'es' ? 'Cita bíblica (ES)' : 'Citation (ES)'}
                           </p>
                           {renderPlaceholder(esRef, revealedIndices.es)}
                         </div>
                       )}
                       
-                      {(state.languageMode === 'en' || state.languageMode === 'both') && (
+                      {(state.memorizeMode === 'en' || state.memorizeMode === 'both') && (
                         <div className="space-y-2 w-full">
                           <p className="text-[10px] font-black uppercase tracking-widest text-earth-light/40 dark:text-lavender-muted/40 text-center mb-2">
                             {state.primaryLanguage === 'es' ? 'Reference (EN)' : 'Reference (EN)'}
@@ -389,24 +394,27 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
                     {/* Revealed Reference Area */}
                     <div className="text-center mb-6">
                       <h3 className="text-3xl font-serif font-black text-earth dark:text-ivory tracking-tight">
-                        {verse.book} {verse.chapter}:{verse.verse}
+                        {getLocalizedBookName(verse.book, state.memorizeMode)} {verse.chapter}:{verse.verse}
                       </h3>
                       <p className="text-[10px] font-black uppercase tracking-[0.2em] text-sky-blue mt-1">
-                        {activePair.es} {showBilingual && `+ ${activePair.en}`}
+                        {state.memorizeMode === 'both' 
+                          ? `${activePair.es} + ${activePair.en}`
+                          : state.memorizeMode === 'es' ? activePair.es : activePair.en
+                        }
                       </p>
                     </div>
 
                     {/* Verse Text Area */}
                     <div className="flex flex-col justify-center items-center text-center space-y-4">
-                      {(state.languageMode === 'es' || state.languageMode === 'both') && (
+                      {(state.memorizeMode === 'es' || state.memorizeMode === 'both') && (
                         <p className="text-lg sm:text-xl font-serif font-bold text-earth/80 dark:text-ivory/80 leading-relaxed">
                           {esText}
                         </p>
                       )}
-                      {state.languageMode === 'both' && (
+                      {state.memorizeMode === 'both' && (
                         <div className="h-px w-8 bg-sky-blue/20 mx-auto" />
                       )}
-                      {(state.languageMode === 'en' || state.languageMode === 'both') && (
+                      {(state.memorizeMode === 'en' || state.memorizeMode === 'both') && (
                         <p className="text-base sm:text-lg font-serif text-earth-light/70 dark:text-lavender-muted/70 leading-relaxed">
                           {enText}
                         </p>

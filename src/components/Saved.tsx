@@ -4,7 +4,7 @@ import { Bookmark, Share2, Trash2, BookOpen, Search, Languages, Star, Heart, Ale
 import { MOCK_VERSES } from "../constants";
 import React, { useState } from "react";
 import { handleShare } from "../utils/shareUtils";
-import { getCurrentTranslationPair, getValidatedVerse } from "../utils/verseUtils";
+import { getCurrentTranslationPair, getValidatedVerse, getLocalizedBookName } from "../utils/verseUtils";
 import ShareModal from "./ShareModal";
 
 interface SavedProps {
@@ -89,7 +89,10 @@ export default function Saved({ state, setState, onStartMemorizing }: SavedProps
         <div className="flex items-center gap-2 bg-playful-purple/10 dark:bg-plum/20 px-3 py-1.5 rounded-full border border-playful-purple/20 dark:border-plum/30">
           <Languages size={14} className="text-playful-purple dark:text-plum" />
           <span className="text-[10px] font-black text-playful-purple dark:text-plum uppercase tracking-widest">
-            {esDetail.label} / {enDetail.label}
+            {state.memorizeMode === 'both' 
+              ? `${esDetail.label} / ${enDetail.label}`
+              : state.memorizeMode === 'es' ? esDetail.label : enDetail.label
+            }
           </span>
         </div>
       </div>
@@ -171,15 +174,19 @@ export default function Saved({ state, setState, onStartMemorizing }: SavedProps
                 <div className="flex justify-between items-start relative z-10">
                   <div className="space-y-1">
                     <h3 className="text-2xl font-serif font-black text-earth dark:text-ivory tracking-tight">
-                      {verse.book} {verse.chapter}:{verse.verse}
+                      {getLocalizedBookName(verse.book, state.memorizeMode)} {verse.chapter}:{verse.verse}
                     </h3>
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-black uppercase tracking-tighter text-playful-purple bg-playful-purple/10 dark:bg-plum/20 px-2 py-0.5 rounded border border-playful-purple/20 dark:border-plum/30">
-                        {esDetail.label}
-                      </span>
-                      <span className="text-[10px] font-black uppercase tracking-tighter text-golden bg-golden/10 dark:bg-gold/20 px-2 py-0.5 rounded border border-golden/20 dark:border-gold/30">
-                        {enDetail.label}
-                      </span>
+                      {(state.memorizeMode === 'es' || state.memorizeMode === 'both') && (
+                        <span className="text-[10px] font-black uppercase tracking-tighter text-playful-purple bg-playful-purple/10 dark:bg-plum/20 px-2 py-0.5 rounded border border-playful-purple/20 dark:border-plum/30">
+                          {esDetail.label}
+                        </span>
+                      )}
+                      {(state.memorizeMode === 'en' || state.memorizeMode === 'both') && (
+                        <span className="text-[10px] font-black uppercase tracking-tighter text-golden bg-golden/10 dark:bg-gold/20 px-2 py-0.5 rounded border border-golden/20 dark:border-gold/30">
+                          {enDetail.label}
+                        </span>
+                      )}
                     </div>
                   </div>
                   <div className="flex gap-2">
@@ -203,7 +210,7 @@ export default function Saved({ state, setState, onStartMemorizing }: SavedProps
                 </div>
 
                 <div className="space-y-4 relative z-10">
-                  {(state.languageMode === 'es' || state.languageMode === 'both') && (
+                  {(state.memorizeMode === 'es' || state.memorizeMode === 'both') && (
                     <div className="space-y-1">
                       {esText ? (
                         <p className="text-xl font-serif leading-relaxed text-earth dark:text-ivory font-black">
@@ -217,7 +224,7 @@ export default function Saved({ state, setState, onStartMemorizing }: SavedProps
                       )}
                     </div>
                   )}
-                  {(state.languageMode === 'en' || state.languageMode === 'both') && (
+                  {(state.memorizeMode === 'en' || state.memorizeMode === 'both') && (
                     <div className="space-y-1">
                       {enText ? (
                         <p className="text-lg font-serif leading-relaxed text-earth/80 dark:text-lavender-muted border-l-4 border-playful-purple/30 dark:border-plum/40 pl-4 bg-playful-purple/5 dark:bg-plum/5 py-3 rounded-r-xl font-medium">

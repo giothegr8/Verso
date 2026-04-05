@@ -5,7 +5,7 @@ import { VERSE_OF_THE_DAY, MOCK_VERSES } from "../constants";
 import { CheckCircle2, RotateCcw, Eye, EyeOff, ArrowRight, ArrowLeft, Star, Trophy, Languages, Sparkles, AlertCircle, Bookmark, Layers } from "lucide-react";
 import React from "react";
 import confetti from "canvas-confetti";
-import { getCurrentTranslationPair, getValidatedVerse } from "../utils/verseUtils";
+import { getCurrentTranslationPair, getValidatedVerse, getLocalizedBookName } from "../utils/verseUtils";
 import CoachCard from "./CoachCard";
 
 interface MemorizeProps {
@@ -72,9 +72,8 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
   }, [enText, stage, isRevealed]);
 
   const lastConfigRef = useRef({
-    activePairIndex: state.activePairIndex,
-    customPairEs: state.customPair.es,
-    customPairEn: state.customPair.en,
+    selectedTranslationsEs: state.selectedTranslations.es,
+    selectedTranslationsEn: state.selectedTranslations.en,
     memorizeMode: state.memorizeMode,
     verseId: verse.id
   });
@@ -82,9 +81,8 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
   // Reset stage when verse, translations, or display mode changes
   useEffect(() => {
     const configChanged = 
-      lastConfigRef.current.activePairIndex !== state.activePairIndex ||
-      lastConfigRef.current.customPairEs !== state.customPair.es ||
-      lastConfigRef.current.customPairEn !== state.customPair.en ||
+      lastConfigRef.current.selectedTranslationsEs !== state.selectedTranslations.es ||
+      lastConfigRef.current.selectedTranslationsEn !== state.selectedTranslations.en ||
       lastConfigRef.current.memorizeMode !== state.memorizeMode ||
       lastConfigRef.current.verseId !== verse.id;
 
@@ -94,9 +92,8 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
       setIsAlmostDone(false);
       
       lastConfigRef.current = {
-        activePairIndex: state.activePairIndex,
-        customPairEs: state.customPair.es,
-        customPairEn: state.customPair.en,
+        selectedTranslationsEs: state.selectedTranslations.es,
+        selectedTranslationsEn: state.selectedTranslations.en,
         memorizeMode: state.memorizeMode,
         verseId: verse.id
       };
@@ -113,7 +110,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
         }
       }));
     }
-  }, [verse.id, state.activePairIndex, state.customPair.es, state.customPair.en, state.memorizeMode, setState]);
+  }, [verse.id, state.selectedTranslations.es, state.selectedTranslations.en, state.memorizeMode, setState]);
 
   useEffect(() => {
     if (isAlmostDone) {
@@ -295,7 +292,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
             className="text-lg text-earth-light dark:text-lavender-muted font-medium max-w-sm mx-auto"
           >
             {state.primaryLanguage === 'es' 
-              ? 'Has memorizado el texto perfectamente. Ahora, ¿puedes recordar la cita?' 
+              ? 'Has memorizado el texto perfectamente. Ahora, ¿puedes recordar la cita bíblica?' 
               : 'You have memorized the text perfectly. Now, can you recall the citation?'}
           </motion.p>
         </div>
@@ -316,13 +313,13 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.5 }}
               onClick={() => onGoToFlashcards?.(verse.id)} 
-              className="w-full bg-playful-purple dark:bg-plum text-white rounded-[32px] flex items-center justify-center gap-4 py-6 shadow-2xl shadow-playful-purple/30 hover:scale-[1.02] active:scale-95 transition-all"
+              className="w-full bg-playful-purple dark:bg-plum text-white rounded-[32px] flex items-center justify-center gap-4 py-6 px-8 shadow-2xl shadow-playful-purple/30 hover:scale-[1.02] active:scale-95 transition-all group"
             >
-              <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+              <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
                 <Layers size={24} />
               </div>
-              <span className="text-lg font-black uppercase tracking-widest">
-                {state.primaryLanguage === 'es' ? 'Reto Final: Cita' : 'Final Challenge: Citation'}
+              <span className="text-base sm:text-lg font-black uppercase tracking-widest leading-tight text-center">
+                {state.primaryLanguage === 'es' ? 'Reto Final: Cita bíblica' : 'Final Challenge: Citation'}
               </span>
             </motion.button>
             
@@ -331,9 +328,15 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
               animate={{ opacity: 1 }}
               transition={{ delay: 0.7 }}
               onClick={() => setIsAlmostDone(false)}
-              className="text-xs font-black uppercase tracking-[0.2em] text-earth-light/40 dark:text-ivory/40 hover:text-playful-purple dark:hover:text-plum transition-colors py-2"
+              className="text-xs font-black uppercase tracking-[0.2em] text-earth-light/40 dark:text-ivory/40 hover:text-playful-purple dark:hover:text-plum transition-colors py-2 flex items-center gap-2"
             >
-              {state.primaryLanguage === 'es' ? '← Volver al texto' : '← Back to text'}
+              <span>{state.primaryLanguage === 'es' ? '← Volver al texto' : '← Back to text'}</span>
+              <div className="relative w-4 h-4 opacity-40 group-hover:opacity-100 transition-opacity">
+                <Star size={16} fill="currentColor" />
+                <div className="absolute inset-0 flex items-center justify-center text-[8px] leading-none select-none">
+                  ☺
+                </div>
+              </div>
             </motion.button>
           </div>
         </div>
@@ -355,7 +358,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                 initial={{ x: -20, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
               >
-                {verse.book} {verse.chapter}:{verse.verse}
+                {getLocalizedBookName(verse.book, state.memorizeMode)} {verse.chapter}:{verse.verse}
               </motion.h3>
               <div className="flex items-center gap-2">
                 <p className="text-xs font-black uppercase tracking-widest text-earth-light dark:text-lavender-muted">
@@ -365,7 +368,10 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                 <div className="flex items-center gap-1.5 bg-playful-purple/10 dark:bg-plum/20 px-3 py-1 rounded-full border border-playful-purple/20 dark:border-plum/30">
                   <Languages size={12} className="text-playful-purple dark:text-plum" />
                   <span className="text-[10px] font-black text-playful-purple dark:text-plum uppercase tracking-widest">
-                    {esDetail.label} / {enDetail.label}
+                    {state.memorizeMode === 'both' 
+                      ? `${esDetail.label} / ${enDetail.label}`
+                      : state.memorizeMode === 'es' ? esDetail.label : enDetail.label
+                    }
                   </span>
                 </div>
               </div>
@@ -533,7 +539,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
           <CoachCard 
             state={state}
             type={coachType}
-            verseReference={`${verse.book} ${verse.chapter}:${verse.verse}`}
+            verseReference={`${getLocalizedBookName(verse.book, state.memorizeMode)} ${verse.chapter}:${verse.verse}`}
             verseText={esText || enText || ""}
             stage={stage}
             status="succeeding"

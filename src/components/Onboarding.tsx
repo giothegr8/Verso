@@ -11,7 +11,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
   const [step, setStep] = useState(1);
   const [prefs, setPrefs] = useState<Partial<AppState>>({
     primaryLanguage: "es",
-    languageMode: "es",
+    memorizeMode: "es",
     theme: "system",
     reminders: {
       enabled: false,
@@ -105,14 +105,14 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               ].map((mode) => (
                 <button 
                   key={mode.id}
-                  onClick={() => setPrefs(p => ({ ...p, languageMode: mode.id as any, memorizeMode: mode.id as any }))}
-                  className={`card p-6 flex justify-between items-center transition-all border-2 ${prefs.languageMode === mode.id ? 'border-playful-purple bg-playful-purple/5 dark:bg-playful-purple/10 shadow-lg shadow-playful-purple/10' : 'border-earth/10 dark:border-white/10 bg-white dark:bg-charcoal'}`}
+                  onClick={() => setPrefs(p => ({ ...p, memorizeMode: mode.id as any }))}
+                  className={`card p-6 flex justify-between items-center transition-all border-2 ${prefs.memorizeMode === mode.id ? 'border-playful-purple bg-playful-purple/5 dark:bg-playful-purple/10 shadow-lg shadow-playful-purple/10' : 'border-earth/10 dark:border-white/10 bg-white dark:bg-charcoal'}`}
                 >
                   <div className="text-left">
                     <p className="font-black text-lg text-earth dark:text-ivory">{mode.label}</p>
                     <p className="text-xs font-bold text-earth/40 dark:text-ivory/40 uppercase tracking-widest">{mode.sub}</p>
                   </div>
-                  {prefs.languageMode === mode.id && <Check className="text-playful-purple" strokeWidth={3} />}
+                  {prefs.memorizeMode === mode.id && <Check className="text-playful-purple" strokeWidth={3} />}
                 </button>
               ))}
             </div>

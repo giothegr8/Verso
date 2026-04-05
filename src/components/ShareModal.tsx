@@ -2,7 +2,7 @@ import React from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { X, Download, Share2, Sparkles, BookOpen } from "lucide-react";
 import { AppState, TRANSLATION_DETAILS } from "../types";
-import { getCurrentTranslationPair } from "../utils/verseUtils";
+import { getCurrentTranslationPair, getLocalizedBookName } from "../utils/verseUtils";
 
 interface ShareModalProps {
   isOpen: boolean;
@@ -69,7 +69,7 @@ export default function ShareModal({ isOpen, onClose, verse, state, onNativeShar
                   </div>
 
                   <div className="space-y-6">
-                    {(state.languageMode === 'es' || state.languageMode === 'both') && (
+                    {(state.memorizeMode === 'es' || state.memorizeMode === 'both') && (
                       <div className="space-y-2">
                         <span className="text-[8px] font-black uppercase tracking-widest text-playful-purple/60">
                           {esDetail.name}
@@ -80,11 +80,11 @@ export default function ShareModal({ isOpen, onClose, verse, state, onNativeShar
                       </div>
                     )}
 
-                    {state.languageMode === 'both' && (
+                    {state.memorizeMode === 'both' && (
                       <div className="h-px w-12 bg-earth/10 dark:bg-white/10" />
                     )}
 
-                    {(state.languageMode === 'en' || state.languageMode === 'both') && (
+                    {(state.memorizeMode === 'en' || state.memorizeMode === 'both') && (
                       <div className="space-y-2">
                         <span className="text-[8px] font-black uppercase tracking-widest text-golden/60">
                           {enDetail.name}
@@ -100,7 +100,7 @@ export default function ShareModal({ isOpen, onClose, verse, state, onNativeShar
                 <div className="pt-8 border-t border-earth/5 dark:border-white/5 flex justify-between items-end relative z-10">
                   <div className="space-y-1">
                     <h4 className="text-xl font-serif font-black text-earth dark:text-ivory">
-                      {verse.book} {verse.chapter}:{verse.verse}
+                      {getLocalizedBookName(verse.book, state.memorizeMode)} {verse.chapter}:{verse.verse}
                     </h4>
                     <p className="text-[10px] font-black uppercase tracking-widest text-earth-light/40 dark:text-lavender-muted/40">
                       {state.primaryLanguage === 'es' ? 'Memorizado con Verso' : 'Memorized with Verso'}

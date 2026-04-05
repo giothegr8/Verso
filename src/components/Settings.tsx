@@ -22,44 +22,25 @@ export default function Settings({ state, setState, onClose }: SettingsProps) {
     setState(localState);
     
     setShowSavedToast(true);
+    // Faster feedback and closure
     setTimeout(() => {
       setShowSavedToast(false);
       onClose();
-    }, 1500);
+    }, 600);
   };
 
   const handleSpanishTranslationChange = (translation: Translation) => {
-    const pairIndex = TRANSLATION_PAIRS.findIndex(p => p.es === translation);
-    if (pairIndex !== -1) {
-      setLocalState(s => ({
-        ...s,
-        translationMode: 'default',
-        activePairIndex: pairIndex
-      }));
-    } else {
-      setLocalState(s => ({
-        ...s,
-        translationMode: 'custom',
-        customPair: { ...activePair, es: translation }
-      }));
-    }
+    setLocalState(s => ({
+      ...s,
+      selectedTranslations: { ...s.selectedTranslations, es: translation }
+    }));
   };
 
   const handleEnglishTranslationChange = (translation: Translation) => {
-    const pairIndex = TRANSLATION_PAIRS.findIndex(p => p.es === activePair.es && p.en === translation);
-    if (pairIndex !== -1) {
-      setLocalState(s => ({
-        ...s,
-        translationMode: 'default',
-        activePairIndex: pairIndex
-      }));
-    } else {
-      setLocalState(s => ({
-        ...s,
-        translationMode: 'custom',
-        customPair: { es: activePair.es, en: translation }
-      }));
-    }
+    setLocalState(s => ({
+      ...s,
+      selectedTranslations: { ...s.selectedTranslations, en: translation }
+    }));
   };
 
   return (
@@ -168,7 +149,7 @@ export default function Settings({ state, setState, onClose }: SettingsProps) {
               ].map((mode) => (
                 <button
                   key={mode.id}
-                  onClick={() => setLocalState(s => ({ ...s, memorizeMode: mode.id as any, languageMode: mode.id as any }))}
+                  onClick={() => setLocalState(s => ({ ...s, memorizeMode: mode.id as any }))}
                   className={`h-16 px-6 rounded-2xl font-black text-sm uppercase tracking-widest transition-all border-2 flex items-center justify-between ${localState.memorizeMode === mode.id ? 'bg-teal text-white border-teal shadow-lg shadow-teal/20' : 'bg-earth/5 dark:bg-white/5 border-transparent text-earth/60 dark:text-lavender-muted hover:bg-earth/10 dark:hover:bg-white/10'}`}
                 >
                   <span>{mode.label}</span>

@@ -59,11 +59,8 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
 
 const INITIAL_STATE: AppState = {
   primaryLanguage: "es",
-  languageMode: "es",
   memorizeMode: "es",
-  translationMode: "default",
-  activePairIndex: 0,
-  customPair: { es: "RVR1960", en: "KJV" },
+  selectedTranslations: { es: "RVR1960", en: "KJV" },
   theme: "system",
   onboarded: false,
   savedVerses: [],
