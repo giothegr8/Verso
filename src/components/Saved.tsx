@@ -176,18 +176,6 @@ export default function Saved({ state, setState, onStartMemorizing }: SavedProps
                     <h3 className="text-2xl font-serif font-black text-earth dark:text-ivory tracking-tight">
                       {getLocalizedBookName(verse.book, state.memorizeMode)} {verse.chapter}:{verse.verse}
                     </h3>
-                    <div className="flex items-center gap-2">
-                      {(state.memorizeMode === 'es' || state.memorizeMode === 'both') && (
-                        <span className="text-[10px] font-black uppercase tracking-tighter text-playful-purple bg-playful-purple/10 dark:bg-plum/20 px-2 py-0.5 rounded border border-playful-purple/20 dark:border-plum/30">
-                          {esDetail.label}
-                        </span>
-                      )}
-                      {(state.memorizeMode === 'en' || state.memorizeMode === 'both') && (
-                        <span className="text-[10px] font-black uppercase tracking-tighter text-golden bg-golden/10 dark:bg-gold/20 px-2 py-0.5 rounded border border-golden/20 dark:border-gold/30">
-                          {enDetail.label}
-                        </span>
-                      )}
-                    </div>
                   </div>
                   <div className="flex gap-2">
                     <motion.button 

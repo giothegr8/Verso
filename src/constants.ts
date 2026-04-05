@@ -303,15 +303,12 @@ export const MOCK_VERSES: Verse[] = [
   },
 ];
 
-export const getVerseOfTheDay = () => {
-  const today = new Date().toISOString().split('T')[0];
+export const getVerseByDate = (dateStr: string) => {
   let hash = 0;
-  for (let i = 0; i < today.length; i++) {
-    hash = ((hash << 5) - hash) + today.charCodeAt(i);
+  for (let i = 0; i < dateStr.length; i++) {
+    hash = ((hash << 5) - hash) + dateStr.charCodeAt(i);
     hash |= 0;
   }
   const index = Math.abs(hash) % MOCK_VERSES.length;
   return MOCK_VERSES[index];
 };
-
-export const VERSE_OF_THE_DAY = getVerseOfTheDay();

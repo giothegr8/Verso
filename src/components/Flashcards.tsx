@@ -1,9 +1,9 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { AppState } from "../types";
-import { VERSE_OF_THE_DAY, MOCK_VERSES } from "../constants";
+import { MOCK_VERSES, getVerseByDate } from "../constants";
 import { ChevronLeft, ChevronRight, RotateCcw, Sparkles, BookOpen, Brain, HelpCircle, Trophy, Star, Bookmark, CheckCircle2 } from "lucide-react";
-import { getValidatedVerse, getCurrentTranslationPair, getLocalizedBookName } from "../utils/verseUtils";
+import { getValidatedVerse, getCurrentTranslationPair, getLocalizedBookName, getLocalDateString } from "../utils/verseUtils";
 import confetti from "canvas-confetti";
 
 interface FlashcardsProps {
@@ -20,9 +20,12 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
   const [revealedIndices, setRevealedIndices] = useState<{ es: number[], en: number[] }>({ es: [], en: [] });
   
   const activePair = getCurrentTranslationPair(state);
+  const today = getLocalDateString();
+  const votd = getVerseByDate(today);
+  
   const verse = state.selectedVerseId 
-    ? (MOCK_VERSES.find(v => v.id === state.selectedVerseId) || VERSE_OF_THE_DAY)
-    : VERSE_OF_THE_DAY;
+    ? (MOCK_VERSES.find(v => v.id === state.selectedVerseId) || votd)
+    : votd;
 
   const { esText, enText } = useMemo(() => 
     getValidatedVerse(verse, state),
@@ -68,15 +71,54 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
   const handleComplete = () => {
     setIsCompleted(true);
     
+    const today = getLocalDateString();
+    
     // Mark as completed in global state
     setState(s => {
       const isAlreadyCompleted = s.progress.completedVerses.includes(verse.id);
+      
+      // Streak Logic
+      let newStreak = s.progress.currentStreak;
+      let newBestStreak = s.progress.bestStreak;
+      let newLastStreakDate = s.progress.lastStreakDate;
+      let newLastCompletedDailyVerseDate = s.progress.lastCompletedDailyVerseDate;
+
+      // Only increment streak if this is the first completion of the day
+      if (s.progress.lastPracticeDate !== today) {
+        // Check if it's a continuation of yesterday's streak
+        const yesterdayDate = new Date();
+        yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+        const yesterdayStr = `${yesterdayDate.getFullYear()}-${String(yesterdayDate.getMonth() + 1).padStart(2, '0')}-${String(yesterdayDate.getDate()).padStart(2, '0')}`;
+
+        if (s.progress.lastPracticeDate === yesterdayStr) {
+          newStreak += 1;
+        } else {
+          // If they missed a day, streak starts over at 1 today
+          newStreak = 1;
+        }
+        
+        if (newStreak > newBestStreak) {
+          newBestStreak = newStreak;
+        }
+        newLastStreakDate = today;
+      }
+
+      // Track if this was the daily verse
+      if (verse.id === votd.id) {
+        newLastCompletedDailyVerseDate = today;
+      }
+
       return {
         ...s,
         progress: {
           ...s.progress,
           totalMemorized: isAlreadyCompleted ? s.progress.totalMemorized : s.progress.totalMemorized + 1,
           completedVerses: isAlreadyCompleted ? s.progress.completedVerses : [...s.progress.completedVerses, verse.id],
+          currentStreak: newStreak,
+          bestStreak: newBestStreak,
+          lastPracticeDate: today,
+          lastStreakDate: newLastStreakDate,
+          lastCompletedDailyVerseDate: newLastCompletedDailyVerseDate,
         }
       };
     });

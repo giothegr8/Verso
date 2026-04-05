@@ -47,7 +47,9 @@ export interface UserProgress {
   bestStreak: number;
   completedVerses: string[]; // IDs
   verseStages: Record<string, number>; // verseId -> currentStage
-  lastPracticeDate: string | null;
+  lastPracticeDate: string | null; // ISO date string (YYYY-MM-DD) of last completion
+  lastStreakDate: string | null; // ISO date string (YYYY-MM-DD) when streak was last incremented
+  lastCompletedDailyVerseDate: string | null; // ISO date string (YYYY-MM-DD) of last VOTD completion
 }
 
 export type TranslationMode = "default" | "custom";

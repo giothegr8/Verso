@@ -19,7 +19,7 @@ const ENCOURAGEMENT_BANK = {
     "One more round.",
     "Nice work. Keep going.",
     "You’re getting closer.",
-    "Try it once more.",
+    "You’re almost there.",
     "Small steps lead to big treasures.",
     "You've got this. Keep it up.",
     "Every repetition hides it deeper in your heart."
@@ -29,7 +29,7 @@ const ENCOURAGEMENT_BANK = {
     "Una ronda más.",
     "Muy bien. Sigue así.",
     "Estás cada vez más cerca.",
-    "Inténtalo una vez más.",
+    "Ya casi lo tienes.",
     "Un paso más.",
     "Repásalo una vez más.",
     "Cada repetición lo guarda más profundo en tu corazón."

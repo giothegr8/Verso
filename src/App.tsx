@@ -12,7 +12,8 @@ import {
   RotateCcw
 } from "lucide-react";
 import { AppState, LanguageMode, Translation, TRANSLATION_PAIRS } from "./types";
-import { VERSE_OF_THE_DAY, MOCK_VERSES } from "./constants";
+import { MOCK_VERSES, getVerseByDate } from "./constants";
+import { getLocalDateString } from "./utils/verseUtils";
 
 // Components
 import Home from "./components/Home";
@@ -66,7 +67,7 @@ const INITIAL_STATE: AppState = {
   savedVerses: [],
   selectedVerseId: null,
   recentVerseIds: [],
-  lastVotdDate: null,
+  lastVotdDate: getLocalDateString(),
   progress: {
     totalMemorized: 0,
     currentStreak: 0,
@@ -74,6 +75,8 @@ const INITIAL_STATE: AppState = {
     completedVerses: [],
     verseStages: {},
     lastPracticeDate: null,
+    lastStreakDate: null,
+    lastCompletedDailyVerseDate: null,
   },
   reminders: {
     enabled: false,
@@ -138,17 +141,43 @@ export default function App() {
     localStorage.setItem("verso_state", JSON.stringify(state));
   }, [state]);
 
-  // Daily Reset Logic
+  // Daily Reset Logic - Using Local Midnight
   useEffect(() => {
-    const today = new Date().toISOString().split('T')[0];
-    if (state.lastVotdDate !== today) {
-      setState(prev => ({
-        ...prev,
-        lastVotdDate: today,
-        selectedVerseId: null, // Reset to VOTD
-      }));
-    }
-  }, [state.lastVotdDate]);
+    const checkMidnight = () => {
+      const today = getLocalDateString();
+      if (state.lastVotdDate !== today) {
+        setState(prev => {
+          // Check if streak should reset
+          // If today is not yesterday + 1, reset streak
+          // Yesterday calculation
+          const yesterdayDate = new Date();
+          yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+          const yesterdayStr = `${yesterdayDate.getFullYear()}-${String(yesterdayDate.getMonth() + 1).padStart(2, '0')}-${String(yesterdayDate.getDate()).padStart(2, '0')}`;
+          
+          let newStreak = prev.progress.currentStreak;
+          // If the last completion was NOT yesterday and NOT today, reset streak
+          if (prev.progress.lastPracticeDate !== yesterdayStr && prev.progress.lastPracticeDate !== today) {
+            newStreak = 0;
+          }
+
+          return {
+            ...prev,
+            lastVotdDate: today,
+            selectedVerseId: null, // Reset to VOTD
+            progress: {
+              ...prev.progress,
+              currentStreak: newStreak
+            }
+          };
+        });
+      }
+    };
+
+    // Check on mount and every minute
+    checkMidnight();
+    const interval = setInterval(checkMidnight, 60000);
+    return () => clearInterval(interval);
+  }, [state.lastVotdDate, state.progress.lastPracticeDate]);
 
   useEffect(() => {
     const isDark = 
@@ -201,10 +230,12 @@ export default function App() {
   };
 
   const getAnotherVerse = () => {
+    const today = getLocalDateString();
+    const votd = getVerseByDate(today);
     // Exclude current VOTD, current active verse, and recent history
-    const currentActiveId = state.selectedVerseId || VERSE_OF_THE_DAY.id;
+    const currentActiveId = state.selectedVerseId || votd.id;
     const excludedIds = new Set([
-      VERSE_OF_THE_DAY.id,
+      votd.id,
       currentActiveId,
       ...state.recentVerseIds
     ]);

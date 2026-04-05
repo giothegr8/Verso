@@ -4,7 +4,6 @@ import { AppState, TRANSLATION_PAIRS, LanguageMode, TRANSLATION_DETAILS, Transla
 import { X, Moon, Sun, Monitor, Languages, Palette, Trash2, Info, ChevronRight, BookOpen, Settings2, Check, Globe, Sparkles, MessageSquare, Save, Book } from "lucide-react";
 import { getCurrentTranslationPair } from "../utils/verseUtils";
 import CoachCard from "./CoachCard";
-import { VERSE_OF_THE_DAY } from "../constants";
 
 interface SettingsProps {
   state: AppState;

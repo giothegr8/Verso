@@ -1,9 +1,9 @@
 import { motion } from "motion/react";
 import { AppState, TRANSLATION_PAIRS, TRANSLATION_DETAILS } from "../types";
-import { VERSE_OF_THE_DAY, MOCK_VERSES } from "../constants";
+import { MOCK_VERSES, getVerseByDate } from "../constants";
 import { Globe, Play, Flame, Trophy, Sparkles, Languages, BookOpen, History, AlertCircle, Share2, Star, X } from "lucide-react";
 import React, { useState } from "react";
-import { getCurrentTranslationPair, getValidatedVerse, getLocalizedBookName } from "../utils/verseUtils";
+import { getCurrentTranslationPair, getValidatedVerse, getLocalizedBookName, getLocalDateString } from "../utils/verseUtils";
 import { handleShare } from "../utils/shareUtils";
 import { AnimatePresence } from "motion/react";
 import ShareModal from "./ShareModal";
@@ -25,11 +25,14 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
   const esDetail = TRANSLATION_DETAILS[activePair?.es || "RVR1960"] || TRANSLATION_DETAILS["RVR1960"];
   const enDetail = TRANSLATION_DETAILS[activePair?.en || "KJV"] || TRANSLATION_DETAILS["KJV"];
 
-  const currentVerse = state.selectedVerseId 
-    ? (MOCK_VERSES.find(v => v.id === state.selectedVerseId) || VERSE_OF_THE_DAY)
-    : VERSE_OF_THE_DAY;
+  const today = getLocalDateString();
+  const votd = getVerseByDate(today);
 
-  const isVotd = currentVerse.id === VERSE_OF_THE_DAY.id;
+  const currentVerse = state.selectedVerseId 
+    ? (MOCK_VERSES.find(v => v.id === state.selectedVerseId) || votd)
+    : votd;
+
+  const isVotd = currentVerse.id === votd.id;
 
   const { esText, enText, esError, enError } = getValidatedVerse(currentVerse, state);
 

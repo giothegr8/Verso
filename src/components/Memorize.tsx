@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { AppState, TRANSLATION_PAIRS, TRANSLATION_DETAILS } from "../types";
-import { VERSE_OF_THE_DAY, MOCK_VERSES } from "../constants";
+import { MOCK_VERSES, getVerseByDate } from "../constants";
 import { CheckCircle2, RotateCcw, Eye, EyeOff, ArrowRight, ArrowLeft, Star, Trophy, Languages, Sparkles, AlertCircle, Bookmark, Layers } from "lucide-react";
 import React from "react";
 import confetti from "canvas-confetti";
-import { getCurrentTranslationPair, getValidatedVerse, getLocalizedBookName } from "../utils/verseUtils";
+import { getCurrentTranslationPair, getValidatedVerse, getLocalizedBookName, getLocalDateString } from "../utils/verseUtils";
 import CoachCard from "./CoachCard";
 
 interface MemorizeProps {
@@ -24,9 +24,12 @@ const STAGES = [
 ];
 
 export default function Memorize({ state, setState, onComplete, onGoToFlashcards }: MemorizeProps) {
+  const today = getLocalDateString();
+  const votd = getVerseByDate(today);
+  
   const verse = state.selectedVerseId 
-    ? (MOCK_VERSES.find(v => v.id === state.selectedVerseId) || VERSE_OF_THE_DAY)
-    : VERSE_OF_THE_DAY;
+    ? (MOCK_VERSES.find(v => v.id === state.selectedVerseId) || votd)
+    : votd;
 
   const [stage, setStage] = useState(() => state.progress.verseStages[verse.id] || 1);
   const [isRevealed, setIsRevealed] = useState(false);
