@@ -1,9 +1,12 @@
 import { motion } from "motion/react";
 import { AppState, TRANSLATION_PAIRS, TRANSLATION_DETAILS } from "../types";
 import { VERSE_OF_THE_DAY, MOCK_VERSES } from "../constants";
-import { Globe, Play, Flame, Trophy, Sparkles, Languages, BookOpen, History, AlertCircle } from "lucide-react";
-import React from "react";
+import { Globe, Play, Flame, Trophy, Sparkles, Languages, BookOpen, History, AlertCircle, Share2, Star, X } from "lucide-react";
+import React, { useState } from "react";
 import { getCurrentTranslationPair, getValidatedVerse } from "../utils/verseUtils";
+import { handleShare } from "../utils/shareUtils";
+import { AnimatePresence } from "motion/react";
+import ShareModal from "./ShareModal";
 
 interface HomeProps {
   state: AppState;
@@ -13,6 +16,9 @@ interface HomeProps {
 }
 
 export default function Home({ state, setState, onStartMemorizing, onGetAnotherVerse }: HomeProps) {
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const activePair = getCurrentTranslationPair(state);
   
   const esDetail = TRANSLATION_DETAILS[activePair?.es || "RVR1960"] || TRANSLATION_DETAILS["RVR1960"];
@@ -26,6 +32,24 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
 
   const { esText, enText, esError, enError } = getValidatedVerse(currentVerse, state);
 
+  const onShareClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsShareModalOpen(true);
+  };
+
+  const onNativeShare = async () => {
+    const title = `Verso: ${currentVerse.book} ${currentVerse.chapter}:${currentVerse.verse}`;
+    const text = `${currentVerse.book} ${currentVerse.chapter}:${currentVerse.verse}\n\n${esText ? `ES: ${esText}\n` : ''}${enText ? `EN: ${enText}` : ''}\n\nShared via Verso`;
+    const url = window.location.href;
+
+    await handleShare(title, text, url, (msg) => {
+      setToastMessage(msg === "Shared successfully!" ? (state.primaryLanguage === 'es' ? "¡Compartido!" : "Shared!") : (msg === "Copied to clipboard!" ? (state.primaryLanguage === 'es' ? "¡Copiado!" : "Copied!") : msg));
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 2000);
+    });
+    setIsShareModalOpen(false);
+  };
+
   return (
     <motion.div 
       initial={{ opacity: 0, y: 20 }}
@@ -33,6 +57,33 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
       transition={{ duration: 0.6, ease: "easeOut" }}
       className="h-full flex flex-col space-y-12 pb-24"
     >
+      {/* Share Modal */}
+      <ShareModal 
+        isOpen={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
+        verse={{
+          ...currentVerse,
+          textEs: esText,
+          textEn: enText
+        }}
+        state={state}
+        onNativeShare={onNativeShare}
+      />
+
+      {/* Toast Notification */}
+      <AnimatePresence>
+        {showToast && (
+          <motion.div 
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 bg-earth dark:bg-ivory text-white dark:text-earth px-6 py-3 rounded-full font-black text-sm shadow-2xl flex items-center gap-2"
+          >
+            <Star size={16} fill="currentColor" />
+            {toastMessage}
+          </motion.div>
+        )}
+      </AnimatePresence>
       {/* Header Section - Clean and Focused */}
       <div className="flex justify-between items-center">
         <div className="space-y-1">
@@ -88,11 +139,20 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
         <motion.div 
           whileHover={{ scale: 1.01 }}
           whileTap={{ scale: 0.99 }}
-          initial={{ x: -20, opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
-          transition={{ delay: 0.3, type: "spring" }}
           className="card bg-white dark:bg-charcoal p-10 shadow-2xl border-earth/10 dark:border-white/10 relative overflow-hidden group cursor-pointer"
         >
+          {/* Repositioned Share Button - Top Right */}
+          <div className="absolute top-6 right-6 z-20">
+            <motion.button 
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={onShareClick}
+              className="p-3 rounded-2xl bg-earth/5 dark:bg-white/5 text-earth/60 dark:text-ivory/60 hover:text-playful-purple dark:hover:text-plum hover:bg-playful-purple/10 dark:hover:bg-plum/20 transition-all border border-earth/5 dark:border-white/5"
+            >
+              <Share2 size={20} />
+            </motion.button>
+          </div>
+
           <div className="relative space-y-10">
             <div className="space-y-8">
               {(state.languageMode === 'es' || state.languageMode === 'both') && (

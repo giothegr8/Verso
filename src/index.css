@@ -194,15 +194,13 @@
     #D97706, /* golden */
     #6D28D9
   );
-  background-size: 400% 400%;
+  background-size: 200% 200%;
   z-index: -1;
   border-radius: inherit;
-  animation: shimmer-border 12s ease infinite;
-  opacity: 0.6;
-  filter: blur(2px);
+  animation: shimmer-border 8s linear infinite;
+  opacity: 0.4;
 }
 
 .dark .shimmer-border::before {
-  opacity: 0.8;
-  filter: blur(3px);
+  opacity: 0.6;
 }

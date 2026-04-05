@@ -2,16 +2,20 @@ import React, { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { AppState } from "../types";
 import { VERSE_OF_THE_DAY, MOCK_VERSES } from "../constants";
-import { ChevronLeft, ChevronRight, RotateCcw, Sparkles, BookOpen, Brain, HelpCircle } from "lucide-react";
+import { ChevronLeft, ChevronRight, RotateCcw, Sparkles, BookOpen, Brain, HelpCircle, Trophy, Star, Bookmark, CheckCircle2 } from "lucide-react";
 import { getValidatedVerse, getCurrentTranslationPair } from "../utils/verseUtils";
+import confetti from "canvas-confetti";
 
 interface FlashcardsProps {
   state: AppState;
+  setState: React.Dispatch<React.SetStateAction<AppState>>;
   onMemorize: (verseId: string) => void;
+  onGoToSaved?: () => void;
 }
 
-export default function Flashcards({ state, onMemorize }: FlashcardsProps) {
+export default function Flashcards({ state, setState, onMemorize, onGoToSaved }: FlashcardsProps) {
   const [isFlipped, setIsFlipped] = useState(false);
+  const [isCompleted, setIsCompleted] = useState(false);
   const [clueCount, setClueCount] = useState(0);
   const [revealedIndices, setRevealedIndices] = useState<{ es: number[], en: number[] }>({ es: [], en: [] });
   
@@ -28,9 +32,55 @@ export default function Flashcards({ state, onMemorize }: FlashcardsProps) {
   // Reset state when verse changes
   useEffect(() => {
     setIsFlipped(false);
+    setIsCompleted(false);
     setClueCount(0);
     setRevealedIndices({ es: [], en: [] });
   }, [verse.id]);
+
+  useEffect(() => {
+    if (isCompleted) {
+      const duration = 3 * 1000;
+      const animationEnd = Date.now() + duration;
+      const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
+
+      const randomInRange = (min: number, max: number) => Math.random() * (max - min) + min;
+
+      const interval: any = setInterval(function() {
+        const timeLeft = animationEnd - Date.now();
+
+        if (timeLeft <= 0) {
+          return clearInterval(interval);
+        }
+
+        const particleCount = 50 * (timeLeft / duration);
+        confetti({ ...defaults, particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } });
+        confetti({ ...defaults, particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } });
+      }, 250);
+
+      return () => clearInterval(interval);
+    }
+  }, [isCompleted]);
+
+  const onFlip = () => {
+    setIsFlipped(!isFlipped);
+  };
+
+  const handleComplete = () => {
+    setIsCompleted(true);
+    
+    // Mark as completed in global state
+    setState(s => {
+      const isAlreadyCompleted = s.progress.completedVerses.includes(verse.id);
+      return {
+        ...s,
+        progress: {
+          ...s.progress,
+          totalMemorized: isAlreadyCompleted ? s.progress.totalMemorized : s.progress.totalMemorized + 1,
+          completedVerses: isAlreadyCompleted ? s.progress.completedVerses : [...s.progress.completedVerses, verse.id],
+        }
+      };
+    });
+  };
 
   const showBilingual = state.languageMode === 'both';
 
@@ -136,6 +186,102 @@ export default function Flashcards({ state, onMemorize }: FlashcardsProps) {
     );
   };
 
+  if (isCompleted) {
+    return (
+      <motion.div 
+        className="h-full flex flex-col items-center justify-center text-center space-y-10 py-12"
+        initial={{ opacity: 0, scale: 0.8 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ type: "spring", damping: 15 }}
+      >
+        <div className="relative">
+          <motion.div 
+            className="w-40 h-40 bg-gold rounded-[48px] flex items-center justify-center shadow-2xl shadow-gold/40"
+            animate={{ 
+              rotate: [0, 10, -10, 10, 0], 
+              scale: [1, 1.1, 1],
+              y: [0, -10, 0]
+            }}
+            transition={{ duration: 2, repeat: Infinity }}
+          >
+            <Trophy size={80} className="text-white" fill="currentColor" />
+          </motion.div>
+          
+          {/* Animated Stars */}
+          {[...Array(8)].map((_, i) => (
+            <motion.div
+              key={i}
+              className="absolute top-1/2 left-1/2"
+              initial={{ opacity: 0, scale: 0 }}
+              animate={{ 
+                x: Math.cos(i * 45 * Math.PI / 180) * 120,
+                y: Math.sin(i * 45 * Math.PI / 180) * 120,
+                opacity: [0, 1, 0],
+                scale: [0, 1.5, 0],
+                rotate: [0, 180]
+              }}
+              transition={{ duration: 2, repeat: Infinity, delay: i * 0.1 }}
+            >
+              <Star size={24} className="text-gold" fill="currentColor" />
+            </motion.div>
+          ))}
+        </div>
+
+        <div className="space-y-4 px-6">
+          <motion.h2 
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.3 }}
+            className="text-5xl font-serif font-black text-earth dark:text-ivory"
+          >
+            {state.primaryLanguage === 'es' ? '¡Increíble!' : 'Amazing!'}
+          </motion.h2>
+          <motion.p 
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.4 }}
+            className="text-xl text-earth-light dark:text-lavender-muted font-medium max-w-sm mx-auto"
+          >
+            {state.primaryLanguage === 'es' 
+              ? 'Has guardado este tesoro en tu corazón.' 
+              : 'You have hidden this treasure in your heart.'}
+          </motion.p>
+        </div>
+
+        <div className="w-full max-w-sm space-y-6 px-6">
+          <div className="space-y-4">
+            <motion.button 
+              initial={{ x: -20, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              transition={{ delay: 0.5 }}
+              onClick={() => {
+                setIsFlipped(false);
+                setIsCompleted(false);
+                setClueCount(0);
+                setRevealedIndices({ es: [], en: [] });
+              }} 
+              className="btn-primary w-full flex items-center justify-center gap-3 py-5"
+            >
+              <RotateCcw size={24} />
+              <span className="text-lg font-black uppercase tracking-widest">{state.primaryLanguage === 'es' ? 'Repetir' : 'Repeat'}</span>
+            </motion.button>
+            
+            <motion.button 
+              initial={{ x: 20, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              transition={{ delay: 0.6 }}
+              onClick={onGoToSaved}
+              className="w-full py-5 rounded-[32px] bg-white dark:bg-charcoal text-earth dark:text-ivory font-black text-lg flex items-center justify-center gap-3 hover:bg-earth/5 dark:hover:bg-white/5 transition-all shadow-xl border-2 border-earth/5 dark:border-white/5"
+            >
+              <Bookmark size={24} className="text-playful-purple dark:text-plum" fill="currentColor" />
+              <span className="font-black uppercase tracking-widest">{state.primaryLanguage === 'es' ? 'Ver Mi Tesoro' : 'View My Treasure'}</span>
+            </motion.button>
+          </div>
+        </div>
+      </motion.div>
+    );
+  }
+
   return (
     <div className="space-y-8 pb-24 animate-in fade-in slide-in-from-bottom-4 duration-700 flex flex-col items-center">
       {/* Page Header */}
@@ -155,7 +301,7 @@ export default function Flashcards({ state, onMemorize }: FlashcardsProps) {
           className="w-full h-full preserve-3d cursor-pointer"
           animate={{ rotateY: isFlipped ? 180 : 0 }}
           transition={{ type: "spring", stiffness: 260, damping: 20 }}
-          onClick={() => setIsFlipped(!isFlipped)}
+          onClick={onFlip}
         >
           {/* Front Side - Reference Recall Challenge */}
           <div className="absolute inset-0 backface-hidden">
@@ -286,6 +432,30 @@ export default function Flashcards({ state, onMemorize }: FlashcardsProps) {
             </div>
           </div>
         </motion.div>
+      </div>
+
+      {/* Completion Action - Appears only when revealed */}
+      <div className="w-full max-w-md h-24 flex items-center justify-center">
+        <AnimatePresence>
+          {isFlipped && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+              className="w-full px-4"
+            >
+              <button
+                onClick={handleComplete}
+                className="w-full bg-teal text-white rounded-[24px] py-6 flex items-center justify-center gap-3 shadow-xl shadow-teal/20 hover:scale-[1.02] active:scale-95 transition-all"
+              >
+                <CheckCircle2 size={24} />
+                <span className="text-lg font-black uppercase tracking-widest">
+                  {state.primaryLanguage === 'es' ? 'Versículo Completado' : 'Complete Verse'}
+                </span>
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Reset Control - Consistent and clear */}

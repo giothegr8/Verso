@@ -194,50 +194,54 @@ export default function Settings({ state, setState, onClose }: SettingsProps) {
 
             <div className="space-y-8">
               {/* Spanish Translations */}
-              <div className="space-y-4">
-                <p className="text-[10px] font-black uppercase tracking-widest text-earth-light/60 dark:text-lavender-muted px-1">
-                  {localState.primaryLanguage === 'es' ? 'Traducción al Español' : 'Spanish Translation'}
-                </p>
-                <div className="grid grid-cols-1 gap-3">
-                  {[
-                    { id: 'RVR1960', label: 'Reina-Valera 1960' },
-                    { id: 'NVI', label: 'NVI' },
-                    { id: 'NBLA', label: 'NBLA' }
-                  ].map((trans) => (
-                    <button
-                      key={trans.id}
-                      onClick={() => handleSpanishTranslationChange(trans.id as Translation)}
-                      className={`h-16 px-6 rounded-2xl font-black text-sm uppercase tracking-widest transition-all border-2 flex items-center justify-between ${activePair.es === trans.id ? 'bg-sky-blue text-white border-sky-blue shadow-lg shadow-sky-blue/20' : 'bg-earth/5 dark:bg-white/5 border-transparent text-earth/60 dark:text-lavender-muted hover:bg-earth/10 dark:hover:bg-white/10'}`}
-                    >
-                      <span>{trans.label}</span>
-                      {activePair.es === trans.id && <Check size={20} />}
-                    </button>
-                  ))}
+              {(localState.memorizeMode === 'es' || localState.memorizeMode === 'both') && (
+                <div className="space-y-4">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-earth-light/60 dark:text-lavender-muted px-1">
+                    {localState.primaryLanguage === 'es' ? 'Traducción al Español' : 'Spanish Translation'}
+                  </p>
+                  <div className="grid grid-cols-1 gap-3">
+                    {[
+                      { id: 'RVR1960', label: 'Reina-Valera 1960' },
+                      { id: 'NVI', label: 'NVI' },
+                      { id: 'NBLA', label: 'NBLA' }
+                    ].map((trans) => (
+                      <button
+                        key={trans.id}
+                        onClick={() => handleSpanishTranslationChange(trans.id as Translation)}
+                        className={`h-16 px-6 rounded-2xl font-black text-sm uppercase tracking-widest transition-all border-2 flex items-center justify-between ${activePair.es === trans.id ? 'bg-sky-blue text-white border-sky-blue shadow-lg shadow-sky-blue/20' : 'bg-earth/5 dark:bg-white/5 border-transparent text-earth/60 dark:text-lavender-muted hover:bg-earth/10 dark:hover:bg-white/10'}`}
+                      >
+                        <span>{trans.label}</span>
+                        {activePair.es === trans.id && <Check size={20} />}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* English Translations */}
-              <div className="space-y-4">
-                <p className="text-[10px] font-black uppercase tracking-widest text-earth-light/60 dark:text-lavender-muted px-1">
-                  {localState.primaryLanguage === 'es' ? 'Traducción al Inglés' : 'English Translation'}
-                </p>
-                <div className="grid grid-cols-1 gap-3">
-                  {[
-                    { id: 'KJV', label: 'KJV' },
-                    { id: 'NIV', label: 'NIV' },
-                    { id: 'NASB', label: 'NASB' }
-                  ].map((trans) => (
-                    <button
-                      key={trans.id}
-                      onClick={() => handleEnglishTranslationChange(trans.id as Translation)}
-                      className={`h-16 px-6 rounded-2xl font-black text-sm uppercase tracking-widest transition-all border-2 flex items-center justify-between ${activePair.en === trans.id ? 'bg-golden text-white border-golden shadow-lg shadow-golden/20' : 'bg-earth/5 dark:bg-white/5 border-transparent text-earth/60 dark:text-lavender-muted hover:bg-earth/10 dark:hover:bg-white/10'}`}
-                    >
-                      <span>{trans.label}</span>
-                      {activePair.en === trans.id && <Check size={20} />}
-                    </button>
-                  ))}
+              {(localState.memorizeMode === 'en' || localState.memorizeMode === 'both') && (
+                <div className="space-y-4">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-earth-light/60 dark:text-lavender-muted px-1">
+                    {localState.primaryLanguage === 'es' ? 'Traducción al Inglés' : 'English Translation'}
+                  </p>
+                  <div className="grid grid-cols-1 gap-3">
+                    {[
+                      { id: 'KJV', label: 'KJV' },
+                      { id: 'NIV', label: 'NIV' },
+                      { id: 'NASB', label: 'NASB' }
+                    ].map((trans) => (
+                      <button
+                        key={trans.id}
+                        onClick={() => handleEnglishTranslationChange(trans.id as Translation)}
+                        className={`h-16 px-6 rounded-2xl font-black text-sm uppercase tracking-widest transition-all border-2 flex items-center justify-between ${activePair.en === trans.id ? 'bg-golden text-white border-golden shadow-lg shadow-golden/20' : 'bg-earth/5 dark:bg-white/5 border-transparent text-earth/60 dark:text-lavender-muted hover:bg-earth/10 dark:hover:bg-white/10'}`}
+                      >
+                        <span>{trans.label}</span>
+                        {activePair.en === trans.id && <Check size={20} />}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </section>
 

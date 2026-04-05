@@ -244,8 +244,25 @@ export default function App() {
   const renderTab = () => {
     switch (activeTab) {
       case "home": return <Home state={state} setState={setState} onStartMemorizing={startMemorizing} onGetAnotherVerse={getAnotherVerse} />;
-      case "memorize": return <Memorize state={state} setState={setState} onComplete={() => setActiveTab("saved")} />;
-      case "flashcards": return <Flashcards state={state} onMemorize={startMemorizing} />;
+      case "memorize": return (
+        <Memorize 
+          state={state} 
+          setState={setState} 
+          onComplete={() => setActiveTab("saved")} 
+          onGoToFlashcards={(verseId) => {
+            setState(s => ({ ...s, selectedVerseId: verseId }));
+            setActiveTab("flashcards");
+          }}
+        />
+      );
+      case "flashcards": return (
+        <Flashcards 
+          state={state} 
+          setState={setState} 
+          onMemorize={startMemorizing} 
+          onGoToSaved={() => setActiveTab("saved")}
+        />
+      );
       case "saved": return <Saved state={state} setState={setState} onStartMemorizing={startMemorizing} />;
       default: return <Home state={state} setState={setState} onStartMemorizing={startMemorizing} onGetAnotherVerse={getAnotherVerse} />;
     }

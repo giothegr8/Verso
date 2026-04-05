@@ -1,9 +1,11 @@
 import { motion, AnimatePresence } from "motion/react";
 import { AppState, TRANSLATION_PAIRS, TRANSLATION_DETAILS } from "../types";
-import { Bookmark, Share2, Trash2, BookOpen, Search, Languages, Star, Heart, AlertCircle } from "lucide-react";
+import { Bookmark, Share2, Trash2, BookOpen, Search, Languages, Star, Heart, AlertCircle, X } from "lucide-react";
 import { MOCK_VERSES } from "../constants";
 import React, { useState } from "react";
+import { handleShare } from "../utils/shareUtils";
 import { getCurrentTranslationPair, getValidatedVerse } from "../utils/verseUtils";
+import ShareModal from "./ShareModal";
 
 interface SavedProps {
   state: AppState;
@@ -13,6 +15,10 @@ interface SavedProps {
 
 export default function Saved({ state, setState, onStartMemorizing }: SavedProps) {
   const [searchQuery, setSearchQuery] = useState("");
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [selectedVerseForShare, setSelectedVerseForShare] = useState<any>(null);
   const activePair = getCurrentTranslationPair(state);
   
   const esDetail = TRANSLATION_DETAILS[activePair?.es || "RVR1960"] || TRANSLATION_DETAILS["RVR1960"];
@@ -37,13 +43,40 @@ export default function Saved({ state, setState, onStartMemorizing }: SavedProps
     }));
   };
 
-  const handleShare = (verse: any) => {
-    // Placeholder for share functionality
-    console.log("Sharing verse:", verse);
+  const onShareClick = (verse: any) => {
+    setSelectedVerseForShare(verse);
+    setIsShareModalOpen(true);
+  };
+
+  const onNativeShare = async () => {
+    if (!selectedVerseForShare) return;
+    const { esText, enText } = getValidatedVerse(selectedVerseForShare, state);
+    const title = `Verso: ${selectedVerseForShare.book} ${selectedVerseForShare.chapter}:${selectedVerseForShare.verse}`;
+    const text = `${selectedVerseForShare.book} ${selectedVerseForShare.chapter}:${selectedVerseForShare.verse}\n\n${esText ? `ES: ${esText}\n` : ''}${enText ? `EN: ${enText}` : ''}\n\nShared via Verso`;
+    const url = window.location.href;
+
+    await handleShare(title, text, url, (msg) => {
+      setToastMessage(msg === "Shared successfully!" ? (state.primaryLanguage === 'es' ? "¡Compartido!" : "Shared!") : (msg === "Copied to clipboard!" ? (state.primaryLanguage === 'es' ? "¡Copiado!" : "Copied!") : msg));
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 2000);
+    });
+    setIsShareModalOpen(false);
   };
 
   return (
     <div className="space-y-8 pb-24">
+      {/* Share Modal */}
+      <ShareModal 
+        isOpen={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
+        verse={selectedVerseForShare ? {
+          ...selectedVerseForShare,
+          textEs: getValidatedVerse(selectedVerseForShare, state).esText,
+          textEn: getValidatedVerse(selectedVerseForShare, state).enText
+        } : null}
+        state={state}
+        onNativeShare={onNativeShare}
+      />
       <div className="flex justify-between items-end">
         <div className="space-y-1">
           <h2 className="text-3xl font-serif font-black text-earth dark:text-ivory tracking-tight">
@@ -95,6 +128,21 @@ export default function Saved({ state, setState, onStartMemorizing }: SavedProps
 
       {/* List */}
       <div className="space-y-6">
+        {/* Toast Notification */}
+        <AnimatePresence>
+          {showToast && (
+            <motion.div 
+              initial={{ opacity: 0, y: 50 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 bg-earth dark:bg-ivory text-white dark:text-earth px-6 py-3 rounded-full font-black text-sm shadow-2xl flex items-center gap-2"
+            >
+              <Star size={16} fill="currentColor" />
+              {toastMessage}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <AnimatePresence mode="popLayout">
           {filteredList.map((verse, idx) => {
             const { esText, enText, esError, enError } = getValidatedVerse(verse, state);
@@ -138,7 +186,7 @@ export default function Saved({ state, setState, onStartMemorizing }: SavedProps
                     <motion.button 
                       whileHover={{ scale: 1.1 }}
                       whileTap={{ scale: 0.9 }}
-                      onClick={() => handleShare(verse)}
+                      onClick={() => onShareClick(verse)}
                       className="p-2.5 rounded-xl bg-earth/5 dark:bg-white/5 text-earth/60 dark:text-ivory/60 hover:text-playful-purple dark:hover:text-plum hover:bg-playful-purple/10 dark:hover:bg-plum/20 transition-all"
                     >
                       <Share2 size={18} />

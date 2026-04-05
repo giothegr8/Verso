@@ -27,9 +27,12 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
       case 1:
         return (
           <motion.div 
+            key="step1"
             className="space-y-8 text-center"
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.3 }}
           >
             <div className="w-24 h-24 bg-playful-purple/10 rounded-[32px] flex items-center justify-center mx-auto text-playful-purple shadow-lg shadow-playful-purple/10">
               <Book size={48} />
@@ -50,9 +53,12 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
       case 2:
         return (
           <motion.div 
+            key="step2"
             className="space-y-8"
-            initial={{ opacity: 0, x: 20 }}
+            initial={{ opacity: 0, x: 10 }}
             animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -10 }}
+            transition={{ duration: 0.3 }}
           >
             <div className="space-y-2">
               <h2 className="text-3xl font-serif font-black text-earth dark:text-ivory tracking-tight">Tu idioma</h2>
@@ -80,9 +86,12 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
       case 3:
         return (
           <motion.div 
+            key="step3"
             className="space-y-8"
-            initial={{ opacity: 0, x: 20 }}
+            initial={{ opacity: 0, x: 10 }}
             animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -10 }}
+            transition={{ duration: 0.3 }}
           >
             <div className="space-y-2">
               <h2 className="text-3xl font-serif font-black text-earth dark:text-ivory tracking-tight">Memorización bilingüe</h2>
@@ -120,8 +129,8 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
   };
 
   return (
-    <div className="min-h-screen bg-parchment dark:bg-espresso flex flex-col justify-center p-8 max-w-md mx-auto transition-colors duration-500">
-      <AnimatePresence mode="wait">
+    <div className="min-h-screen bg-parchment dark:bg-espresso flex flex-col justify-center p-8 max-w-md mx-auto transition-colors duration-500 relative overflow-hidden">
+      <AnimatePresence mode="popLayout">
         {renderStep()}
       </AnimatePresence>
     </div>
