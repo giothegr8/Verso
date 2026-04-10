@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Sparkles, Brain, Clock, Star, RefreshCw, MessageCircle } from "lucide-react";
+import { Sparkles, Brain, Clock, Star, RefreshCw, MessageCircle, Smile } from "lucide-react";
 import { AppState } from "../types";
 
 interface CoachCardProps {
@@ -120,13 +120,7 @@ export default function CoachCard({ state, type, verseReference, verseText, stag
   }, [type, verseReference, stage, status, state.primaryLanguage]);
 
   const getIcon = () => {
-    switch (type) {
-      case 'encouragement': return <Sparkles size={18} className="text-golden" />;
-      case 'suggestion': return <Clock size={18} className="text-sky-blue" />;
-      case 'reflection': return <Star size={18} className="text-coral" />;
-      case 'tip': return <RefreshCw size={18} className="text-teal" />;
-      default: return <MessageCircle size={18} />;
-    }
+    return <Sparkles size={18} className="text-playful-purple" fill="currentColor" />;
   };
 
   const getLabel = () => {

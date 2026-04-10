@@ -17,6 +17,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
       enabled: false,
       type: "notification",
       time: "09:00",
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     },
   });
 
@@ -40,8 +41,8 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
             <div className="space-y-4">
               <h1 className="text-5xl font-serif font-black text-playful-purple tracking-tighter">Verso</h1>
               <p className="text-lg font-medium text-earth/60 dark:text-ivory/60">
-                Memoriza un versículo a la vez.<br />
-                One verse at a time.
+                Memoriza un versículo al día.<br />
+                One verse a day.
               </p>
             </div>
             <button onClick={next} className="w-full btn-primary">

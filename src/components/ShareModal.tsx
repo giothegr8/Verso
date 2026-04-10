@@ -1,6 +1,6 @@
 import React from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { X, Download, Share2, Sparkles, BookOpen } from "lucide-react";
+import { X, Download, Share2, Sparkles, BookOpen, Smile } from "lucide-react";
 import { AppState, TRANSLATION_DETAILS } from "../types";
 import { getCurrentTranslationPair, getLocalizedBookName } from "../utils/verseUtils";
 
@@ -9,7 +9,7 @@ interface ShareModalProps {
   onClose: () => void;
   verse: any;
   state: AppState;
-  onNativeShare: () => void;
+  onNativeShare: (elementId: string) => void;
 }
 
 export default function ShareModal({ isOpen, onClose, verse, state, onNativeShare }: ShareModalProps) {
@@ -18,6 +18,8 @@ export default function ShareModal({ isOpen, onClose, verse, state, onNativeShar
   const enDetail = TRANSLATION_DETAILS[activePair?.en || "KJV"] || TRANSLATION_DETAILS["KJV"];
 
   if (!verse) return null;
+
+  const cardId = "share-card-preview";
 
   return (
     <AnimatePresence>
@@ -53,7 +55,7 @@ export default function ShareModal({ isOpen, onClose, verse, state, onNativeShar
             {/* Preview Area */}
             <div className="flex-1 p-8 overflow-y-auto max-h-[70vh]">
               <div 
-                id="share-card-preview"
+                id={cardId}
                 className="aspect-[4/5] w-full bg-white dark:bg-charcoal rounded-[32px] shadow-xl p-10 flex flex-col justify-between relative overflow-hidden border border-earth/5 dark:border-white/5"
               >
                 {/* Decorative Background Elements */}
@@ -62,7 +64,7 @@ export default function ShareModal({ isOpen, onClose, verse, state, onNativeShar
                 
                 <div className="space-y-8 relative z-10">
                   <div className="flex items-center gap-2 mb-6">
-                    <Sparkles size={16} className="text-golden" />
+                    <Smile size={16} className="text-coral" fill="currentColor" />
                     <span className="text-[10px] font-black uppercase tracking-[0.2em] text-earth-light/60 dark:text-lavender-muted/60">
                       Verso Daily
                     </span>
@@ -109,24 +111,47 @@ export default function ShareModal({ isOpen, onClose, verse, state, onNativeShar
                   
                   {/* Watermark */}
                   <div className="flex items-center gap-2 opacity-40">
-                    <div className="w-6 h-6 bg-playful-purple rounded-lg flex items-center justify-center">
-                      <BookOpen size={12} className="text-white" />
+                    <div className="w-6 h-6 bg-coral rounded-lg flex items-center justify-center">
+                      <Smile size={12} className="text-white" fill="currentColor" />
                     </div>
-                    <span className="text-xs font-serif font-black text-playful-purple tracking-tight">Verso</span>
+                    <span className="text-xs font-serif font-black text-coral tracking-tight">Verso</span>
                   </div>
                 </div>
               </div>
             </div>
 
             {/* Actions */}
-            <div className="p-6 bg-earth/5 dark:bg-white/5 flex gap-4">
+            <div className="p-6 bg-earth/5 dark:bg-white/5 flex flex-col gap-3">
               <button 
-                onClick={onNativeShare}
-                className="flex-1 btn-primary flex items-center justify-center gap-2 py-4 shadow-xl shadow-playful-purple/20"
+                onClick={() => onNativeShare(cardId)}
+                className="w-full btn-primary flex items-center justify-center gap-2 py-4 shadow-xl shadow-playful-purple/20"
               >
                 <Share2 size={20} />
                 <span className="font-black uppercase tracking-widest text-sm">
                   {state.primaryLanguage === 'es' ? 'Compartir' : 'Share'}
+                </span>
+              </button>
+              
+              <button 
+                onClick={async () => {
+                  const element = document.getElementById(cardId);
+                  if (element) {
+                    const { toPng } = await import('html-to-image');
+                    const dataUrl = await toPng(element, {
+                      cacheBust: true,
+                      backgroundColor: '#FDFCFB',
+                    });
+                    const link = document.createElement('a');
+                    link.download = `verso-${Date.now()}.png`;
+                    link.href = dataUrl;
+                    link.click();
+                  }
+                }}
+                className="w-full py-4 rounded-[24px] bg-white dark:bg-charcoal text-earth dark:text-ivory font-black text-sm flex items-center justify-center gap-2 hover:bg-earth/5 dark:hover:bg-white/5 transition-all border border-earth/10 dark:border-white/10"
+              >
+                <Download size={20} />
+                <span className="font-black uppercase tracking-widest">
+                  {state.primaryLanguage === 'es' ? 'Descargar Imagen' : 'Download Image'}
                 </span>
               </button>
             </div>

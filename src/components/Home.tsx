@@ -41,7 +41,7 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
     setIsShareModalOpen(true);
   };
 
-  const onNativeShare = async () => {
+  const onNativeShare = async (elementId?: string) => {
     const title = `Verso: ${currentVerse.book} ${currentVerse.chapter}:${currentVerse.verse}`;
     const text = `${currentVerse.book} ${currentVerse.chapter}:${currentVerse.verse}\n\n${esText ? `ES: ${esText}\n` : ''}${enText ? `EN: ${enText}` : ''}\n\nShared via Verso`;
     const url = window.location.href;
@@ -50,7 +50,7 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
       setToastMessage(msg === "Shared successfully!" ? (state.primaryLanguage === 'es' ? "¡Compartido!" : "Shared!") : (msg === "Copied to clipboard!" ? (state.primaryLanguage === 'es' ? "¡Copiado!" : "Copied!") : msg));
       setShowToast(true);
       setTimeout(() => setShowToast(false), 2000);
-    });
+    }, elementId);
     setIsShareModalOpen(false);
   };
 
@@ -222,17 +222,23 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
             </h2>
           </div>
           
-          {!isVotd && (
-            <button 
-              onClick={() => setState(s => ({ ...s, selectedVerseId: null }))}
-              className="text-[10px] font-black uppercase tracking-widest text-playful-purple hover:underline"
-            >
-              {state.primaryLanguage === 'es' ? 'Volver al diario' : 'Back to Daily'}
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            <span className="text-[9px] font-black uppercase tracking-widest text-earth-light/40 dark:text-lavender-muted/40">
+              {state.primaryLanguage === 'es' ? '1 versículo al día' : '1 verse a day'}
+            </span>
+            {!isVotd && (
+              <button 
+                onClick={() => setState(s => ({ ...s, selectedVerseId: null }))}
+                className="text-[10px] font-black uppercase tracking-widest text-playful-purple hover:underline"
+              >
+                {state.primaryLanguage === 'es' ? 'Volver al diario' : 'Back to Daily'}
+              </button>
+            )}
+          </div>
         </div>
         
         <motion.div 
+          id="votd-card"
           whileHover={{ scale: 1.01 }}
           whileTap={{ scale: 0.99 }}
           className="card bg-white dark:bg-charcoal p-10 shadow-2xl border-earth/10 dark:border-white/10 relative overflow-hidden group cursor-pointer"

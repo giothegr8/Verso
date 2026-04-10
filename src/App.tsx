@@ -23,6 +23,7 @@ import Saved from "./components/Saved";
 import Onboarding from "./components/Onboarding";
 import Settings from "./components/Settings";
 import Paywall from "./components/Paywall";
+import ProductTour from "./components/ProductTour";
 
 interface ErrorBoundaryProps {
   children: React.ReactNode;
@@ -64,6 +65,7 @@ const INITIAL_STATE: AppState = {
   selectedTranslations: { es: "RVR1960", en: "KJV" },
   theme: "system",
   onboarded: false,
+  hasCompletedTour: false,
   savedVerses: [],
   selectedVerseId: null,
   recentVerseIds: [],
@@ -136,6 +138,13 @@ export default function App() {
 
   const [activeTab, setActiveTab] = useState("home");
   const [showSettings, setShowSettings] = useState(false);
+  const [showTour, setShowTour] = useState(false);
+
+  useEffect(() => {
+    if (state.onboarded && !state.hasCompletedTour) {
+      setShowTour(true);
+    }
+  }, [state.onboarded, state.hasCompletedTour]);
 
   useEffect(() => {
     localStorage.setItem("verso_state", JSON.stringify(state));
@@ -196,6 +205,7 @@ export default function App() {
           ...prev, 
           ...prefs, 
           onboarded: true,
+          hasCompletedTour: false,
           trialStartDate: new Date().toISOString()
         }))} 
       />
@@ -224,8 +234,29 @@ export default function App() {
     );
   }
 
+  // Reset memorization stages when configuration changes to ensure a fresh start
+  useEffect(() => {
+    setState(s => ({
+      ...s,
+      progress: {
+        ...s.progress,
+        verseStages: {}
+      }
+    }));
+  }, [state.selectedTranslations.es, state.selectedTranslations.en, state.memorizeMode]);
+
   const startMemorizing = (verseId: string) => {
-    setState(s => ({ ...s, selectedVerseId: verseId }));
+    setState(s => ({ 
+      ...s, 
+      selectedVerseId: verseId,
+      progress: {
+        ...s.progress,
+        verseStages: {
+          ...s.progress.verseStages,
+          [verseId]: 1
+        }
+      }
+    }));
     setActiveTab("memorize");
   };
 
@@ -364,10 +395,10 @@ export default function App() {
       {/* Navigation - Responsive Bottom Bar */}
       <div className="fixed bottom-0 left-0 right-0 z-50 px-6 pb-8 pointer-events-none">
         <nav className="max-w-xl mx-auto bg-white/95 dark:bg-charcoal/95 backdrop-blur-2xl border border-earth/10 dark:border-white/10 px-4 sm:px-8 py-3 flex justify-around items-center rounded-[32px] shadow-2xl pointer-events-auto transition-colors duration-500">
-          <NavButton active={activeTab === 'home'} onClick={() => setActiveTab('home')} icon={<HomeIcon size={22} />} label={state.primaryLanguage === 'es' ? 'Inicio' : 'Home'} />
-          <NavButton active={activeTab === 'memorize'} onClick={() => setActiveTab('memorize')} icon={<BookOpen size={22} />} label={state.primaryLanguage === 'es' ? 'Memorizar' : 'Memorize'} />
-          <NavButton active={activeTab === 'flashcards'} onClick={() => setActiveTab('flashcards')} icon={<Layers size={22} />} label={state.primaryLanguage === 'es' ? 'Tarjetas' : 'Cards'} />
-          <NavButton active={activeTab === 'saved'} onClick={() => setActiveTab('saved')} icon={<Bookmark size={22} />} label={state.primaryLanguage === 'es' ? 'Guardados' : 'Saved'} />
+          <NavButton id="nav-home" active={activeTab === 'home'} onClick={() => setActiveTab('home')} icon={<HomeIcon size={22} />} label={state.primaryLanguage === 'es' ? 'Inicio' : 'Home'} />
+          <NavButton id="nav-memorize" active={activeTab === 'memorize'} onClick={() => setActiveTab('memorize')} icon={<BookOpen size={22} />} label={state.primaryLanguage === 'es' ? 'Memorizar' : 'Memorize'} />
+          <NavButton id="nav-flashcards" active={activeTab === 'flashcards'} onClick={() => setActiveTab('flashcards')} icon={<Layers size={22} />} label={state.primaryLanguage === 'es' ? 'Tarjetas' : 'Cards'} />
+          <NavButton id="nav-saved" active={activeTab === 'saved'} onClick={() => setActiveTab('saved')} icon={<Bookmark size={22} />} label={state.primaryLanguage === 'es' ? 'Guardados' : 'Saved'} />
         </nav>
       </div>
 
@@ -378,16 +409,31 @@ export default function App() {
             state={state} 
             setState={setState} 
             onClose={() => setShowSettings(false)} 
+            onShowTour={() => {
+              setShowSettings(false);
+              setShowTour(true);
+            }}
           />
         )}
       </AnimatePresence>
+
+      {/* Product Tour */}
+      <ProductTour 
+        isOpen={showTour} 
+        onClose={() => {
+          setShowTour(false);
+          setState(s => ({ ...s, hasCompletedTour: true }));
+        }} 
+        primaryLanguage={state.primaryLanguage}
+      />
     </div>
   );
 }
 
-function NavButton({ active, onClick, icon, label }: { active: boolean, onClick: () => void, icon: any, label: string }) {
+function NavButton({ id, active, onClick, icon, label }: { id: string, active: boolean, onClick: () => void, icon: any, label: string }) {
   return (
     <button 
+      id={id}
       onClick={onClick}
       className={`flex flex-col items-center gap-1 transition-colors ${active ? 'text-playful-purple' : 'text-earth/40 dark:text-parchment/40'}`}
     >

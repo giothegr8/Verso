@@ -1,19 +1,24 @@
 import React, { useState, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { AppState, TRANSLATION_PAIRS, LanguageMode, TRANSLATION_DETAILS, Translation, TranslationMode, ReminderSettings, TranslationPair } from "../types";
-import { X, Moon, Sun, Monitor, Languages, Palette, Trash2, Info, ChevronRight, BookOpen, Settings2, Check, Globe, Sparkles, MessageSquare, Save, Book } from "lucide-react";
+import { X, Moon, Sun, Monitor, Languages, Palette, Trash2, Info, ChevronRight, BookOpen, Settings2, Check, Globe, Sparkles, MessageSquare, Save, Book, Shield, FileText } from "lucide-react";
 import { getCurrentTranslationPair } from "../utils/verseUtils";
 import CoachCard from "./CoachCard";
+import PrivacyPolicyModal from "./PrivacyPolicyModal";
+import TermsOfServiceModal from "./TermsOfServiceModal";
 
 interface SettingsProps {
   state: AppState;
   setState: React.Dispatch<React.SetStateAction<AppState>>;
   onClose: () => void;
+  onShowTour: () => void;
 }
 
-export default function Settings({ state, setState, onClose }: SettingsProps) {
+export default function Settings({ state, setState, onClose, onShowTour }: SettingsProps) {
   const [localState, setLocalState] = useState(state);
   const [showSavedToast, setShowSavedToast] = useState(false);
+  const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
+  const [showTermsOfService, setShowTermsOfService] = useState(false);
 
   const activePair = getCurrentTranslationPair(localState);
 
@@ -254,6 +259,54 @@ export default function Settings({ state, setState, onClose }: SettingsProps) {
               ))}
             </div>
           </section>
+
+          {/* 5. Legal */}
+          <section className="space-y-6">
+            <div className="flex items-center gap-3">
+              <Shield size={20} className="text-earth-light/60" />
+              <h3 className="text-sm font-black uppercase tracking-widest text-earth dark:text-ivory">
+                {localState.primaryLanguage === 'es' ? 'Legal' : 'Legal'}
+              </h3>
+            </div>
+            <button
+              onClick={() => setShowPrivacyPolicy(true)}
+              className="w-full h-16 px-6 rounded-2xl bg-earth/5 dark:bg-white/5 border-2 border-transparent text-earth/60 dark:text-lavender-muted hover:bg-earth/10 dark:hover:bg-white/10 transition-all flex items-center justify-between group"
+            >
+              <div className="flex items-center gap-3">
+                <Shield size={18} className="text-earth-light/40" />
+                <span className="font-black text-sm uppercase tracking-widest">
+                  {localState.primaryLanguage === 'es' ? 'Política de Privacidad' : 'Privacy Policy'}
+                </span>
+              </div>
+              <ChevronRight size={18} className="text-earth-light/40 group-hover:translate-x-1 transition-transform" />
+            </button>
+
+            <button
+              onClick={() => setShowTermsOfService(true)}
+              className="w-full h-16 px-6 rounded-2xl bg-earth/5 dark:bg-white/5 border-2 border-transparent text-earth/60 dark:text-lavender-muted hover:bg-earth/10 dark:hover:bg-white/10 transition-all flex items-center justify-between group"
+            >
+              <div className="flex items-center gap-3">
+                <FileText size={18} className="text-earth-light/40" />
+                <span className="font-black text-sm uppercase tracking-widest">
+                  {localState.primaryLanguage === 'es' ? 'Términos de Servicio' : 'Terms of Service'}
+                </span>
+              </div>
+              <ChevronRight size={18} className="text-earth-light/40 group-hover:translate-x-1 transition-transform" />
+            </button>
+
+            <button
+              onClick={onShowTour}
+              className="w-full h-16 px-6 rounded-2xl bg-earth/5 dark:bg-white/5 border-2 border-transparent text-earth/60 dark:text-lavender-muted hover:bg-earth/10 dark:hover:bg-white/10 transition-all flex items-center justify-between group"
+            >
+              <div className="flex items-center gap-3">
+                <Sparkles size={18} className="text-earth-light/40" />
+                <span className="font-black text-sm uppercase tracking-widest">
+                  {localState.primaryLanguage === 'es' ? 'Ver recorrido de la app' : 'View app tour'}
+                </span>
+              </div>
+              <ChevronRight size={18} className="text-earth-light/40 group-hover:translate-x-1 transition-transform" />
+            </button>
+          </section>
         </div>
 
         {/* Action Footer */}
@@ -267,6 +320,20 @@ export default function Settings({ state, setState, onClose }: SettingsProps) {
           </button>
         </div>
       </motion.div>
+
+      {/* Privacy Policy Modal */}
+      <PrivacyPolicyModal 
+        isOpen={showPrivacyPolicy} 
+        onClose={() => setShowPrivacyPolicy(false)} 
+        primaryLanguage={localState.primaryLanguage}
+      />
+
+      {/* Terms of Service Modal */}
+      <TermsOfServiceModal 
+        isOpen={showTermsOfService} 
+        onClose={() => setShowTermsOfService(false)} 
+        primaryLanguage={localState.primaryLanguage}
+      />
     </motion.div>
   );
 }

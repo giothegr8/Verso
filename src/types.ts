@@ -67,6 +67,7 @@ export interface AppState {
   selectedTranslations: TranslationPair; 
   theme: "light" | "dark" | "system";
   onboarded: boolean;
+  hasCompletedTour: boolean;
   savedVerses: string[]; // IDs
   selectedVerseId: string | null;
   recentVerseIds: string[]; // History of verses seen recently

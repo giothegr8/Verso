@@ -66,7 +66,7 @@ export default function Saved({ state, setState, onStartMemorizing }: SavedProps
     setIsShareModalOpen(true);
   };
 
-  const onNativeShare = async () => {
+  const onNativeShare = async (elementId?: string) => {
     if (!selectedVerseForShare) return;
     const { esText, enText } = getValidatedVerse(selectedVerseForShare, state);
     const title = `Verso: ${selectedVerseForShare.book} ${selectedVerseForShare.chapter}:${selectedVerseForShare.verse}`;
@@ -77,7 +77,7 @@ export default function Saved({ state, setState, onStartMemorizing }: SavedProps
       setToastMessage(msg === "Shared successfully!" ? (state.primaryLanguage === 'es' ? "¡Compartido!" : "Shared!") : (msg === "Copied to clipboard!" ? (state.primaryLanguage === 'es' ? "¡Copiado!" : "Copied!") : msg));
       setShowToast(true);
       setTimeout(() => setShowToast(false), 2000);
-    });
+    }, elementId);
     setIsShareModalOpen(false);
   };
 
