@@ -1,7 +1,7 @@
 import React, { useState, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { AppState, TRANSLATION_PAIRS, LanguageMode, TRANSLATION_DETAILS, Translation, TranslationMode, ReminderSettings, TranslationPair } from "../types";
-import { X, Moon, Sun, Monitor, Languages, Palette, Trash2, Info, ChevronRight, BookOpen, Settings2, Check, Globe, Sparkles, MessageSquare, Save, Book, Shield, FileText } from "lucide-react";
+import { X, Moon, Sun, Monitor, Languages, Palette, Trash2, Info, ChevronRight, BookOpen, Settings2, Check, Globe, Sparkles, MessageSquare, Save, Book, Shield, FileText, HelpCircle } from "lucide-react";
 import { getCurrentTranslationPair } from "../utils/verseUtils";
 import CoachCard from "./CoachCard";
 import PrivacyPolicyModal from "./PrivacyPolicyModal";
@@ -260,7 +260,30 @@ export default function Settings({ state, setState, onClose, onShowTour }: Setti
             </div>
           </section>
 
-          {/* 5. Legal */}
+          {/* 5. Help & Guide */}
+          <section className="space-y-6">
+            <div className="flex items-center gap-3">
+              <HelpCircle size={20} className="text-playful-purple" />
+              <h3 className="text-sm font-black uppercase tracking-widest text-earth dark:text-ivory">
+                {localState.primaryLanguage === 'es' ? 'Ayuda y Guía' : 'Help & Guide'}
+              </h3>
+            </div>
+            
+            <button
+              onClick={onShowTour}
+              className="w-full h-16 px-6 rounded-2xl bg-earth/5 dark:bg-white/5 border-2 border-transparent text-earth/60 dark:text-lavender-muted hover:bg-earth/10 dark:hover:bg-white/10 transition-all flex items-center justify-between group"
+            >
+              <div className="flex items-center gap-3">
+                <Sparkles size={18} className="text-playful-purple/40" />
+                <span className="font-black text-sm uppercase tracking-widest">
+                  {localState.primaryLanguage === 'es' ? 'Ver recorrido de la app' : 'View app tour'}
+                </span>
+              </div>
+              <ChevronRight size={18} className="text-earth-light/40 group-hover:translate-x-1 transition-transform" />
+            </button>
+          </section>
+
+          {/* 6. Legal */}
           <section className="space-y-6">
             <div className="flex items-center gap-3">
               <Shield size={20} className="text-earth-light/60" />
@@ -289,19 +312,6 @@ export default function Settings({ state, setState, onClose, onShowTour }: Setti
                 <FileText size={18} className="text-earth-light/40" />
                 <span className="font-black text-sm uppercase tracking-widest">
                   {localState.primaryLanguage === 'es' ? 'Términos de Servicio' : 'Terms of Service'}
-                </span>
-              </div>
-              <ChevronRight size={18} className="text-earth-light/40 group-hover:translate-x-1 transition-transform" />
-            </button>
-
-            <button
-              onClick={onShowTour}
-              className="w-full h-16 px-6 rounded-2xl bg-earth/5 dark:bg-white/5 border-2 border-transparent text-earth/60 dark:text-lavender-muted hover:bg-earth/10 dark:hover:bg-white/10 transition-all flex items-center justify-between group"
-            >
-              <div className="flex items-center gap-3">
-                <Sparkles size={18} className="text-earth-light/40" />
-                <span className="font-black text-sm uppercase tracking-widest">
-                  {localState.primaryLanguage === 'es' ? 'Ver recorrido de la app' : 'View app tour'}
                 </span>
               </div>
               <ChevronRight size={18} className="text-earth-light/40 group-hover:translate-x-1 transition-transform" />

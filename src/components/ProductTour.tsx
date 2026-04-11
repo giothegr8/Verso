@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { X, ChevronRight, ChevronLeft, Sparkles, BookOpen, Layers, Bookmark, Check } from "lucide-react";
+import { X, ChevronRight, ChevronLeft, Sparkles, Play, Languages, Bookmark, Check, Settings, Layers, Share2 } from "lucide-react";
 
 interface TourStep {
   id: string;
@@ -8,48 +8,100 @@ interface TourStep {
   description: { en: string; es: string };
   targetId: string;
   icon: React.ReactNode;
+  tab?: string;
+  cta?: { en: string; es: string };
 }
 
 const TOUR_STEPS: TourStep[] = [
   {
     id: "votd",
-    title: { en: "Verse of the Day", es: "Versículo del día" },
+    title: { en: "Today's Verse", es: "Versículo del día" },
     description: { 
-      en: "This is your verse for today. First, read the verse and say it out loud.", 
-      es: "Este es tu versículo de hoy. Primero, lee el versículo y dilo en voz alta." 
+      en: "This is your daily focus. Read it carefully to begin.", 
+      es: "Este es tu enfoque de hoy. Léelo con atención para comenzar." 
     },
     targetId: "votd-card",
-    icon: <Sparkles className="text-golden" size={24} />
+    icon: <Sparkles className="text-golden" size={24} />,
+    tab: "home"
   },
   {
-    id: "memorize",
-    title: { en: "Memorize", es: "Memorizar" },
+    id: "translation",
+    title: { en: "Choose Your Version", es: "Elige tu versión" },
     description: { 
-      en: "Say it out loud as the words disappear. You do not type yet. Just rehearse!", 
-      es: "Dilo en voz alta mientras las palabras desaparecen. Todavía no escribas. ¡Solo ensaya!" 
+      en: "Want a different version? Switch translations instantly right here.", 
+      es: "Toca aquí para cambiar la traducción del verso. Puedes elegir la que más te guste o la que te resulte más fácil de aprender." 
+    },
+    targetId: "translation-pill",
+    icon: <Languages className="text-playful-purple" size={24} />,
+    tab: "home",
+    cta: { en: "Got it", es: "Entendido" }
+  },
+  {
+    id: "memorize-btn",
+    title: { en: "Start Memorizing", es: "Empieza a memorizar" },
+    description: { 
+      en: "When you're ready, tap here to start. We'll guide you step by step.", 
+      es: "Cuando estés listo, toca este botón para comenzar tu práctica. Te guiaremos paso a paso hasta que lo grabes en tu corazón." 
+    },
+    targetId: "memorize-btn-main",
+    icon: <Play className="text-playful-purple" size={24} fill="currentColor" />,
+    tab: "home",
+    cta: { en: "Let's go!", es: "¡Vamos!" }
+  },
+  {
+    id: "nav-memorize-step",
+    title: { en: "Guided Practice", es: "Práctica guiada" },
+    description: { 
+      en: "This is where you'll rehearse the text until every word is in your memory.", 
+      es: "En esta sección ensayarás el texto hasta que cada palabra quede en tu memoria." 
     },
     targetId: "nav-memorize",
-    icon: <BookOpen className="text-playful-purple" size={24} />
+    icon: <Play className="text-playful-purple" size={24} />,
+    tab: "memorize"
   },
   {
-    id: "final",
-    title: { en: "Final Challenge", es: "Reto final" },
+    id: "nav-cards-step",
+    title: { en: "Citation Challenge", es: "Reto de la cita" },
     description: { 
-      en: "At the end, you type the citation. This helps you remember where it is found.", 
-      es: "Al final, escribes la cita. Esto te ayuda a recordar dónde se encuentra." 
+      en: "Test your memory by recalling exactly where each verse is found.", 
+      es: "Aquí pondrás a prueba tu memoria recordando exactamente dónde está el versículo." 
     },
     targetId: "nav-flashcards",
-    icon: <Layers className="text-coral" size={24} />
+    icon: <Layers className="text-coral" size={24} />,
+    tab: "flashcards"
   },
   {
-    id: "saved",
-    title: { en: "Saved & Progress", es: "Guardados y progreso" },
+    id: "nav-saved-step",
+    title: { en: "Your Progress", es: "Tus progresos" },
     description: { 
-      en: "Your saved verses live here. You can review them anytime.", 
-      es: "Tus versículos guardados viven aquí. Puedes repasarlos en cualquier momento." 
+      en: "All your memorized verses are saved here for quick review anytime.", 
+      es: "Todos tus versículos memorizados se guardan aquí para que los repases cuando quieras." 
     },
     targetId: "nav-saved",
-    icon: <Bookmark className="text-earth-light" size={24} />
+    icon: <Bookmark className="text-earth-light" size={24} />,
+    tab: "saved"
+  },
+  {
+    id: "share-step",
+    title: { en: "Share Your Faith", es: "Comparte tu fe" },
+    description: { 
+      en: "Create beautiful images of your favorite verses to share with others.", 
+      es: "Crea imágenes hermosas de tus versículos favoritos para compartirlas con otros." 
+    },
+    targetId: "share-btn-home",
+    icon: <Share2 className="text-playful-purple" size={24} />,
+    tab: "home"
+  },
+  {
+    id: "bilingual",
+    title: { en: "Bilingual Mode", es: "Modo bilingüe" },
+    description: { 
+      en: "Ready for a bigger challenge? Enable bilingual mode to learn in two languages.", 
+      es: "¿Listo para un reto mayor? Activa el modo bilingüe para aprender en dos idiomas." 
+    },
+    targetId: "nav-settings",
+    icon: <Settings className="text-teal" size={24} />,
+    tab: "home"
   }
 ];
 
@@ -57,25 +109,51 @@ interface ProductTourProps {
   isOpen: boolean;
   onClose: () => void;
   primaryLanguage: 'en' | 'es';
+  onTabChange?: (tab: string) => void;
 }
 
-export default function ProductTour({ isOpen, onClose, primaryLanguage }: ProductTourProps) {
+export default function ProductTour({ isOpen, onClose, primaryLanguage, onTabChange }: ProductTourProps) {
   const [currentStep, setCurrentStep] = useState(0);
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
+  const [tooltipPos, setTooltipPos] = useState({ top: 0, left: 0, placement: 'bottom' as 'top' | 'bottom' });
 
   useEffect(() => {
     if (isOpen) {
+      const step = TOUR_STEPS[currentStep];
+      if (step.tab && onTabChange) {
+        onTabChange(step.tab);
+      }
+
       const updateRect = () => {
-        const target = document.getElementById(TOUR_STEPS[currentStep].targetId);
+        const target = document.getElementById(step.targetId);
         if (target) {
-          setTargetRect(target.getBoundingClientRect());
+          const rect = target.getBoundingClientRect();
+          setTargetRect(rect);
+          
+          // Calculate tooltip position
+          const spaceBelow = window.innerHeight - rect.bottom;
+          const tooltipHeight = 220; // Estimated
+          const placement = spaceBelow > tooltipHeight ? 'bottom' : 'top';
+          
+          const top = placement === 'bottom' 
+            ? rect.bottom + 20 
+            : rect.top - tooltipHeight - 20;
+            
+          const left = Math.max(20, Math.min(window.innerWidth - 340, rect.left + rect.width / 2 - 160));
+          
+          setTooltipPos({ top, left, placement });
         }
       };
-      updateRect();
+      
+      // Small delay to ensure tab change and layout are stable
+      const timer = setTimeout(updateRect, 150);
       window.addEventListener('resize', updateRect);
-      return () => window.removeEventListener('resize', updateRect);
+      return () => {
+        window.removeEventListener('resize', updateRect);
+        clearTimeout(timer);
+      };
     }
-  }, [isOpen, currentStep]);
+  }, [isOpen, currentStep, onTabChange]);
 
   if (!isOpen) return null;
 
@@ -85,89 +163,118 @@ export default function ProductTour({ isOpen, onClose, primaryLanguage }: Produc
   return (
     <AnimatePresence>
       <div className="fixed inset-0 z-[100] pointer-events-none overflow-hidden">
-        {/* Backdrop with spotlight */}
+        {/* Backdrop with spotlight - Stronger dimming, no blur */}
         <motion.div 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="absolute inset-0 bg-earth/40 backdrop-blur-sm pointer-events-auto"
+          className="absolute inset-0 bg-espresso/70 pointer-events-auto"
           style={{
             clipPath: targetRect ? `polygon(
               0% 0%, 0% 100%, 
-              ${targetRect.left}px 100%, 
-              ${targetRect.left}px ${targetRect.top}px, 
-              ${targetRect.right}px ${targetRect.top}px, 
-              ${targetRect.right}px ${targetRect.bottom}px, 
-              ${targetRect.left}px ${targetRect.bottom}px, 
-              ${targetRect.left}px 100%, 
+              ${targetRect.left - 8}px 100%, 
+              ${targetRect.left - 8}px ${targetRect.top - 8}px, 
+              ${targetRect.right + 8}px ${targetRect.top - 8}px, 
+              ${targetRect.right + 8}px ${targetRect.bottom + 8}px, 
+              ${targetRect.left - 8}px ${targetRect.bottom + 8}px, 
+              ${targetRect.left - 8}px 100%, 
               100% 100%, 100% 0%
             )` : 'none'
           }}
           onClick={onClose}
         />
 
-        {/* Tour Card */}
-        <div className="absolute inset-0 flex items-center justify-center p-6">
+        {/* Spotlight Border - Precise, no glow */}
+        <AnimatePresence>
+          {targetRect && (
+            <motion.div
+              layoutId="spotlight"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute z-[101] border border-white/40 rounded-[32px]"
+              style={{
+                left: targetRect.left - 8,
+                top: targetRect.top - 8,
+                width: targetRect.width + 16,
+                height: targetRect.height + 16,
+              }}
+            />
+          )}
+        </AnimatePresence>
+
+        {/* Tour Card - Relative to target */}
+        <div 
+          className="absolute z-[102] w-full max-w-[320px] pointer-events-auto transition-all duration-500 ease-out"
+          style={{
+            top: tooltipPos.top,
+            left: tooltipPos.left,
+          }}
+        >
           <motion.div
             key={currentStep}
-            initial={{ opacity: 0, y: 20, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -20, scale: 0.95 }}
-            className="w-full max-w-sm bg-white dark:bg-charcoal rounded-[32px] shadow-2xl border border-earth/10 dark:border-white/10 p-8 pointer-events-auto relative overflow-hidden"
+            initial={{ opacity: 0, scale: 0.95, y: tooltipPos.placement === 'bottom' ? -10 : 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: tooltipPos.placement === 'bottom' ? -10 : 10 }}
+            className="bg-white dark:bg-charcoal rounded-[24px] shadow-2xl border border-earth/10 dark:border-white/10 p-6 relative"
           >
-            {/* Progress Dots */}
-            <div className="flex gap-1.5 mb-6">
-              {TOUR_STEPS.map((_, idx) => (
-                <div 
-                  key={idx}
-                  className={`h-1 rounded-full transition-all duration-500 ${idx === currentStep ? 'w-6 bg-playful-purple' : 'w-2 bg-earth/10 dark:bg-white/10'}`}
-                />
-              ))}
-            </div>
+            {/* Arrow */}
+            <div 
+              className={`absolute left-1/2 -translate-x-1/2 w-0 h-0 border-l-[8px] border-l-transparent border-r-[8px] border-r-transparent ${
+                tooltipPos.placement === 'bottom' 
+                  ? 'bottom-full border-b-[8px] border-b-white dark:border-b-charcoal' 
+                  : 'top-full border-t-[8px] border-t-white dark:border-t-charcoal'
+              }`}
+            />
 
             <div className="space-y-4">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-earth/5 dark:bg-white/5 flex items-center justify-center">
-                  {step.icon}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-earth/5 dark:bg-white/5 flex items-center justify-center">
+                    {step.icon}
+                  </div>
+                  <h3 className="text-lg font-serif font-black text-earth dark:text-ivory tracking-tight">
+                    {step.title[primaryLanguage]}
+                  </h3>
                 </div>
-                <h3 className="text-xl font-serif font-black text-earth dark:text-ivory tracking-tight">
-                  {step.title[primaryLanguage]}
-                </h3>
+                <span className="text-[10px] font-black text-earth-light/40 dark:text-lavender-muted/40 uppercase tracking-widest">
+                  {currentStep + 1} / {TOUR_STEPS.length}
+                </span>
               </div>
               
-              <p className="text-earth-light dark:text-lavender-muted leading-relaxed font-medium">
+              <p className="text-sm text-earth-light dark:text-lavender-muted leading-relaxed font-medium">
                 {step.description[primaryLanguage]}
               </p>
             </div>
 
-            <div className="mt-10 flex items-center justify-between">
+            <div className="mt-8 flex items-center justify-between">
               <button 
                 onClick={onClose}
-                className="text-xs font-black uppercase tracking-widest text-earth-light/40 dark:text-lavender-muted/40 hover:text-earth dark:hover:text-ivory transition-colors"
+                className="text-[10px] font-black uppercase tracking-widest text-earth-light/40 dark:text-lavender-muted/40 hover:text-earth dark:hover:text-ivory transition-colors"
               >
                 {primaryLanguage === 'es' ? 'Saltar' : 'Skip'}
               </button>
 
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
                 {currentStep > 0 && (
                   <button 
                     onClick={() => setCurrentStep(s => s - 1)}
-                    className="w-10 h-10 rounded-full bg-earth/5 dark:bg-white/5 flex items-center justify-center text-earth-light hover:bg-earth/10 dark:hover:bg-white/10 transition-colors"
+                    className="w-8 h-8 rounded-full bg-earth/5 dark:bg-white/5 flex items-center justify-center text-earth-light hover:bg-earth/10 dark:hover:bg-white/10 transition-colors"
                   >
-                    <ChevronLeft size={20} />
+                    <ChevronLeft size={16} />
                   </button>
                 )}
                 
                 <button 
                   onClick={() => isLastStep ? onClose() : setCurrentStep(s => s + 1)}
-                  className="btn-primary py-3 px-6 shadow-xl shadow-playful-purple/20 flex items-center gap-2"
+                  className="bg-playful-purple text-white py-2 px-5 rounded-full shadow-lg shadow-playful-purple/20 flex items-center gap-2 hover:brightness-110 active:scale-95 transition-all"
                 >
-                  <span className="text-xs font-black uppercase tracking-widest">
+                  <span className="text-[10px] font-black uppercase tracking-widest">
                     {isLastStep 
                       ? (primaryLanguage === 'es' ? 'Listo' : 'Done') 
-                      : (primaryLanguage === 'es' ? 'Siguiente' : 'Next')}
+                      : (step.cta ? step.cta[primaryLanguage] : (primaryLanguage === 'es' ? 'Siguiente' : 'Next'))}
                   </span>
-                  {isLastStep ? <Check size={16} /> : <ChevronRight size={16} />}
+                  {isLastStep ? <Check size={14} /> : <ChevronRight size={14} />}
                 </button>
               </div>
             </div>

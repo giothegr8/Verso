@@ -29,9 +29,11 @@ export const handleShare = async (
 
   const downloadImage = async (element: HTMLElement) => {
     try {
+      await document.fonts.ready;
       const dataUrl = await toPng(element, {
         cacheBust: true,
-        backgroundColor: '#FDFCFB', // Default light background
+        pixelRatio: 3,
+        skipAutoScale: true,
       });
       const link = document.createElement('a');
       link.download = `verso-${Date.now()}.png`;
@@ -51,9 +53,11 @@ export const handleShare = async (
       const element = document.getElementById(elementId);
       if (element) {
         try {
+          await document.fonts.ready;
           const blob = await toBlob(element, {
             cacheBust: true,
-            backgroundColor: '#FDFCFB',
+            pixelRatio: 3,
+            skipAutoScale: true,
           });
           if (blob) {
             const file = new File([blob], `verso-${Date.now()}.png`, { type: 'image/png' });

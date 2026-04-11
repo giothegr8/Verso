@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { AppState, Translation, LanguageMode, ReminderSettings } from "../types";
-import { ChevronRight, Check, Globe, Book, Moon } from "lucide-react";
+import { ChevronRight, Check, Globe, BookOpen, Moon } from "lucide-react";
 
 interface OnboardingProps {
   onComplete: (prefs: Partial<AppState>) => void;
@@ -36,7 +36,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
             transition={{ duration: 0.3 }}
           >
             <div className="w-24 h-24 bg-playful-purple/10 rounded-[32px] flex items-center justify-center mx-auto text-playful-purple shadow-lg shadow-playful-purple/10">
-              <Book size={48} />
+              <BookOpen size={48} />
             </div>
             <div className="space-y-4">
               <h1 className="text-5xl font-serif font-black text-playful-purple tracking-tighter">Verso</h1>

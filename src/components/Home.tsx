@@ -3,7 +3,7 @@ import { AppState, TRANSLATION_PAIRS, TRANSLATION_DETAILS } from "../types";
 import { MOCK_VERSES, getVerseByDate } from "../constants";
 import { Globe, Play, Flame, Trophy, Sparkles, Languages, BookOpen, History, AlertCircle, Share2, Star, X } from "lucide-react";
 import React, { useState } from "react";
-import { getCurrentTranslationPair, getValidatedVerse, getLocalizedBookName, getLocalDateString } from "../utils/verseUtils";
+import { getCurrentTranslationPair, getValidatedVerse, getLocalizedBookName, getLocalDateString, VERSE_LAYOUT } from "../utils/verseUtils";
 import { handleShare } from "../utils/shareUtils";
 import { AnimatePresence } from "motion/react";
 import ShareModal from "./ShareModal";
@@ -105,6 +105,7 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
         </div>
         <div className="flex flex-col items-end gap-3 relative">
           <motion.button 
+            id="translation-pill"
             key={`${esDetail.label}-${enDetail.label}`}
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
@@ -246,6 +247,7 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
           {/* Repositioned Share Button - Top Right */}
           <div className="absolute top-6 right-6 z-20">
             <motion.button 
+              id="share-btn-home"
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
               onClick={onShareClick}
@@ -263,7 +265,7 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
                     {esDetail.name}
                   </span>
                   {esText ? (
-                    <p className="text-3xl font-serif leading-relaxed text-earth dark:text-ivory font-medium">
+                    <p className={`text-3xl font-serif leading-relaxed text-earth dark:text-ivory ${VERSE_LAYOUT.FONT_WEIGHT}`}>
                       {esText}
                     </p>
                   ) : (
@@ -285,7 +287,7 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
                     {enDetail.name}
                   </span>
                   {enText ? (
-                    <p className="text-3xl font-serif leading-relaxed text-earth dark:text-ivory font-medium">
+                    <p className={`text-3xl font-serif leading-relaxed text-earth dark:text-ivory ${VERSE_LAYOUT.FONT_WEIGHT}`}>
                       {enText}
                     </p>
                   ) : (
@@ -310,6 +312,7 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
                 </p>
               </div>
               <button 
+                id="memorize-btn-main"
                 onClick={(e) => {
                   e.stopPropagation();
                   if (esText || enText) {

@@ -88,3 +88,53 @@ export function getLocalDateString(): string {
   const day = String(now.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 }
+
+/**
+ * Standard layout constants for the verse to ensure visual consistency.
+ */
+export const VERSE_LAYOUT = {
+  MAX_CHARS_PER_LINE: 28, // Slightly more generous for natural flow
+  FONT_SIZE_CLASSES: "text-xl sm:text-2xl md:text-3xl",
+  LINE_HEIGHT: "leading-relaxed",
+  FONT_WEIGHT: "font-medium",
+  CHAR_HEIGHT: "h-8 sm:h-10", // Stable height for underlines
+};
+
+/**
+ * Splits a verse text into lines of roughly equal length, respecting word boundaries.
+ * This ensures consistent layout across different views.
+ */
+export function getVerseLines(text: string | null | undefined, maxCharsPerLine: number = VERSE_LAYOUT.MAX_CHARS_PER_LINE): string[] {
+  if (!text) return [];
+  
+  // If text already has line breaks, respect them
+  if (text.includes('\n')) {
+    return text.split('\n');
+  }
+
+  const words = text.split(' ');
+  const lines: string[] = [];
+  let currentLine = "";
+
+  words.forEach(word => {
+    if ((currentLine + word).length > maxCharsPerLine && currentLine.length > 0) {
+      lines.push(currentLine.trim());
+      currentLine = word + " ";
+    } else {
+      currentLine += word + " ";
+    }
+  });
+
+  if (currentLine.trim().length > 0) {
+    lines.push(currentLine.trim());
+  }
+
+  return lines;
+}
+
+/**
+ * Removes accents and diacritics from a string.
+ */
+export function removeAccents(str: string): string {
+  return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}

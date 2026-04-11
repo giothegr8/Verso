@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Sparkles, Brain, Clock, Star, RefreshCw, MessageCircle, Smile } from "lucide-react";
+import { Sparkles, Brain, Clock, Star, RefreshCw, MessageCircle } from "lucide-react";
 import { AppState } from "../types";
 
 interface CoachCardProps {

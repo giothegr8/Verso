@@ -142,7 +142,11 @@ export default function App() {
 
   useEffect(() => {
     if (state.onboarded && !state.hasCompletedTour) {
-      setShowTour(true);
+      // Small delay to ensure the main app layout is fully rendered before the tour starts
+      const timer = setTimeout(() => {
+        setShowTour(true);
+      }, 500);
+      return () => clearTimeout(timer);
     }
   }, [state.onboarded, state.hasCompletedTour]);
 
@@ -340,6 +344,7 @@ export default function App() {
           </div>
           <div className="flex items-center gap-4">
             <button 
+              id="nav-settings"
               onClick={() => setShowSettings(true)}
               className="btn-icon bg-white dark:bg-charcoal border border-earth/10 dark:border-white/10 shadow-sm transition-colors duration-500"
               aria-label="Settings"
@@ -425,6 +430,7 @@ export default function App() {
           setState(s => ({ ...s, hasCompletedTour: true }));
         }} 
         primaryLanguage={state.primaryLanguage}
+        onTabChange={setActiveTab}
       />
     </div>
   );

@@ -1,13 +1,13 @@
 export const PRIVACY_POLICY_MD = `# Privacy Policy for Verso
 
-**Effective Date:** [EFFECTIVE_DATE]
+**Effective Date:** April 10, 2026
 
 Welcome to Verso. We respect your privacy and are committed to protecting your personal data. This Privacy Policy explains how we collect, use, and safeguard your information when you use our bilingual Bible verse memorization application.
 
 ---
 
 ### 1. Who We Are
-Verso is a service provided by **[BUSINESS_NAME]** ("we," "us," or "our"). Our website is located at **[WEBSITE_DOMAIN]**. Our goal is to help you hide God's word in your heart through a simple, bilingual memorization experience.
+Verso is a service provided by **Verso** ("we," "us," or "our"). Our website is located at **https://ais-pre-sje37p5r5j2e6qseu4dgio-416187492803.us-east1.run.app**. Our goal is to help you hide God's word in your heart through a simple, bilingual memorization experience.
 
 ### 2. Information We Collect
 We collect a limited amount of information to provide you with a great experience:
@@ -66,10 +66,6 @@ We may update this Privacy Policy from time to time. When we do, we will update 
 ### 15. Contact Information
 If you have any questions about this Privacy Policy or how we handle your data, please contact us at:
 
-**Email:** [CONTACT_EMAIL]  
-**Jurisdiction:** [JURISDICTION]
-
----
-
-*Note: This document is a draft template provided for informational purposes. It should be reviewed by a legal professional in your jurisdiction before being published to ensure it meets all local legal requirements (such as GDPR, CCPA, etc.).*
+**Email:** versosupport@gmail.com  
+**Jurisdiction:** USA
 `;
