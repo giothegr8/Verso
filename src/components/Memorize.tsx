@@ -781,8 +781,9 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
           </div>
         </div>
 
-        <div className="card min-h-[480px] flex flex-col justify-center items-center text-center p-4 sm:p-8 md:p-12 relative group bg-white dark:bg-charcoal shadow-xl border border-earth/10 dark:border-white/10">
-          <div className="flex flex-col items-center w-full relative z-10 px-2">
+        <div className="shimmer-border w-full rounded-[32px] bg-white dark:bg-charcoal">
+          <div className="card min-h-[480px] flex flex-col justify-center items-center text-center p-4 sm:p-8 md:p-12 relative group bg-white dark:bg-charcoal shadow-xl border-none">
+            <div className="flex flex-col items-center w-full relative z-10 px-2">
             <div 
               className={`flex flex-col gap-12 sm:gap-16 w-full py-12 my-auto ${stage === 5 && !isRevealed ? 'cursor-text' : ''}`}
               onClick={() => stage === 5 && !isRevealed && inputRef.current?.focus()}
@@ -968,6 +969,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
           </div>
         </div>
       </div>
+    </div>
 
       {/* Fixed Bottom Action Area - Refined Visual Design */}
       <div className="flex-shrink-0 flex flex-col gap-6 p-6 pb-10 z-30">
