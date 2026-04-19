@@ -93,49 +93,41 @@ const INITIAL_STATE: AppState = {
 export default function App() {
   const [state, setState] = useState<AppState>(() => {
     const saved = localStorage.getItem("verso_state");
-    console.log("[App] Initializing state. Saved state found:", !!saved);
+    console.log("[App] State Init: localStorage found:", !!saved);
     
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        console.log("[App] Parsed saved state. Onboarded:", parsed.onboarded);
+        if (!parsed || typeof parsed !== 'object') throw new Error("Invalid state format");
         
-        // Ensure all fields from INITIAL_STATE exist
-        const merged = { ...INITIAL_STATE, ...parsed };
+        console.log("[App] State parsed. Onboarded status:", parsed.onboarded, "Language:", parsed.primaryLanguage);
+        
+        // Ensure all fields from INITIAL_STATE exist with a robust deep-ish merge
+        const merged: AppState = { 
+          ...INITIAL_STATE, 
+          ...parsed,
+          progress: { ...INITIAL_STATE.progress, ...(parsed.progress || {}) },
+          reminders: { ...INITIAL_STATE.reminders, ...(parsed.reminders || {}) },
+          selectedTranslations: { ...INITIAL_STATE.selectedTranslations, ...(parsed.selectedTranslations || {}) }
+        };
 
-        // Migration for reminders
-        if (!parsed.reminders || !parsed.reminders.timezone) {
-          merged.reminders = { ...INITIAL_STATE.reminders, ...parsed.reminders };
+        // Migration for reminders timezone
+        if (!merged.reminders.timezone) {
+          merged.reminders.timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
         }
 
-        // Migration for old state if needed
-        if (parsed.translationEn || parsed.translationEs) {
-          merged.activePairIndex = 0;
-          merged.selectedVerseId = null;
-        }
-
-        // Validate activePairIndex
-        if (merged.activePairIndex === undefined || merged.activePairIndex < 0 || merged.activePairIndex >= TRANSLATION_PAIRS.length) {
-          merged.activePairIndex = 0;
-        }
-
-        // Validate progress structure
-        if (!merged.progress || typeof merged.progress !== 'object') {
-          merged.progress = INITIAL_STATE.progress;
-        } else {
-          merged.progress = { ...INITIAL_STATE.progress, ...merged.progress };
-        }
-
-        // Initialize new fields if they don't exist
+        // Initialize new fields
         if (!merged.recentVerseIds) merged.recentVerseIds = [];
-        if (merged.lastVotdDate === undefined) merged.lastVotdDate = null;
-
+        if (merged.hasCompletedTour === undefined) merged.hasCompletedTour = false;
+        
         return merged;
       } catch (e) {
-        console.error("Failed to parse saved state:", e);
+        console.error("[App] Failed to parse saved state, resetting to INITIAL_STATE:", e);
+        localStorage.removeItem("verso_state");
         return INITIAL_STATE;
       }
     }
+    console.log("[App] Initializing with fresh state (onboarded: false)");
     return INITIAL_STATE;
   });
 
@@ -154,7 +146,11 @@ export default function App() {
   }, [state.onboarded, state.hasCompletedTour]);
 
   useEffect(() => {
-    localStorage.setItem("verso_state", JSON.stringify(state));
+    try {
+      localStorage.setItem("verso_state", JSON.stringify(state));
+    } catch (e) {
+      console.error("[App] Failed to save state to localStorage (likely quota exceeded):", e);
+    }
   }, [state]);
 
   // Daily Reset Logic - Using Local Midnight
@@ -207,49 +203,25 @@ export default function App() {
     document.body.classList.toggle("dark", isDark);
   }, [state.theme]);
 
-  if (!state.onboarded) {
-    console.log("[App] User not onboarded. Rendering Onboarding component.");
-    return (
-      <Onboarding 
-        onComplete={(prefs) => {
-          console.log("[App] Onboarding complete with prefs:", prefs);
-          setState(prev => ({ 
-            ...prev, 
-            ...prefs, 
-            onboarded: true,
-            hasCompletedTour: false,
-            trialStartDate: new Date().toISOString()
-          }));
-        }} 
-      />
-    );
-  }
-
-  console.log("[App] User onboarded. Rendering main app. ActiveTab:", activeTab);
-
-  // Trial Logic
+  // Reset memorization stages when configuration changes to ensure a fresh start
   const isTrialExpired = () => {
     if (state.isSubscribed) return false;
+    
+    // Trial is currently disabled for prototype stability unless explicitly desired
+    // To enable, uncomment the logic below
+    /*
     if (!state.trialStartDate) return false;
-    
     const startDate = new Date(state.trialStartDate);
-    const now = new Date();
-    const diffTime = Math.abs(now.getTime() - startDate.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    if (isNaN(startDate.getTime())) return false;
     
-    return diffDays > 7;
+    const now = new Date();
+    const diffTime = now.getTime() - startDate.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays >= 7;
+    */
+    return false; // For now, never expire during this test phase
   };
 
-  if (isTrialExpired()) {
-    return (
-      <Paywall 
-        state={state} 
-        onSubscribe={() => setState(s => ({ ...s, isSubscribed: true }))} 
-      />
-    );
-  }
-
-  // Reset memorization stages when configuration changes to ensure a fresh start
   useEffect(() => {
     setState(s => ({
       ...s,
@@ -343,36 +315,52 @@ export default function App() {
   };
 
   const renderContent = () => {
-    if (!state.onboarded) {
-      console.log("[App] Rendering Onboarding.");
+    const onboardingNeeded = !state.onboarded;
+    const trialExpired = isTrialExpired();
+    
+    console.log("[App] renderContent decision:", { onboardingNeeded, trialExpired, lang: state.primaryLanguage });
+
+    if (onboardingNeeded) {
+      console.log("[App] Rendering Onboarding flow.");
       return (
         <Onboarding 
           onComplete={(prefs) => {
-            console.log("[App] Onboarding complete with prefs:", prefs);
-            setState(prev => ({ 
-              ...prev, 
-              ...prefs, 
-              onboarded: true,
-              hasCompletedTour: false,
-              trialStartDate: new Date().toISOString()
-            }));
+            console.log("[App] Onboarding process finished. Merging preferences:", prefs);
+            setState(prev => {
+              const newState = { 
+                ...prev, 
+                ...prefs, 
+                onboarded: true,
+                hasCompletedTour: false,
+                trialStartDate: new Date().toISOString()
+              };
+              console.log("[App] New state generated after onboarding. Persisting...");
+              return newState;
+            });
           }} 
         />
       );
     }
 
-    if (isTrialExpired()) {
-      console.log("[App] Trial expired. Rendering Paywall.");
+    if (trialExpired) {
+      console.log("[App] Trial limit reached. Showing Paywall overlay.");
       return (
         <Paywall 
           state={state} 
-          onSubscribe={() => setState(s => ({ ...s, isSubscribed: true }))} 
+          onSubscribe={() => {
+            console.log("[App] User clicked subscribe. Updating state...");
+            setState(s => ({ ...s, isSubscribed: true }));
+          }} 
         />
       );
     }
 
+    console.log("[App] Rendering Main Layout. ActiveTab:", activeTab);
     return (
-      <div className="flex flex-col min-h-screen relative overflow-x-hidden bg-parchment dark:bg-espresso transition-colors duration-500">
+      <div 
+        key={state.onboarded ? "main-app" : "booting"} // Force re-mount if state changes significantly
+        className="flex flex-col min-h-screen relative overflow-x-hidden bg-parchment dark:bg-espresso transition-colors duration-500"
+      >
         {/* Header */}
         <header className="sticky top-0 z-40 bg-parchment/90 dark:bg-espresso/90 backdrop-blur-xl border-b border-earth/10 dark:border-white/10 transition-colors duration-500">
           <div className="content-column py-6 flex justify-between items-center">

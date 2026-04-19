@@ -14,16 +14,24 @@ export default function Paywall({ state, onSubscribe }: PaywallProps) {
   const features = isSpanish 
     ? [
         "Acceso ilimitado a todos los versículos",
-        "Asistente de memoria con IA",
         "Sincronización en todos tus dispositivos",
-        "Experiencia premium sin distracciones"
+        "Experiencia premium sin distracciones",
+        "Recordatorios personalizados"
       ]
     : [
         "Unlimited access to all verses",
-        "AI Memory Assistant",
         "Sync across all your devices",
-        "Premium distraction-free experience"
+        "Premium distraction-free experience",
+        "Personalized reminders"
       ];
+
+  const handleRestore = () => {
+    // In a real app, this would check with Apple/Google/Stripe
+    // For this web demo, we'll simulate a check and show a friendly message
+    alert(isSpanish 
+      ? "Buscando compras anteriores... No se encontraron suscripciones activas para esta cuenta." 
+      : "Checking for previous purchases... No active subscriptions found for this account.");
+  };
 
   return (
     <div className="fixed inset-0 z-[100] bg-parchment dark:bg-espresso flex items-center justify-center p-6 overflow-y-auto">
@@ -84,7 +92,7 @@ export default function Paywall({ state, onSubscribe }: PaywallProps) {
           {/* Secondary Action */}
           <div className="pt-4 text-center">
             <button 
-              onClick={() => window.location.reload()}
+              onClick={handleRestore}
               className="text-xs font-black uppercase tracking-widest text-earth-light/60 dark:text-lavender-muted hover:text-playful-purple transition-colors flex items-center justify-center gap-2 mx-auto"
             >
               <Lock size={12} />

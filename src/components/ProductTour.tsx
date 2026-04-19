@@ -115,11 +115,17 @@ interface ProductTourProps {
 export default function ProductTour({ isOpen, onClose, primaryLanguage, onTabChange }: ProductTourProps) {
   const [currentStep, setCurrentStep] = useState(0);
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
-  const [tooltipPos, setTooltipPos] = useState({ top: 0, left: 0, placement: 'bottom' as 'top' | 'bottom' });
+  const [tooltipPos, setTooltipPos] = useState({ top: 100, left: 20, placement: 'bottom' as 'top' | 'bottom' });
+  const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
       const step = TOUR_STEPS[currentStep];
+      if (!step) {
+        setHasError(true);
+        return;
+      }
+
       if (step.tab && onTabChange) {
         onTabChange(step.tab);
       }
@@ -130,23 +136,29 @@ export default function ProductTour({ isOpen, onClose, primaryLanguage, onTabCha
           const rect = target.getBoundingClientRect();
           setTargetRect(rect);
           
-          // Calculate tooltip position
+          // Calculate tooltip position with safety margins
           const spaceBelow = window.innerHeight - rect.bottom;
-          const tooltipHeight = 220; // Estimated
-          const placement = spaceBelow > tooltipHeight ? 'bottom' : 'top';
+          const tooltipHeight = 220;
+          const placement = spaceBelow > (tooltipHeight + 40) ? 'bottom' : 'top';
           
-          const top = placement === 'bottom' 
+          let top = placement === 'bottom' 
             ? rect.bottom + 20 
             : rect.top - tooltipHeight - 20;
             
+          // Bounds checking for vertical positioning
+          top = Math.max(20, Math.min(window.innerHeight - tooltipHeight - 20, top));
           const left = Math.max(20, Math.min(window.innerWidth - 340, rect.left + rect.width / 2 - 160));
           
           setTooltipPos({ top, left, placement });
+        } else {
+          console.warn(`[Tour] Target element not found: ${step.targetId}. Falling back to center.`);
+          setTargetRect(null);
+          setTooltipPos({ top: 100, left: (window.innerWidth - 320) / 2, placement: 'bottom' });
         }
       };
       
-      // Small delay to ensure tab change and layout are stable
-      const timer = setTimeout(updateRect, 150);
+      // Increased delay to ensure tab change and layout are stable
+      const timer = setTimeout(updateRect, 300);
       window.addEventListener('resize', updateRect);
       return () => {
         window.removeEventListener('resize', updateRect);
@@ -155,7 +167,7 @@ export default function ProductTour({ isOpen, onClose, primaryLanguage, onTabCha
     }
   }, [isOpen, currentStep, onTabChange]);
 
-  if (!isOpen) return null;
+  if (!isOpen || hasError) return null;
 
   const step = TOUR_STEPS[currentStep];
   const isLastStep = currentStep === TOUR_STEPS.length - 1;
