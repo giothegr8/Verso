@@ -39,6 +39,8 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
   const [attempts, setAttempts] = useState(0);
   const [userInputEs, setUserInputEs] = useState("");
   const [userInputEn, setUserInputEn] = useState("");
+  const [cursorIndexEs, setCursorIndexEs] = useState(0);
+  const [cursorIndexEn, setCursorIndexEn] = useState(0);
   const [clueCountEs, setClueCountEs] = useState(0);
   const [clueCountEn, setClueCountEn] = useState(0);
   const [revealedIndicesEs, setRevealedIndicesEs] = useState<number[]>([]);
@@ -116,6 +118,8 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
       setIsWrong(false);
       setRevealedIndicesEs([]);
       setRevealedIndicesEn([]);
+      setCursorIndexEs(0);
+      setCursorIndexEn(0);
       setActiveLanguage(state.memorizeMode === 'en' ? 'en' : 'es');
       
       lastConfigRef.current = {
@@ -139,12 +143,22 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
     }
   }, [verse.id, state.selectedTranslations.es, state.selectedTranslations.en, state.memorizeMode, setState]);
 
+  // Sync input selection with cursorIndex
+  useEffect(() => {
+    if (stage === 5 && !isRevealed && !isAlmostDone && inputRef.current) {
+      const cursor = activeLanguage === 'es' ? cursorIndexEs : cursorIndexEn;
+      inputRef.current.setSelectionRange(cursor, cursor);
+    }
+  }, [cursorIndexEs, cursorIndexEn, activeLanguage, stage, isRevealed, isAlmostDone]);
+
   // Focus management for Stage 5 typing
   useEffect(() => {
     if (stage === 5 && !isRevealed && !isAlmostDone && !hasSubmitted) {
       const focusInput = () => {
         if (inputRef.current) {
           inputRef.current.focus();
+          const cursor = activeLanguage === 'es' ? cursorIndexEs : cursorIndexEn;
+          inputRef.current.setSelectionRange(cursor, cursor);
         }
       };
       
@@ -210,6 +224,8 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
       setFeedback(null);
       setRevealedIndicesEs([]);
       setRevealedIndicesEn([]);
+      setCursorIndexEs(0);
+      setCursorIndexEn(0);
       
       // Ensure Spanish is active when entering a new stage in bilingual mode
       if (state.memorizeMode === 'both') {
@@ -240,6 +256,8 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
       setAttempts(0);
       setUserInputEs("");
       setUserInputEn("");
+      setCursorIndexEs(0);
+      setCursorIndexEn(0);
       setClueCountEs(0);
       setClueCountEn(0);
       setIsWrong(false);
@@ -291,6 +309,10 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
   const handleLanguageSwitch = (lang: 'es' | 'en') => {
     if (state.memorizeMode === 'both' && activeLanguage !== lang) {
       setActiveLanguage(lang);
+      // Set cursor to end of current input for that language
+      if (lang === 'es') setCursorIndexEs(userInputEs.length);
+      else setCursorIndexEn(userInputEn.length);
+      
       // Immediate focus for mobile
       setTimeout(() => {
         inputRef.current?.focus();
@@ -358,6 +380,8 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
       }
       
       setInput(newInput);
+      if (lang === 'es') setCursorIndexEs(newInput.length);
+      else setCursorIndexEn(newInput.length);
       setRevealed(newRevealed);
       setCount(1);
       
@@ -522,7 +546,8 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                       if (stage === 5 && !isRevealed) {
                         const isRevealedByClue = revealed.includes(letterIndex);
                         const userChar = isRevealedByClue ? "" : cleanInput[inputIdx];
-                        const isSlotActive = isCurrentActive && !isRevealedByClue && inputIdx === cleanInput.length;
+                        const currentInputIdx = inputIdx;
+                        const isSlotActive = isCurrentActive && !isRevealedByClue && currentInputIdx === (lang === 'es' ? cursorIndexEs : cursorIndexEn);
                         
                         // Normalize for visual feedback comparison (ignore accents)
                         const isWrongChar = hasSubmitted && !isCorrect && userChar && 
@@ -531,7 +556,15 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                         const result = (
                           <span 
                             key={charIdx} 
-                            className={`${baseSlotClasses} ${
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (!isRevealedByClue && isCurrentActive) {
+                                if (lang === 'es') setCursorIndexEs(currentInputIdx);
+                                else setCursorIndexEn(currentInputIdx);
+                                inputRef.current?.focus();
+                              }
+                            }}
+                            className={`${baseSlotClasses} cursor-text ${
                               isRevealedByClue || userChar
                                 ? isWrongChar 
                                   ? 'text-coral bg-coral/5' 
@@ -807,24 +840,36 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                     }
 
                     const limitedVal = val.slice(0, fillableCount);
+                    const newCursor = e.target.selectionStart || 0;
 
                     if (activeLanguage === 'es') {
                       setUserInputEs(limitedVal);
+                      setCursorIndexEs(newCursor);
                       // Auto-transition to English if Spanish is complete in bilingual mode
-                      if (state.memorizeMode === 'both' && limitedVal.length === fillableCount) {
+                      if (state.memorizeMode === 'both' && limitedVal.length === fillableCount && newCursor === fillableCount) {
                         setTimeout(() => setActiveLanguage('en'), 300);
                       }
                     } else {
                       setUserInputEn(limitedVal);
+                      setCursorIndexEn(newCursor);
                     }
                   }}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !hasSubmitted) {
                       handleCheck();
                     }
-                    if (e.key === 'Backspace' && (activeLanguage === 'es' ? userInputEs : userInputEn).length === 0 && state.memorizeMode === 'both' && activeLanguage === 'en') {
-                      setActiveLanguage('es');
+                    if (e.key === 'Backspace') {
+                      const currentInput = activeLanguage === 'es' ? userInputEs : userInputEn;
+                      if (currentInput.length === 0 && state.memorizeMode === 'both' && activeLanguage === 'en') {
+                        setActiveLanguage('es');
+                        setCursorIndexEs(userInputEs.length);
+                      }
                     }
+                  }}
+                  onSelect={(e) => {
+                    const target = e.target as HTMLInputElement;
+                    if (activeLanguage === 'es') setCursorIndexEs(target.selectionStart || 0);
+                    else setCursorIndexEn(target.selectionStart || 0);
                   }}
                 />
               )}

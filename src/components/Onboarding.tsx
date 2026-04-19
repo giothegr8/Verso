@@ -9,19 +9,45 @@ interface OnboardingProps {
 
 export default function Onboarding({ onComplete }: OnboardingProps) {
   const [step, setStep] = useState(1);
-  const [prefs, setPrefs] = useState<Partial<AppState>>({
-    primaryLanguage: "es",
-    memorizeMode: "es",
-    theme: "system",
-    reminders: {
-      enabled: false,
-      type: "notification",
-      time: "09:00",
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    },
+  const [prefs, setPrefs] = useState<Partial<AppState>>(() => {
+    let timezone = "UTC";
+    try {
+      timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+    } catch (e) {
+      console.warn("[Onboarding] Failed to detect timezone:", e);
+    }
+    
+    return {
+      primaryLanguage: "es",
+      memorizeMode: "es",
+      theme: "system",
+      reminders: {
+        enabled: false,
+        type: "notification",
+        time: "09:00",
+        timezone,
+      },
+    };
   });
 
-  const next = () => setStep(s => s + 1);
+  const next = () => {
+    console.log("[Onboarding] Moving to next step. Current:", step);
+    setStep(s => {
+      const nextStep = s + 1;
+      if (nextStep > 3) {
+        console.warn("[Onboarding] Step exceeding bounds, ignoring increment:", nextStep);
+        return s;
+      }
+      return nextStep;
+    });
+  };
+
+  const handleComplete = () => {
+    console.log("[Onboarding] Completion button clicked. Prefs:", prefs);
+    onComplete(prefs);
+  };
+
+  console.log("[Onboarding] Rendering step:", step);
 
   const renderStep = () => {
     switch (step) {
@@ -117,7 +143,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 </button>
               ))}
             </div>
-            <button onClick={() => onComplete(prefs)} className="w-full btn-primary flex items-center justify-center gap-2">
+            <button onClick={handleComplete} className="w-full btn-primary flex items-center justify-center gap-2">
               <span>¡Todo listo! / All set!</span>
               <ChevronRight size={20} />
             </button>
@@ -125,15 +151,23 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
         );
 
       default:
-        return null;
+        console.error("[Onboarding] Unexpected step index reached:", step);
+        return (
+          <div className="text-center space-y-4">
+            <p className="text-earth/60">Something went wrong.</p>
+            <button onClick={() => setStep(1)} className="btn-primary">Restart Onboarding</button>
+          </div>
+        );
     }
   };
 
   return (
-    <div className="min-h-screen bg-parchment dark:bg-espresso flex flex-col justify-center p-8 max-w-md mx-auto transition-colors duration-500 relative overflow-hidden">
-      <AnimatePresence mode="popLayout">
-        {renderStep()}
-      </AnimatePresence>
+    <div className="min-h-screen bg-parchment dark:bg-espresso flex flex-col justify-center transition-colors duration-500 relative overflow-hidden">
+      <div className="w-full max-w-md mx-auto p-8 overflow-y-auto max-h-screen scrollbar-hide">
+        <AnimatePresence mode="popLayout">
+          {renderStep()}
+        </AnimatePresence>
+      </div>
     </div>
   );
 }

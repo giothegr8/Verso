@@ -93,9 +93,12 @@ const INITIAL_STATE: AppState = {
 export default function App() {
   const [state, setState] = useState<AppState>(() => {
     const saved = localStorage.getItem("verso_state");
+    console.log("[App] Initializing state. Saved state found:", !!saved);
+    
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
+        console.log("[App] Parsed saved state. Onboarded:", parsed.onboarded);
         
         // Ensure all fields from INITIAL_STATE exist
         const merged = { ...INITIAL_STATE, ...parsed };
@@ -197,24 +200,32 @@ export default function App() {
       state.theme === "dark" || 
       (state.theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
     
+    console.log("[App] Applying theme:", state.theme, "isDark:", isDark);
+    
     // Apply to both html and body for maximum compatibility
     document.documentElement.classList.toggle("dark", isDark);
     document.body.classList.toggle("dark", isDark);
   }, [state.theme]);
 
   if (!state.onboarded) {
+    console.log("[App] User not onboarded. Rendering Onboarding component.");
     return (
       <Onboarding 
-        onComplete={(prefs) => setState(prev => ({ 
-          ...prev, 
-          ...prefs, 
-          onboarded: true,
-          hasCompletedTour: false,
-          trialStartDate: new Date().toISOString()
-        }))} 
+        onComplete={(prefs) => {
+          console.log("[App] Onboarding complete with prefs:", prefs);
+          setState(prev => ({ 
+            ...prev, 
+            ...prefs, 
+            onboarded: true,
+            hasCompletedTour: false,
+            trialStartDate: new Date().toISOString()
+          }));
+        }} 
       />
     );
   }
+
+  console.log("[App] User onboarded. Rendering main app. ActiveTab:", activeTab);
 
   // Trial Logic
   const isTrialExpired = () => {
@@ -331,56 +342,62 @@ export default function App() {
     }
   };
 
-  return (
-    <div className="min-h-screen flex flex-col relative overflow-x-hidden bg-parchment dark:bg-espresso selection:bg-playful-purple/30 transition-colors duration-500">
-      {/* Header */}
-      <header className="sticky top-0 z-40 bg-parchment/90 dark:bg-espresso/90 backdrop-blur-xl border-b border-earth/10 dark:border-white/10 transition-colors duration-500">
-        <div className="content-column py-6 flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-playful-purple rounded-2xl flex items-center justify-center shadow-lg shadow-playful-purple/20">
-              <BookOpen size={20} className="text-white" />
-            </div>
-            <h1 className="text-2xl font-serif font-black text-playful-purple tracking-tight">Verso</h1>
-          </div>
-          <div className="flex items-center gap-4">
-            <button 
-              id="nav-settings"
-              onClick={() => setShowSettings(true)}
-              className="btn-icon bg-white dark:bg-charcoal border border-earth/10 dark:border-white/10 shadow-sm transition-colors duration-500"
-              aria-label="Settings"
-            >
-              <SettingsIcon size={20} />
-            </button>
-          </div>
-        </div>
-      </header>
+  const renderContent = () => {
+    if (!state.onboarded) {
+      console.log("[App] Rendering Onboarding.");
+      return (
+        <Onboarding 
+          onComplete={(prefs) => {
+            console.log("[App] Onboarding complete with prefs:", prefs);
+            setState(prev => ({ 
+              ...prev, 
+              ...prefs, 
+              onboarded: true,
+              hasCompletedTour: false,
+              trialStartDate: new Date().toISOString()
+            }));
+          }} 
+        />
+      );
+    }
 
-      {/* Content */}
-      <main className="flex-1 py-8 sm:py-12 pb-48">
-        <div className="content-column h-full">
-          <ErrorBoundary fallback={
-            <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-6">
-              <div className="w-20 h-20 bg-lavender/10 rounded-3xl flex items-center justify-center">
-                <RotateCcw size={40} className="text-lavender" />
+    if (isTrialExpired()) {
+      console.log("[App] Trial expired. Rendering Paywall.");
+      return (
+        <Paywall 
+          state={state} 
+          onSubscribe={() => setState(s => ({ ...s, isSubscribed: true }))} 
+        />
+      );
+    }
+
+    return (
+      <div className="flex flex-col min-h-screen relative overflow-x-hidden bg-parchment dark:bg-espresso transition-colors duration-500">
+        {/* Header */}
+        <header className="sticky top-0 z-40 bg-parchment/90 dark:bg-espresso/90 backdrop-blur-xl border-b border-earth/10 dark:border-white/10 transition-colors duration-500">
+          <div className="content-column py-6 flex justify-between items-center">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-playful-purple rounded-2xl flex items-center justify-center shadow-lg shadow-playful-purple/20">
+                <BookOpen size={20} className="text-white" />
               </div>
-              <div className="space-y-2">
-                <h2 className="text-2xl font-serif font-black text-earth dark:text-ivory">
-                  {state.primaryLanguage === 'es' ? 'Algo salió mal' : 'Something went wrong'}
-                </h2>
-                <p className="text-earth-light dark:text-lavender-muted max-w-xs">
-                  {state.primaryLanguage === 'es' 
-                    ? 'Hubo un error inesperado. Por favor intenta reiniciar la aplicación.' 
-                    : 'An unexpected error occurred. Please try restarting the app.'}
-                </p>
-              </div>
+              <h1 className="text-2xl font-serif font-black text-playful-purple tracking-tight">Verso</h1>
+            </div>
+            <div className="flex items-center gap-4">
               <button 
-                onClick={() => window.location.reload()}
-                className="btn-primary px-8"
+                id="nav-settings"
+                onClick={() => setShowSettings(true)}
+                className="btn-icon bg-white dark:bg-charcoal border border-earth/10 dark:border-white/10 shadow-sm transition-colors duration-500"
+                aria-label="Settings"
               >
-                {state.primaryLanguage === 'es' ? 'Reiniciar App' : 'Restart App'}
+                <SettingsIcon size={20} />
               </button>
             </div>
-          }>
+          </div>
+        </header>
+
+        {/* Content */}
+        <main className="flex-1 py-8 sm:py-12 pb-48">
+          <div className="content-column h-full">
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeTab}
@@ -393,46 +410,77 @@ export default function App() {
                 {renderTab()}
               </motion.div>
             </AnimatePresence>
-          </ErrorBoundary>
+          </div>
+        </main>
+
+        {/* Navigation - Responsive Bottom Bar */}
+        <div className="fixed bottom-0 left-0 right-0 z-50 px-6 pb-8 pointer-events-none">
+          <nav className="max-w-xl mx-auto bg-white/95 dark:bg-charcoal/95 backdrop-blur-2xl border border-earth/10 dark:border-white/10 px-4 sm:px-8 py-3 flex justify-around items-center rounded-[32px] shadow-2xl pointer-events-auto transition-colors duration-500">
+            <NavButton id="nav-home" active={activeTab === 'home'} onClick={() => setActiveTab('home')} icon={<HomeIcon size={22} />} label={state.primaryLanguage === 'es' ? 'Inicio' : 'Home'} />
+            <NavButton id="nav-memorize" active={activeTab === 'memorize'} onClick={() => setActiveTab('memorize')} icon={<BookOpen size={22} />} label={state.primaryLanguage === 'es' ? 'Memorizar' : 'Memorize'} />
+            <NavButton id="nav-flashcards" active={activeTab === 'flashcards'} onClick={() => setActiveTab('flashcards')} icon={<Layers size={22} />} label={state.primaryLanguage === 'es' ? 'Tarjetas' : 'Cards'} />
+            <NavButton id="nav-saved" active={activeTab === 'saved'} onClick={() => setActiveTab('saved')} icon={<Bookmark size={22} />} label={state.primaryLanguage === 'es' ? 'Guardados' : 'Saved'} />
+          </nav>
         </div>
-      </main>
 
-      {/* Navigation - Responsive Bottom Bar */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 px-6 pb-8 pointer-events-none">
-        <nav className="max-w-xl mx-auto bg-white/95 dark:bg-charcoal/95 backdrop-blur-2xl border border-earth/10 dark:border-white/10 px-4 sm:px-8 py-3 flex justify-around items-center rounded-[32px] shadow-2xl pointer-events-auto transition-colors duration-500">
-          <NavButton id="nav-home" active={activeTab === 'home'} onClick={() => setActiveTab('home')} icon={<HomeIcon size={22} />} label={state.primaryLanguage === 'es' ? 'Inicio' : 'Home'} />
-          <NavButton id="nav-memorize" active={activeTab === 'memorize'} onClick={() => setActiveTab('memorize')} icon={<BookOpen size={22} />} label={state.primaryLanguage === 'es' ? 'Memorizar' : 'Memorize'} />
-          <NavButton id="nav-flashcards" active={activeTab === 'flashcards'} onClick={() => setActiveTab('flashcards')} icon={<Layers size={22} />} label={state.primaryLanguage === 'es' ? 'Tarjetas' : 'Cards'} />
-          <NavButton id="nav-saved" active={activeTab === 'saved'} onClick={() => setActiveTab('saved')} icon={<Bookmark size={22} />} label={state.primaryLanguage === 'es' ? 'Guardados' : 'Saved'} />
-        </nav>
+        {/* Settings Modal */}
+        <AnimatePresence>
+          {showSettings && (
+            <Settings 
+              state={state} 
+              setState={setState} 
+              onClose={() => setShowSettings(false)} 
+              onShowTour={() => {
+                setShowSettings(false);
+                setShowTour(true);
+              }}
+            />
+          )}
+        </AnimatePresence>
+
+        {/* Product Tour */}
+        <ProductTour 
+          isOpen={showTour} 
+          onClose={() => {
+            setShowTour(false);
+            setState(s => ({ ...s, hasCompletedTour: true }));
+          }} 
+          primaryLanguage={state.primaryLanguage}
+          onTabChange={setActiveTab}
+        />
       </div>
+    );
+  };
 
-      {/* Settings Modal */}
-      <AnimatePresence>
-        {showSettings && (
-          <Settings 
-            state={state} 
-            setState={setState} 
-            onClose={() => setShowSettings(false)} 
-            onShowTour={() => {
-              setShowSettings(false);
-              setShowTour(true);
-            }}
-          />
-        )}
-      </AnimatePresence>
-
-      {/* Product Tour */}
-      <ProductTour 
-        isOpen={showTour} 
-        onClose={() => {
-          setShowTour(false);
-          setState(s => ({ ...s, hasCompletedTour: true }));
-        }} 
-        primaryLanguage={state.primaryLanguage}
-        onTabChange={setActiveTab}
-      />
-    </div>
+  return (
+    <ErrorBoundary fallback={
+      <div className="min-h-screen bg-parchment dark:bg-espresso flex flex-col items-center justify-center text-center p-8 space-y-6">
+        <div className="w-20 h-20 bg-lavender/10 rounded-3xl flex items-center justify-center">
+          <RotateCcw size={40} className="text-lavender" />
+        </div>
+        <div className="space-y-2">
+          <h2 className="text-2xl font-serif font-black text-earth dark:text-ivory">
+            {state.primaryLanguage === 'es' ? 'Algo salió mal' : 'Something went wrong'}
+          </h2>
+          <p className="text-earth-light dark:text-lavender-muted max-w-xs mx-auto">
+            {state.primaryLanguage === 'es' 
+              ? 'Hubo un error inesperado. Por favor intenta reiniciar la aplicación.' 
+              : 'An unexpected error occurred. Please try restarting the app.'}
+          </p>
+        </div>
+        <button 
+          onClick={() => {
+            localStorage.clear();
+            window.location.reload();
+          }}
+          className="btn-primary px-8"
+        >
+          {state.primaryLanguage === 'es' ? 'Reiniciar App y Datos' : 'Reset App & Data'}
+        </button>
+      </div>
+    }>
+      {renderContent()}
+    </ErrorBoundary>
   );
 }
 
