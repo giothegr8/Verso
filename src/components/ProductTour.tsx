@@ -116,6 +116,7 @@ export default function ProductTour({ isOpen, onClose, primaryLanguage, onTabCha
   const [currentStep, setCurrentStep] = useState(0);
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
   const [tooltipPos, setTooltipPos] = useState({ top: 100, left: 20, placement: 'bottom' as 'top' | 'bottom' });
+  const [arrowLeft, setArrowLeft] = useState(160);
   const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
@@ -130,10 +131,21 @@ export default function ProductTour({ isOpen, onClose, primaryLanguage, onTabCha
         onTabChange(step.tab);
       }
 
-      const updateRect = () => {
+      const updateRect = (iteration = 0) => {
         const target = document.getElementById(step.targetId);
+        
+        const tooltipWidth = 320;
+        
         if (target) {
           const rect = target.getBoundingClientRect();
+          
+          // Safety: If rect is zero size and we haven't reached max iterations, retry
+          // This catches cases where elements are mid-animation or hidden initially
+          if (rect.width === 0 && iteration < 10) {
+            setTimeout(() => updateRect(iteration + 1), 100);
+            return;
+          }
+
           setTargetRect(rect);
           
           // Calculate tooltip position with safety margins
@@ -147,22 +159,46 @@ export default function ProductTour({ isOpen, onClose, primaryLanguage, onTabCha
             
           // Bounds checking for vertical positioning
           top = Math.max(20, Math.min(window.innerHeight - tooltipHeight - 20, top));
-          const left = Math.max(20, Math.min(window.innerWidth - 340, rect.left + rect.width / 2 - 160));
+          
+          // Horizontal positioning with edge safety
+          const targetCenter = rect.left + rect.width / 2;
+          let left = targetCenter - tooltipWidth / 2;
+          left = Math.max(20, Math.min(window.innerWidth - tooltipWidth - 20, left));
+          
+          // Calculate dynamic arrow position relative to tooltip
+          const arrowX = targetCenter - left;
+          // Clamp arrow position between 20px and 300px (with tooltip being 320px)
+          setArrowLeft(Math.max(20, Math.min(300, arrowX)));
           
           setTooltipPos({ top, left, placement });
         } else {
-          console.warn(`[Tour] Target element not found: ${step.targetId}. Falling back to center.`);
+          // If returning to a tab, the element might not be in DOM yet
+          if (iteration < 15) {
+            setTimeout(() => updateRect(iteration + 1), 100);
+            return;
+          }
+          console.warn(`[Tour Debug] Target element NOT FOUND after retries: ${step.targetId}. Falling back to center.`);
           setTargetRect(null);
           setTooltipPos({ top: 100, left: (window.innerWidth - 320) / 2, placement: 'bottom' });
+          setArrowLeft(tooltipWidth / 2);
         }
       };
       
-      // Increased delay to ensure tab change and layout are stable
-      const timer = setTimeout(updateRect, 300);
-      window.addEventListener('resize', updateRect);
+      // Multi-phase measurement to catch start, middle, and end of layout transitions
+      // This is crucial for spring animations that can take up to 1s to fully settle
+      const timerS = setTimeout(() => updateRect(0), 100);
+      const timerM = setTimeout(() => updateRect(0), 400);
+      const timerL = setTimeout(() => updateRect(0), 1000);
+      
+      window.addEventListener('resize', () => updateRect(0));
+      window.addEventListener('scroll', () => updateRect(0), true);
+
       return () => {
-        window.removeEventListener('resize', updateRect);
-        clearTimeout(timer);
+        window.removeEventListener('resize', () => updateRect(0));
+        window.removeEventListener('scroll', () => updateRect(0), true);
+        clearTimeout(timerS);
+        clearTimeout(timerM);
+        clearTimeout(timerL);
       };
     }
   }, [isOpen, currentStep, onTabChange]);
@@ -232,7 +268,8 @@ export default function ProductTour({ isOpen, onClose, primaryLanguage, onTabCha
           >
             {/* Arrow */}
             <div 
-              className={`absolute left-1/2 -translate-x-1/2 w-0 h-0 border-l-[8px] border-l-transparent border-r-[8px] border-r-transparent ${
+              style={{ left: arrowLeft }}
+              className={`absolute -translate-x-1/2 w-0 h-0 border-l-[8px] border-l-transparent border-r-[8px] border-r-transparent ${
                 tooltipPos.placement === 'bottom' 
                   ? 'bottom-full border-b-[8px] border-b-white dark:border-b-charcoal' 
                   : 'top-full border-t-[8px] border-t-white dark:border-t-charcoal'
