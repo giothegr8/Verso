@@ -462,10 +462,10 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
                 setClueCount(0);
                 setRevealedIndices({ es: [], en: [] });
               }} 
-              className="btn-primary w-full flex items-center justify-center gap-3 py-5"
+              className="btn-primary w-full flex items-center justify-center gap-3 py-5 shadow-playful-purple/20"
             >
-              <RotateCcw size={24} />
-              <span className="text-lg font-black uppercase tracking-widest">{state.primaryLanguage === 'es' ? 'Repetir' : 'Repeat'}</span>
+              <RotateCcw size={20} />
+              <span className="text-lg font-bold tracking-tight lowercase">{state.primaryLanguage === 'es' ? 'repetir' : 'repeat'}</span>
             </motion.button>
             
             <motion.button 
@@ -473,10 +473,10 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
               animate={{ x: 0, opacity: 1 }}
               transition={{ delay: 0.6 }}
               onClick={onGoToSaved}
-              className="w-full py-5 rounded-[32px] bg-white dark:bg-charcoal text-earth dark:text-ivory font-black text-lg flex items-center justify-center gap-3 hover:bg-earth/5 dark:hover:bg-white/5 transition-all shadow-xl border-2 border-earth/5 dark:border-white/5"
+              className="w-full py-5 rounded-[32px] bg-white dark:bg-charcoal text-earth dark:text-ivory font-bold text-lg flex items-center justify-center gap-3 hover:bg-earth/5 dark:hover:bg-white/5 transition-all shadow-xl border-2 border-earth/5 dark:border-white/5"
             >
-              <Bookmark size={24} className="text-playful-purple dark:text-plum" fill="currentColor" />
-              <span className="font-black uppercase tracking-widest">{state.primaryLanguage === 'es' ? 'Ver Mi Tesoro' : 'View My Treasure'}</span>
+              <Bookmark size={20} className="text-playful-purple dark:text-plum" fill="currentColor" />
+              <span className="font-bold tracking-tight lowercase">{state.primaryLanguage === 'es' ? 'ver mi tesoro' : 'view my treasure'}</span>
             </motion.button>
           </div>
         </div>
@@ -485,7 +485,7 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
   }
 
   return (
-    <div className="space-y-8 pb-24 animate-in fade-in slide-in-from-bottom-4 duration-700 flex flex-col items-center">
+    <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-700 flex flex-col items-center">
       {/* Page Header */}
       <div className="w-full max-w-md space-y-1 text-center mb-4">
         <h2 className="text-3xl font-serif font-black text-earth dark:text-ivory flex items-center justify-center gap-3">
@@ -498,7 +498,7 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
       </div>
 
       {/* Card Container */}
-      <div className="relative w-full max-w-md h-[720px] perspective-1000">
+      <div className="relative w-full max-w-md min-h-[500px] h-[65vh] perspective-1000">
         <motion.div
           className="w-full h-full preserve-3d cursor-pointer"
           animate={{ rotateY: isFlipped ? 180 : 0 }}
@@ -618,27 +618,27 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
                     <button
                       onClick={(e) => { e.stopPropagation(); handleSubmit(); }}
                       disabled={!canSubmit}
-                      className={`w-full py-4 rounded-2xl font-black text-sm uppercase tracking-widest transition-all shadow-lg ${
+                      className={`w-full py-4 rounded-2xl font-bold text-base tracking-tight transition-all shadow-lg lowercase ${
                         canSubmit
                           ? 'bg-playful-purple text-white shadow-playful-purple/20 hover:scale-[1.02] active:scale-95'
                           : 'bg-earth/5 dark:bg-white/5 text-earth/20 dark:text-white/20 cursor-not-allowed'
                       }`}
                     >
-                      {state.primaryLanguage === 'es' ? 'Comprobar' : 'Check Answer'}
+                      {state.primaryLanguage === 'es' ? 'revisar' : 'check'}
                     </button>
 
                     <div className="flex flex-col items-center gap-4 w-full">
                       <button
                         onClick={handleClue}
                         disabled={clueCount >= 2 || isCorrect || attemptsLeft === 0}
-                        className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm transition-all ${
+                        className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm transition-all lowercase ${
                           clueCount >= 2 || isCorrect || attemptsLeft === 0
                             ? 'bg-earth/5 dark:bg-white/5 text-earth/20 dark:text-white/20 cursor-not-allowed'
                             : 'bg-playful-purple/10 text-playful-purple hover:bg-playful-purple/20 active:scale-95'
                         }`}
                       >
                         <Sparkles size={16} />
-                        <span>{state.primaryLanguage === 'es' ? 'Pista' : 'Clue'} ({2 - clueCount})</span>
+                        <span>{state.primaryLanguage === 'es' ? 'pista' : 'clue'} ({2 - clueCount})</span>
                       </button>
                       
                       <div className="flex flex-col items-center gap-1">
@@ -731,8 +731,8 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
                 className="w-full bg-teal text-white rounded-[24px] py-6 flex items-center justify-center gap-3 shadow-xl shadow-teal/20 hover:scale-[1.02] active:scale-95 transition-all"
               >
                 <CheckCircle2 size={24} />
-                <span className="text-lg font-black uppercase tracking-widest">
-                  {state.primaryLanguage === 'es' ? 'Versículo Memorizado' : 'Verse Memorized'}
+                <span className="text-lg font-bold tracking-tight lowercase">
+                  {state.primaryLanguage === 'es' ? 'versículo memorizado' : 'verse memorized'}
                 </span>
               </button>
             </motion.div>

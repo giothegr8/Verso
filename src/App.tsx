@@ -387,8 +387,8 @@ export default function App() {
 
         {/* Content */}
         <main 
-          className="flex-1 py-8 sm:py-12"
-          style={{ paddingBottom: "calc(12rem + var(--safe-area-bottom))" }}
+          className="flex-1 py-6 sm:py-12"
+          style={{ paddingBottom: "calc(var(--nav-height) + 1.5rem + var(--safe-area-bottom))" }}
         >
           <div className="content-column h-full">
             <AnimatePresence mode="wait">
@@ -409,9 +409,9 @@ export default function App() {
         {/* Navigation - Responsive Bottom Bar */}
         <div 
           className="fixed bottom-0 left-0 right-0 z-50 px-6 pointer-events-none"
-          style={{ paddingBottom: "calc(2rem + var(--safe-area-bottom))" }}
+          style={{ paddingBottom: "calc(1rem + var(--safe-area-bottom))" }}
         >
-          <nav className="max-w-xl mx-auto bg-white/95 dark:bg-charcoal/95 backdrop-blur-2xl border border-earth/10 dark:border-white/10 px-4 sm:px-8 py-3 flex justify-around items-center rounded-[32px] shadow-2xl pointer-events-auto transition-colors duration-500">
+          <nav className="max-w-xl mx-auto bg-white/95 dark:bg-charcoal/95 backdrop-blur-2xl border border-earth/10 dark:border-white/10 px-6 sm:px-10 py-3.5 flex justify-around items-center rounded-[32px] shadow-2xl pointer-events-auto transition-colors duration-500 h-[var(--nav-height)]">
             <NavButton id="nav-home" active={activeTab === 'home'} onClick={() => setActiveTab('home')} icon={<HomeIcon size={22} />} label={state.primaryLanguage === 'es' ? 'Inicio' : 'Home'} />
             <NavButton id="nav-memorize" active={activeTab === 'memorize'} onClick={() => setActiveTab('memorize')} icon={<BookOpen size={22} />} label={state.primaryLanguage === 'es' ? 'Memorizar' : 'Memorize'} />
             <NavButton id="nav-flashcards" active={activeTab === 'flashcards'} onClick={() => setActiveTab('flashcards')} icon={<Layers size={22} />} label={state.primaryLanguage === 'es' ? 'Tarjetas' : 'Cards'} />
@@ -510,7 +510,7 @@ function NavButton({ id, active, onClick, icon, label }: { id: string, active: b
       >
         {icon}
       </motion.div>
-      <span className={`text-[10px] font-black uppercase tracking-wider transition-all ${active ? 'opacity-100 scale-110' : 'opacity-60 scale-100'}`}>{label}</span>
+      <span className={`text-[9px] font-black uppercase tracking-[0.1em] transition-all ${active ? 'opacity-100 scale-105' : 'opacity-40 scale-100'}`}>{label}</span>
     </button>
   );
 }

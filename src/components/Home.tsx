@@ -59,7 +59,7 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, ease: "easeOut" }}
-      className="h-full flex flex-col space-y-12 pb-24"
+      className="h-full flex flex-col space-y-12"
     >
       {/* Share Modal */}
       <ShareModal 
@@ -300,9 +300,9 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
               )}
             </div>
 
-            <div className="flex justify-between items-end pt-6 border-t border-earth/5 dark:border-white/5">
-              <div className="space-y-1">
-                <h3 className="text-2xl font-serif font-black text-earth dark:text-ivory tracking-tight">
+            <div className="flex flex-col sm:flex-row justify-between items-center sm:items-end gap-6 sm:gap-0 pt-6 border-t border-earth/5 dark:border-white/5">
+              <div className="space-y-1 text-center sm:text-left">
+                <h3 className="text-xl sm:text-2xl font-serif font-black text-earth dark:text-ivory tracking-tight">
                   {getLocalizedBookName(currentVerse.book, state.memorizeMode)} {currentVerse.chapter}:{currentVerse.verse}
                 </h3>
                 <p className="text-[10px] font-black uppercase tracking-widest text-earth-light/60 dark:text-lavender-muted/60">
@@ -320,10 +320,15 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
                     }
                   }}
                   disabled={!esText && !enText}
-                  className={`btn-primary flex items-center gap-2 py-2.5 px-5 sm:py-3 sm:px-6 shadow-xl shadow-playful-purple/20 ${(!esText && !enText) ? 'opacity-50 grayscale cursor-not-allowed' : ''}`}
+                  className={`relative overflow-hidden group flex items-center gap-2.5 py-2 px-6 sm:py-3.5 sm:px-8 bg-playful-purple dark:bg-plum text-white rounded-2xl font-bold transition-all shadow-lg hover:shadow-playful-purple/30 active:scale-95 ${(!esText && !enText) ? 'opacity-50 grayscale cursor-not-allowed' : ''}`}
                 >
-                  <Play size={18} className="sm:w-5 sm:h-5" fill="currentColor" />
-                  <span className="text-base sm:text-lg">{state.primaryLanguage === 'es' ? 'Memorizar' : 'Memorize'}</span>
+                  <div className="flex items-center gap-2 relative z-10">
+                    <Play size={14} fill="currentColor" className="sm:w-[18px] sm:h-[18px]" />
+                    <span className="text-sm sm:text-base tracking-tight lowercase">
+                      {state.primaryLanguage === 'es' ? 'memorizar' : 'memorize'}
+                    </span>
+                  </div>
+                  <div className="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
                 </button>
             </div>
           </div>

@@ -670,8 +670,8 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
               <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
                 <Layers size={24} />
               </div>
-              <span className="text-base sm:text-lg font-black uppercase tracking-widest leading-tight text-center">
-                {state.primaryLanguage === 'es' ? 'Reto Final: Cita bíblica' : 'Final Challenge: Citation'}
+              <span className="text-sm sm:text-base font-bold tracking-tight leading-tight text-center">
+                {state.primaryLanguage === 'es' ? 'Reto: Cita bíblica' : 'Challenge: Citation'}
               </span>
             </motion.button>
             
@@ -1017,14 +1017,14 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
     </div>
 
       {/* Fixed Bottom Action Area - Refined Visual Design */}
-      <div className="flex-shrink-0 flex flex-col gap-3 sm:gap-6 p-4 sm:p-6 pb-6 sm:pb-10 z-30">
+      <div className="flex-shrink-0 flex flex-col gap-2 sm:gap-6 p-4 sm:p-6 pb-4 sm:pb-10 z-30">
         {/* Action Container - Styled like a card with matching radius */}
         <div 
           id="memorize-controls"
-          className="h-auto sm:h-[180px] w-full bg-white/95 dark:bg-charcoal/95 rounded-[32px] sm:rounded-[40px] shadow-2xl border border-earth/10 dark:border-white/10 p-4 sm:p-8 flex flex-col justify-between"
+          className="h-auto sm:h-[180px] w-full bg-white/95 dark:bg-charcoal/95 rounded-[24px] sm:rounded-[40px] shadow-2xl border border-earth/10 dark:border-white/10 p-3 sm:p-8 flex flex-col justify-between"
         >
           {/* Stable Button Row */}
-          <div className="h-14 sm:h-20 flex items-center gap-3 sm:gap-4">
+          <div className="h-12 sm:h-20 flex items-center gap-2 sm:gap-4">
             {/* Back Button Slot - Always takes 50% space to keep Next button stable */}
             <div className="flex-1 h-full">
               <AnimatePresence>
@@ -1034,11 +1034,11 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     onClick={prevStage}
-                    className="w-full h-full rounded-xl sm:rounded-2xl font-black text-sm sm:text-lg uppercase tracking-widest bg-earth/5 dark:bg-white/5 text-earth-light/60 dark:text-lavender-muted/60 hover:bg-earth/10 dark:hover:bg-white/10 transition-all border-2 border-transparent flex items-center justify-center gap-2"
+                    className="w-full h-full rounded-xl sm:rounded-2xl font-bold text-sm sm:text-lg lowercase tracking-tight bg-earth/10 dark:bg-white/10 text-earth-light dark:text-lavender-muted hover:bg-earth/15 dark:hover:bg-white/15 transition-all border border-earth/5 dark:border-white/5 flex items-center justify-center gap-2"
                     whileTap={{ scale: 0.98 }}
                   >
-                    <ArrowLeft size={18} className="sm:w-5 sm:h-5" />
-                    <span>{state.primaryLanguage === 'es' ? 'Atrás' : 'Back'}</span>
+                    <ArrowLeft size={16} className="sm:w-5 sm:h-5 text-earth/40 dark:text-white/40" />
+                    <span>{state.primaryLanguage === 'es' ? 'atrás' : 'back'}</span>
                   </motion.button>
                 )}
               </AnimatePresence>
@@ -1048,20 +1048,20 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
             <div className="flex-1 h-full">
               <motion.button 
                 onClick={stage === 5 && !hasSubmitted ? handleCheck : nextStage}
-                className={`w-full h-full flex items-center justify-center gap-2 sm:gap-3 group rounded-xl sm:rounded-2xl font-bold transition-all shadow-xl relative overflow-hidden ${
+                className={`w-full h-full flex items-center justify-center gap-2 sm:gap-3 group rounded-xl sm:rounded-2xl font-bold transition-all shadow-lg relative overflow-hidden ${
                   stage === 5 
-                    ? 'bg-plum-deep dark:bg-indigo-rich text-white shadow-plum-deep/30 dark:shadow-indigo-rich/40' 
-                    : 'btn-primary shadow-playful-purple/30 dark:shadow-plum/40'
+                    ? 'bg-indigo-rich dark:bg-indigo-rich text-white shadow-indigo-rich/30' 
+                    : 'bg-playful-purple dark:bg-plum text-white shadow-playful-purple/20'
                 }`}
                 whileTap={{ scale: 0.98 }}
               >
-                <span className="text-base sm:text-xl font-bold relative z-10 tracking-tight">
+                <span className="text-sm sm:text-xl font-bold relative z-10 tracking-tight lowercase">
                   {stage === 5 
-                    ? (hasSubmitted ? (state.primaryLanguage === 'es' ? 'Siguiente' : 'Next') : (state.primaryLanguage === 'es' ? 'Comprobar' : 'Check')) 
-                    : (state.primaryLanguage === 'es' ? 'Siguiente' : 'Siguiente')}
+                    ? (hasSubmitted ? (state.primaryLanguage === 'es' ? 'próximo' : 'next') : (state.primaryLanguage === 'es' ? 'revisar' : 'check')) 
+                    : (state.primaryLanguage === 'es' ? 'próximo' : 'next')}
                 </span>
                 <div className="relative z-10">
-                  <ArrowRight size={20} className="sm:w-6 sm:h-6" strokeWidth={3} />
+                  <ArrowRight size={18} className="sm:w-6 sm:h-6" strokeWidth={3} />
                 </div>
               </motion.button>
             </div>

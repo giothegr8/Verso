@@ -82,7 +82,7 @@ export default function Saved({ state, setState, onStartMemorizing }: SavedProps
   };
 
   return (
-    <div className="space-y-8 pb-24">
+    <div className="space-y-8">
       {/* Share Modal */}
       <ShareModal 
         isOpen={isShareModalOpen}
@@ -260,10 +260,10 @@ export default function Saved({ state, setState, onStartMemorizing }: SavedProps
                     }
                   }}
                   disabled={!esText && !enText}
-                  className={`w-full py-4 rounded-2xl bg-playful-purple/10 dark:bg-plum/20 text-playful-purple dark:text-plum font-black text-xs uppercase tracking-widest flex items-center justify-center gap-3 transition-all border-2 border-playful-purple/20 dark:border-plum/30 shadow-lg shadow-playful-purple/10 dark:shadow-plum/10 ${(!esText && !enText) ? 'opacity-50 grayscale cursor-not-allowed' : ''}`}
+                  className={`w-full py-4 rounded-2xl bg-playful-purple dark:bg-plum text-white font-bold text-sm tracking-tight flex items-center justify-center gap-2.5 transition-all shadow-lg hover:shadow-playful-purple/20 lowercase ${(!esText && !enText) ? 'opacity-50 grayscale cursor-not-allowed' : ''}`}
                 >
                   <BookOpen size={16} />
-                  <span>{state.primaryLanguage === 'es' ? 'Repasar ahora' : 'Review Now'}</span>
+                  <span>{state.primaryLanguage === 'es' ? 'memorizar ahora' : 'memorize now'}</span>
                 </motion.button>
               </motion.div>
             );
