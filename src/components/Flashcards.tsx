@@ -540,7 +540,7 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
                           onClick={(e) => { e.stopPropagation(); if (!isCorrect && attemptsLeft > 0) inputRefEs.current?.focus(); }}
                         >
                           <p className="text-[10px] font-black uppercase tracking-widest text-earth-light/40 dark:text-lavender-muted/40 text-center">
-                            {state.primaryLanguage === 'es' ? 'Escribe la cita del versículo (ES)' : 'Type the citation (ES)'}
+                            {state.primaryLanguage === 'es' ? 'Escribe la cita bíblica (ES)' : 'Type the citation (ES)'}
                           </p>
                           <input 
                             ref={inputRefEs}
@@ -595,7 +595,7 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
                           className="text-[10px] font-black uppercase tracking-widest text-coral text-center"
                         >
                           {state.primaryLanguage === 'es' 
-                            ? 'Esa no es la cita correcta. Inténtalo de nuevo.' 
+                            ? 'Esa no es la cita bíblica correcta. Inténtalo de nuevo.' 
                             : 'Not quite. That’s not the right citation yet. Try again.'}
                         </motion.p>
                       )}

@@ -134,6 +134,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState("home");
   const [showSettings, setShowSettings] = useState(false);
   const [showTour, setShowTour] = useState(false);
+  const [currentTourStepId, setCurrentTourStepId] = useState<string | null>(null);
 
   useEffect(() => {
     if (state.onboarded && !state.hasCompletedTour) {
@@ -299,6 +300,7 @@ export default function App() {
             setState(s => ({ ...s, selectedVerseId: verseId }));
             setActiveTab("flashcards");
           }}
+          tourStepId={currentTourStepId}
         />
       );
       case "flashcards": return (
@@ -359,7 +361,7 @@ export default function App() {
     return (
       <div 
         key={state.onboarded ? "main-app" : "booting"} // Force re-mount if state changes significantly
-        className="flex flex-col min-h-screen relative overflow-x-hidden bg-parchment dark:bg-espresso transition-colors duration-500"
+        className="flex flex-col min-h-screen-dynamic relative overflow-x-hidden bg-parchment dark:bg-espresso transition-colors duration-500"
       >
         {/* Header */}
         <header className="sticky top-0 z-40 bg-parchment/90 dark:bg-espresso/90 backdrop-blur-xl border-b border-earth/10 dark:border-white/10 transition-colors duration-500">
@@ -384,7 +386,10 @@ export default function App() {
         </header>
 
         {/* Content */}
-        <main className="flex-1 py-8 sm:py-12 pb-48">
+        <main 
+          className="flex-1 py-8 sm:py-12"
+          style={{ paddingBottom: "calc(12rem + var(--safe-area-bottom))" }}
+        >
           <div className="content-column h-full">
             <AnimatePresence mode="wait">
               <motion.div
@@ -402,7 +407,10 @@ export default function App() {
         </main>
 
         {/* Navigation - Responsive Bottom Bar */}
-        <div className="fixed bottom-0 left-0 right-0 z-50 px-6 pb-8 pointer-events-none">
+        <div 
+          className="fixed bottom-0 left-0 right-0 z-50 px-6 pointer-events-none"
+          style={{ paddingBottom: "calc(2rem + var(--safe-area-bottom))" }}
+        >
           <nav className="max-w-xl mx-auto bg-white/95 dark:bg-charcoal/95 backdrop-blur-2xl border border-earth/10 dark:border-white/10 px-4 sm:px-8 py-3 flex justify-around items-center rounded-[32px] shadow-2xl pointer-events-auto transition-colors duration-500">
             <NavButton id="nav-home" active={activeTab === 'home'} onClick={() => setActiveTab('home')} icon={<HomeIcon size={22} />} label={state.primaryLanguage === 'es' ? 'Inicio' : 'Home'} />
             <NavButton id="nav-memorize" active={activeTab === 'memorize'} onClick={() => setActiveTab('memorize')} icon={<BookOpen size={22} />} label={state.primaryLanguage === 'es' ? 'Memorizar' : 'Memorize'} />
@@ -431,10 +439,12 @@ export default function App() {
           isOpen={showTour} 
           onClose={() => {
             setShowTour(false);
+            setCurrentTourStepId(null);
             setState(s => ({ ...s, hasCompletedTour: true }));
           }} 
           primaryLanguage={state.primaryLanguage}
           onTabChange={setActiveTab}
+          onStepChange={setCurrentTourStepId}
         />
       </div>
     );

@@ -135,6 +135,10 @@ export default function Saved({ state, setState, onStartMemorizing }: SavedProps
           className="w-full h-14 pl-12 pr-4 rounded-2xl bg-white dark:bg-charcoal border-2 border-earth/10 dark:border-white/10 focus:border-playful-purple dark:focus:border-plum outline-none transition-all font-medium text-earth dark:text-ivory placeholder:text-earth/40 dark:placeholder:text-lavender-muted/60 shadow-sm"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="none"
+          spellCheck="false"
         />
       </div>
 

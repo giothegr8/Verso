@@ -53,17 +53,17 @@ export default function ShareModal({ isOpen, onClose, verse, state, onNativeShar
             </div>
 
             {/* Preview Area */}
-            <div className="flex-1 p-8 overflow-y-auto max-h-[70vh]">
+            <div className="flex-1 p-6 sm:p-8 overflow-y-auto max-h-[60vh] sm:max-h-[70vh]">
               <div 
                 id={cardId}
-                className="aspect-[4/5] w-full bg-charcoal rounded-[32px] shadow-2xl p-10 flex flex-col justify-between relative overflow-hidden border border-white/10"
+                className="w-full bg-charcoal rounded-[32px] shadow-2xl p-6 sm:p-10 flex flex-col justify-between relative overflow-hidden border border-white/10 min-h-[450px]"
               >
                 {/* Decorative Background Elements */}
                 <div className="absolute top-0 right-0 w-48 h-48 bg-playful-purple/10 rounded-full -mr-24 -mt-24 blur-3xl" />
                 <div className="absolute bottom-0 left-0 w-48 h-48 bg-teal/10 rounded-full -ml-24 -mb-24 blur-3xl" />
                 
-                <div className="space-y-8 relative z-10">
-                  <div className="flex items-center gap-2 mb-6">
+                <div className="space-y-6 sm:space-y-8 relative z-10">
+                  <div className="flex items-center gap-2 mb-4 sm:mb-6">
                     <div className="w-6 h-6 bg-playful-purple rounded-lg flex items-center justify-center">
                       <BookOpen size={14} className="text-white" />
                     </div>
@@ -72,13 +72,13 @@ export default function ShareModal({ isOpen, onClose, verse, state, onNativeShar
                     </span>
                   </div>
 
-                  <div className="space-y-6">
+                  <div className="space-y-5 sm:space-y-6">
                     {(state.memorizeMode === 'es' || state.memorizeMode === 'both') && (
                       <div className="space-y-2">
                         <span className="text-[8px] font-black uppercase tracking-widest text-playful-purple">
                           {esDetail.name}
                         </span>
-                        <p className="text-2xl font-serif leading-relaxed text-ivory font-medium">
+                        <p className="text-lg sm:text-2xl font-serif leading-relaxed text-ivory font-medium">
                           {verse.textEs || verse.text}
                         </p>
                       </div>
@@ -93,7 +93,7 @@ export default function ShareModal({ isOpen, onClose, verse, state, onNativeShar
                         <span className="text-[8px] font-black uppercase tracking-widest text-golden">
                           {enDetail.name}
                         </span>
-                        <p className="text-2xl font-serif leading-relaxed text-ivory font-medium">
+                        <p className="text-lg sm:text-2xl font-serif leading-relaxed text-ivory font-medium">
                           {verse.textEn || verse.text}
                         </p>
                       </div>
@@ -101,12 +101,12 @@ export default function ShareModal({ isOpen, onClose, verse, state, onNativeShar
                   </div>
                 </div>
 
-                <div className="pt-8 border-t border-white/10 flex justify-between items-end relative z-10">
+                <div className="mt-8 pt-6 sm:pt-8 border-t border-white/10 flex justify-between items-end relative z-10">
                   <div className="space-y-1">
-                    <h4 className="text-xl font-serif font-black text-ivory">
+                    <h4 className="text-lg sm:text-xl font-serif font-black text-ivory">
                       {getLocalizedBookName(verse.book, state.memorizeMode)} {verse.chapter}:{verse.verse}
                     </h4>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-ivory/40">
+                    <p className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-ivory/40">
                       {state.primaryLanguage === 'es' ? 'Memorizado con Verso' : 'Memorized with Verso'}
                     </p>
                   </div>
@@ -116,7 +116,7 @@ export default function ShareModal({ isOpen, onClose, verse, state, onNativeShar
                     <div className="w-8 h-8 bg-playful-purple rounded-xl flex items-center justify-center shadow-lg shadow-playful-purple/20">
                       <BookOpen size={16} className="text-white" />
                     </div>
-                    <span className="text-lg font-serif font-black text-playful-purple tracking-tight">Verso</span>
+                    <span className="text-base sm:text-lg font-serif font-black text-playful-purple tracking-tight">Verso</span>
                   </div>
                 </div>
               </div>

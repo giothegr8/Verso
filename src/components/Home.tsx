@@ -311,20 +311,20 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
                     : (state.primaryLanguage === 'es' ? 'Versículo extra' : 'Extra verse')}
                 </p>
               </div>
-              <button 
-                id="memorize-btn-main"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (esText || enText) {
-                    onStartMemorizing(currentVerse.id);
-                  }
-                }}
-                disabled={!esText && !enText}
-                className={`btn-primary flex items-center gap-2 py-3 px-6 shadow-xl shadow-playful-purple/20 ${(!esText && !enText) ? 'opacity-50 grayscale cursor-not-allowed' : ''}`}
-              >
-                <Play size={20} fill="currentColor" />
-                <span className="text-lg">{state.primaryLanguage === 'es' ? 'Memorizar' : 'Memorize'}</span>
-              </button>
+                <button 
+                  id="memorize-btn-main"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (esText || enText) {
+                      onStartMemorizing(currentVerse.id);
+                    }
+                  }}
+                  disabled={!esText && !enText}
+                  className={`btn-primary flex items-center gap-2 py-2.5 px-5 sm:py-3 sm:px-6 shadow-xl shadow-playful-purple/20 ${(!esText && !enText) ? 'opacity-50 grayscale cursor-not-allowed' : ''}`}
+                >
+                  <Play size={18} className="sm:w-5 sm:h-5" fill="currentColor" />
+                  <span className="text-base sm:text-lg">{state.primaryLanguage === 'es' ? 'Memorizar' : 'Memorize'}</span>
+                </button>
             </div>
           </div>
         </motion.div>

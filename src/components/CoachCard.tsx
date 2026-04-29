@@ -53,7 +53,7 @@ const REFLECTION_BANK = {
     "¿Cuál es la palabra que no quieres olvidar?",
     "¿Qué parte de este versículo destacó más hoy?",
     "¿Cómo cambia este versículo tu perspectiva hoy?",
-    "Si tuvieras que resumir este verso en una palabra, ¿cuál sería?"
+    "Si tuvieras que resumir este versículo en una palabra, ¿cuál sería?"
   ]
 };
 
@@ -70,7 +70,7 @@ const SUGGESTION_BANK = {
     "Visualiza las palabras mientras las dices.",
     "Toma un respiro profundo e inténtalo una vez más.",
     "Enfócate en el ritmo de las palabras.",
-    "Intenta recordar la cita primero."
+    "Intenta recordar la cita bíblica primero."
   ]
 };
 
@@ -83,11 +83,11 @@ const TIP_BANK = {
     "Pray this verse back to God."
   ],
   es: [
-    "Prueba a decir el verso en voz alta mientras caminas.",
+    "Prueba a decir el versículo en voz alta mientras caminas.",
     "Escríbelo en una nota adhesiva para hoy.",
-    "Piensa en este verso antes de dormir.",
-    "Comparte este verso con un amigo hoy.",
-    "Haz de este verso una oración."
+    "Piensa en este versículo antes de dormir.",
+    "Comparte este versículo con un amigo hoy.",
+    "Haz de este versículo una oración."
   ]
 };
 

@@ -169,7 +169,7 @@ export default function Settings({ state, setState, onClose, onShowTour }: Setti
               <Book size={20} className="text-sky-blue" />
               <div className="space-y-0.5">
                 <h3 className="text-sm font-black uppercase tracking-widest text-earth dark:text-ivory">
-                  {localState.primaryLanguage === 'es' ? 'Traducciones' : 'Translations'}
+                  {localState.primaryLanguage === 'es' ? 'Versiones' : 'Versions'}
                 </h3>
                 <p className="text-[10px] font-bold text-earth-light/60 dark:text-lavender-muted uppercase tracking-widest">
                   {localState.primaryLanguage === 'es' ? 'Selecciona las versiones de la Biblia' : 'Select which Bible versions to use'}
@@ -182,7 +182,7 @@ export default function Settings({ state, setState, onClose, onShowTour }: Setti
               {(localState.memorizeMode === 'es' || localState.memorizeMode === 'both') && (
                 <div className="space-y-4">
                   <p className="text-[10px] font-black uppercase tracking-widest text-earth-light/60 dark:text-lavender-muted px-1">
-                    {localState.primaryLanguage === 'es' ? 'Traducción al Español' : 'Spanish Translation'}
+                    {localState.primaryLanguage === 'es' ? 'Versión en español' : 'Spanish Version'}
                   </p>
                   <div className="grid grid-cols-1 gap-3">
                     {[
@@ -207,7 +207,7 @@ export default function Settings({ state, setState, onClose, onShowTour }: Setti
               {(localState.memorizeMode === 'en' || localState.memorizeMode === 'both') && (
                 <div className="space-y-4">
                   <p className="text-[10px] font-black uppercase tracking-widest text-earth-light/60 dark:text-lavender-muted px-1">
-                    {localState.primaryLanguage === 'es' ? 'Traducción al Inglés' : 'English Translation'}
+                    {localState.primaryLanguage === 'es' ? 'Versión en inglés' : 'English Version'}
                   </p>
                   <div className="grid grid-cols-1 gap-3">
                     {[

@@ -129,10 +129,10 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
             </div>
 
             <div className="space-y-6">
-              <h1 className="text-6xl font-serif font-black text-playful-purple tracking-tighter">Verso</h1>
+              <h1 className="text-5xl sm:text-6xl font-serif font-black text-playful-purple tracking-tighter">Verso</h1>
               <div className="space-y-6">
                 <div className="space-y-3">
-                  <p className="text-3xl font-serif font-black text-earth dark:text-ivory leading-tight tracking-tight">
+                  <p className="text-2xl sm:text-3xl font-serif font-black text-earth dark:text-ivory leading-tight tracking-tight px-2">
                     {TRANSLATIONS.es.welcome}
                   </p>
                   <p className="text-xl font-serif font-medium text-earth/30 dark:text-ivory/30 italic leading-tight">
@@ -258,8 +258,8 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
   };
 
   return (
-    <div className="min-h-screen bg-parchment dark:bg-espresso flex flex-col justify-center transition-colors duration-500 relative overflow-hidden">
-      <div className="w-full max-w-md mx-auto p-8 overflow-y-auto max-h-screen scrollbar-hide">
+    <div className="min-h-screen-dynamic bg-parchment dark:bg-espresso flex flex-col justify-center transition-colors duration-500 relative overflow-hidden">
+      <div className="w-full max-w-md mx-auto p-4 sm:p-8 overflow-y-auto max-h-screen-dynamic scrollbar-hide">
         <AnimatePresence mode="popLayout">
           {renderStep()}
         </AnimatePresence>

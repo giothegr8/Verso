@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { X, ChevronRight, ChevronLeft, Sparkles, Play, Languages, Bookmark, Check, Settings, Layers, Share2 } from "lucide-react";
+import { X, ChevronRight, ChevronLeft, Sparkles, Play, Languages, Bookmark, Check, Settings, Layers, Share2, EyeOff, MessageCircle } from "lucide-react";
 
 interface TourStep {
   id: string;
@@ -29,7 +29,7 @@ const TOUR_STEPS: TourStep[] = [
     title: { en: "Choose Your Version", es: "Elige tu versión" },
     description: { 
       en: "Want a different version? Switch translations instantly right here.", 
-      es: "Toca aquí para cambiar la traducción del verso. Puedes elegir la que más te guste o la que te resulte más fácil de aprender." 
+      es: "Cambia aquí la versión de la Biblia." 
     },
     targetId: "translation-pill",
     icon: <Languages className="text-playful-purple" size={24} />,
@@ -60,8 +60,30 @@ const TOUR_STEPS: TourStep[] = [
     tab: "memorize"
   },
   {
+    id: "practice-mechanic",
+    title: { en: "Guided Practice", es: "Práctica guiada" },
+    description: { 
+      en: "You won't type here yet. We'll gradually remove letters as you rehearse, so your memory gets stronger each round.", 
+      es: "Aquí no escribirás todavía. Iremos quitando letras gradualmente mientras ensayas, para que tu memoria se fortalezca en cada paso." 
+    },
+    targetId: "memorize-verse-card",
+    icon: <EyeOff className="text-playful-purple" size={24} />,
+    tab: "memorize"
+  },
+  {
+    id: "recall-challenge",
+    title: { en: "Final Recall", es: "Recuerdo final" },
+    description: { 
+      en: "On the last step, you'll type the verse from memory. If you need a little help, you can use a clue.", 
+      es: "En el último paso, escribirás el versículo de memoria. Si necesitas un poco de ayuda, puedes usar una pista." 
+    },
+    targetId: "memorize-controls",
+    icon: <MessageCircle className="text-playful-purple" size={24} />,
+    tab: "memorize"
+  },
+  {
     id: "nav-cards-step",
-    title: { en: "Citation Challenge", es: "Reto de la cita" },
+    title: { en: "Citation Challenge", es: "Reto de la cita bíblica" },
     description: { 
       en: "Test your memory by recalling exactly where each verse is found.", 
       es: "Aquí pondrás a prueba tu memoria recordando exactamente dónde está el versículo." 
@@ -110,9 +132,10 @@ interface ProductTourProps {
   onClose: () => void;
   primaryLanguage: 'en' | 'es';
   onTabChange?: (tab: string) => void;
+  onStepChange?: (stepId: string) => void;
 }
 
-export default function ProductTour({ isOpen, onClose, primaryLanguage, onTabChange }: ProductTourProps) {
+export default function ProductTour({ isOpen, onClose, primaryLanguage, onTabChange, onStepChange }: ProductTourProps) {
   const [currentStep, setCurrentStep] = useState(0);
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
   const [tooltipPos, setTooltipPos] = useState({ top: 100, left: 20, placement: 'bottom' as 'top' | 'bottom' });
@@ -131,15 +154,19 @@ export default function ProductTour({ isOpen, onClose, primaryLanguage, onTabCha
         onTabChange(step.tab);
       }
 
+      if (onStepChange) {
+        onStepChange(step.id);
+      }
+
       const updateRect = (iteration = 0) => {
         const target = document.getElementById(step.targetId);
         
-        const tooltipWidth = 320;
+        // Responsive tooltip width
+        const isSmallScreen = window.innerWidth < 640;
+        const tooltipWidth = isSmallScreen ? Math.min(window.innerWidth - 32, 280) : 320;
         
         if (target) {
           const rect = target.getBoundingClientRect();
-          
-          // Safety: If rect is zero size and we haven't reached max iterations, retry
           // This catches cases where elements are mid-animation or hidden initially
           if (rect.width === 0 && iteration < 10) {
             setTimeout(() => updateRect(iteration + 1), 100);
@@ -150,25 +177,26 @@ export default function ProductTour({ isOpen, onClose, primaryLanguage, onTabCha
           
           // Calculate tooltip position with safety margins
           const spaceBelow = window.innerHeight - rect.bottom;
-          const tooltipHeight = 220;
+          const tooltipHeight = isSmallScreen ? 180 : 220; // Estimate height based on compactness
           const placement = spaceBelow > (tooltipHeight + 40) ? 'bottom' : 'top';
           
           let top = placement === 'bottom' 
-            ? rect.bottom + 20 
-            : rect.top - tooltipHeight - 20;
+            ? rect.bottom + 12 
+            : rect.top - tooltipHeight - 12;
             
           // Bounds checking for vertical positioning
-          top = Math.max(20, Math.min(window.innerHeight - tooltipHeight - 20, top));
+          top = Math.max(isSmallScreen ? 10 : 20, Math.min(window.innerHeight - tooltipHeight - (isSmallScreen ? 10 : 20), top));
           
           // Horizontal positioning with edge safety
           const targetCenter = rect.left + rect.width / 2;
           let left = targetCenter - tooltipWidth / 2;
-          left = Math.max(20, Math.min(window.innerWidth - tooltipWidth - 20, left));
+          const margin = isSmallScreen ? 16 : 20;
+          left = Math.max(margin, Math.min(window.innerWidth - tooltipWidth - margin, left));
           
           // Calculate dynamic arrow position relative to tooltip
           const arrowX = targetCenter - left;
-          // Clamp arrow position between 20px and 300px (with tooltip being 320px)
-          setArrowLeft(Math.max(20, Math.min(300, arrowX)));
+          // Clamp arrow position
+          setArrowLeft(Math.max(20, Math.min(tooltipWidth - 20, arrowX)));
           
           setTooltipPos({ top, left, placement });
         } else {
@@ -216,16 +244,16 @@ export default function ProductTour({ isOpen, onClose, primaryLanguage, onTabCha
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="absolute inset-0 bg-espresso/70 pointer-events-auto"
+          className="absolute inset-0 bg-espresso/80 pointer-events-auto"
           style={{
             clipPath: targetRect ? `polygon(
               0% 0%, 0% 100%, 
-              ${targetRect.left - 8}px 100%, 
-              ${targetRect.left - 8}px ${targetRect.top - 8}px, 
-              ${targetRect.right + 8}px ${targetRect.top - 8}px, 
-              ${targetRect.right + 8}px ${targetRect.bottom + 8}px, 
-              ${targetRect.left - 8}px ${targetRect.bottom + 8}px, 
-              ${targetRect.left - 8}px 100%, 
+              ${targetRect.left - 4}px 100%, 
+              ${targetRect.left - 4}px ${targetRect.top - 4}px, 
+              ${targetRect.right + 4}px ${targetRect.top - 4}px, 
+              ${targetRect.right + 4}px ${targetRect.bottom + 4}px, 
+              ${targetRect.left - 4}px ${targetRect.bottom + 4}px, 
+              ${targetRect.left - 4}px 100%, 
               100% 100%, 100% 0%
             )` : 'none'
           }}
@@ -240,12 +268,12 @@ export default function ProductTour({ isOpen, onClose, primaryLanguage, onTabCha
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute z-[101] border border-white/40 rounded-[32px]"
+              className="absolute z-[101] border border-white/40 rounded-[20px] sm:rounded-[32px]"
               style={{
-                left: targetRect.left - 8,
-                top: targetRect.top - 8,
-                width: targetRect.width + 16,
-                height: targetRect.height + 16,
+                left: targetRect.left - 4,
+                top: targetRect.top - 4,
+                width: targetRect.width + 8,
+                height: targetRect.height + 8,
               }}
             />
           )}
@@ -253,10 +281,11 @@ export default function ProductTour({ isOpen, onClose, primaryLanguage, onTabCha
 
         {/* Tour Card - Relative to target */}
         <div 
-          className="absolute z-[102] w-full max-w-[320px] pointer-events-auto transition-all duration-500 ease-out"
+          className="absolute z-[102] w-full pointer-events-auto transition-all duration-500 ease-out"
           style={{
             top: tooltipPos.top,
             left: tooltipPos.left,
+            maxWidth: window.innerWidth < 640 ? Math.min(window.innerWidth - 32, 280) : 320
           }}
         >
           <motion.div
@@ -264,7 +293,7 @@ export default function ProductTour({ isOpen, onClose, primaryLanguage, onTabCha
             initial={{ opacity: 0, scale: 0.95, y: tooltipPos.placement === 'bottom' ? -10 : 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: tooltipPos.placement === 'bottom' ? -10 : 10 }}
-            className="bg-white dark:bg-charcoal rounded-[24px] shadow-2xl border border-earth/10 dark:border-white/10 p-6 relative"
+            className="bg-white dark:bg-charcoal rounded-[24px] shadow-2xl border border-earth/10 dark:border-white/10 p-4 sm:p-6 relative"
           >
             {/* Arrow */}
             <div 
@@ -276,30 +305,30 @@ export default function ProductTour({ isOpen, onClose, primaryLanguage, onTabCha
               }`}
             />
 
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-earth/5 dark:bg-white/5 flex items-center justify-center">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-earth/5 dark:bg-white/5 flex items-center justify-center">
                     {step.icon}
                   </div>
-                  <h3 className="text-lg font-serif font-black text-earth dark:text-ivory tracking-tight">
+                  <h3 className="text-base sm:text-lg font-serif font-black text-earth dark:text-ivory tracking-tight">
                     {step.title[primaryLanguage]}
                   </h3>
                 </div>
-                <span className="text-[10px] font-black text-earth-light/40 dark:text-lavender-muted/40 uppercase tracking-widest">
+                <span className="text-[9px] sm:text-[10px] font-black text-earth-light/40 dark:text-lavender-muted/40 uppercase tracking-widest">
                   {currentStep + 1} / {TOUR_STEPS.length}
                 </span>
               </div>
               
-              <p className="text-sm text-earth-light dark:text-lavender-muted leading-relaxed font-medium">
+              <p className="text-xs sm:text-sm text-earth-light dark:text-lavender-muted leading-relaxed font-medium">
                 {step.description[primaryLanguage]}
               </p>
             </div>
 
-            <div className="mt-8 flex items-center justify-between">
+            <div className="mt-6 sm:mt-8 flex items-center justify-between">
               <button 
                 onClick={onClose}
-                className="text-[10px] font-black uppercase tracking-widest text-earth-light/40 dark:text-lavender-muted/40 hover:text-earth dark:hover:text-ivory transition-colors"
+                className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-earth-light/40 dark:text-lavender-muted/40 hover:text-earth dark:hover:text-ivory transition-colors"
               >
                 {primaryLanguage === 'es' ? 'Saltar' : 'Skip'}
               </button>
@@ -308,7 +337,7 @@ export default function ProductTour({ isOpen, onClose, primaryLanguage, onTabCha
                 {currentStep > 0 && (
                   <button 
                     onClick={() => setCurrentStep(s => s - 1)}
-                    className="w-8 h-8 rounded-full bg-earth/5 dark:bg-white/5 flex items-center justify-center text-earth-light hover:bg-earth/10 dark:hover:bg-white/10 transition-colors"
+                    className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-earth/5 dark:bg-white/5 flex items-center justify-center text-earth-light hover:bg-earth/10 dark:hover:bg-white/10 transition-colors"
                   >
                     <ChevronLeft size={16} />
                   </button>
@@ -316,9 +345,9 @@ export default function ProductTour({ isOpen, onClose, primaryLanguage, onTabCha
                 
                 <button 
                   onClick={() => isLastStep ? onClose() : setCurrentStep(s => s + 1)}
-                  className="bg-playful-purple text-white py-2 px-5 rounded-full shadow-lg shadow-playful-purple/20 flex items-center gap-2 hover:brightness-110 active:scale-95 transition-all"
+                  className="bg-playful-purple text-white py-1.5 px-4 sm:py-2 sm:px-5 rounded-full shadow-lg shadow-playful-purple/20 flex items-center gap-2 hover:brightness-110 active:scale-95 transition-all"
                 >
-                  <span className="text-[10px] font-black uppercase tracking-widest">
+                  <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest">
                     {isLastStep 
                       ? (primaryLanguage === 'es' ? 'Listo' : 'Done') 
                       : (step.cta ? step.cta[primaryLanguage] : (primaryLanguage === 'es' ? 'Siguiente' : 'Next'))}

@@ -13,6 +13,7 @@ interface MemorizeProps {
   setState: React.Dispatch<React.SetStateAction<AppState>>;
   onComplete?: () => void;
   onGoToFlashcards?: (verseId: string) => void;
+  tourStepId?: string | null;
 }
 
 const STAGES = [
@@ -23,7 +24,7 @@ const STAGES = [
   { id: 5, label: "Full Recall", es: "Recuerdo completo" },
 ];
 
-export default function Memorize({ state, setState, onComplete, onGoToFlashcards }: MemorizeProps) {
+export default function Memorize({ state, setState, onComplete, onGoToFlashcards, tourStepId }: MemorizeProps) {
   const today = getLocalDateString();
   const votd = getVerseByDate(today);
   
@@ -37,8 +38,8 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
   const [showSparkles, setShowSparkles] = useState(false);
   const [coachType, setCoachType] = useState<'encouragement' | 'suggestion' | 'tip'>('encouragement');
   const [attempts, setAttempts] = useState(0);
-  const [userInputEs, setUserInputEs] = useState("");
-  const [userInputEn, setUserInputEn] = useState("");
+  const [userInputEs, setUserInputEs] = useState<string[]>([]);
+  const [userInputEn, setUserInputEn] = useState<string[]>([]);
   const [cursorIndexEs, setCursorIndexEs] = useState(0);
   const [cursorIndexEn, setCursorIndexEn] = useState(0);
   const [clueCountEs, setClueCountEs] = useState(0);
@@ -111,8 +112,8 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
       setIsRevealed(false);
       setIsAlmostDone(false);
       setAttempts(0);
-      setUserInputEs("");
-      setUserInputEn("");
+      setUserInputEs([]);
+      setUserInputEn([]);
       setClueCountEs(0);
       setClueCountEn(0);
       setIsWrong(false);
@@ -142,6 +143,21 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
       }));
     }
   }, [verse.id, state.selectedTranslations.es, state.selectedTranslations.en, state.memorizeMode, setState]);
+  
+  // Sync state with tour steps
+  useEffect(() => {
+    if (tourStepId === 'recall-challenge') {
+      console.log("[Memorize Debug] Tour step 'recall-challenge' detected. Forcing Stage 5.");
+      setStage(5);
+      setIsRevealed(false);
+      setHasSubmitted(false);
+      setIsCorrect(false);
+    } else if (tourStepId === 'practice-mechanic' || tourStepId === 'nav-memorize-step') {
+      console.log(`[Memorize Debug] Tour step '${tourStepId}' detected. Resetting to Stage 1.`);
+      setStage(1);
+      setIsRevealed(false);
+    }
+  }, [tourStepId]);
 
   // Sync input selection with cursorIndex
   useEffect(() => {
@@ -214,8 +230,8 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
       setStage(newStage);
       setIsRevealed(false);
       setAttempts(0);
-      setUserInputEs("");
-      setUserInputEn("");
+      setUserInputEs([]);
+      setUserInputEn([]);
       setClueCountEs(0);
       setClueCountEn(0);
       setIsWrong(false);
@@ -230,6 +246,12 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
       // Ensure Spanish is active when entering a new stage in bilingual mode
       if (state.memorizeMode === 'both') {
         setActiveLanguage('es');
+      }
+
+      // Initialize slot buffers for Stage 5
+      if (newStage === 5) {
+        if (esText) setUserInputEs(new Array(getCleanLetters(esText).length).fill(""));
+        if (enText) setUserInputEn(new Array(getCleanLetters(enText).length).fill(""));
       }
 
       setState(s => ({
@@ -254,8 +276,8 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
       setIsRevealed(false);
       setIsAlmostDone(false);
       setAttempts(0);
-      setUserInputEs("");
-      setUserInputEn("");
+      setUserInputEs([]);
+      setUserInputEn([]);
       setCursorIndexEs(0);
       setCursorIndexEn(0);
       setClueCountEs(0);
@@ -284,8 +306,8 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
     setIsRevealed(false);
     setIsAlmostDone(false);
     setAttempts(0);
-    setUserInputEs("");
-    setUserInputEn("");
+    setUserInputEs([]);
+    setUserInputEn([]);
     setClueCountEs(0);
     setClueCountEn(0);
     setIsWrong(false);
@@ -354,38 +376,10 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
         });
       });
       
-      // When revealing clues, we should adjust the user input to avoid shifting
-      // if they already typed the letters that are now revealed.
-      const currentInput = lang === 'es' ? userInputEs : userInputEn;
-      const setInput = lang === 'es' ? setUserInputEs : setUserInputEn;
-      const oldRevealed = lang === 'es' ? revealedIndicesEs : revealedIndicesEn;
-      
-      let newInput = "";
-      let inputPtr = 0;
-      const cleanTarget = getCleanLetters(text);
-      
-      for (let i = 0; i < cleanTarget.length; i++) {
-        const isAlreadyRevealed = oldRevealed.includes(i);
-        const isNewlyRevealed = newRevealed.includes(i);
-        
-        if (!isAlreadyRevealed) {
-          const userChar = currentInput[inputPtr];
-          if (userChar) {
-            if (!isNewlyRevealed) {
-              newInput += userChar;
-            }
-          }
-          inputPtr++;
-        }
-      }
-      
-      setInput(newInput);
-      if (lang === 'es') setCursorIndexEs(newInput.length);
-      else setCursorIndexEn(newInput.length);
       setRevealed(newRevealed);
       setCount(1);
       
-      // Explicitly restore focus for mobile keyboard continuity
+      // Explicitly restore focus
       setTimeout(() => {
         inputRef.current?.focus();
       }, 0);
@@ -425,29 +419,23 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
     setHasSubmitted(true);
     const esTarget = getCleanLetters(esText || "").toLowerCase();
     const enTarget = getCleanLetters(enText || "").toLowerCase();
-    const esInput = getCleanLetters(userInputEs).toLowerCase();
-    const enInput = getCleanLetters(userInputEn).toLowerCase();
 
-    const isTextCorrect = (target: string, input: string, revealed: number[]) => {
+    const isTextCorrect = (target: string, input: string[], revealed: number[]) => {
       if (target.length === 0) return true;
       
-      // Normalize both target and input for comparison (remove accents and lowercase)
       const normalizedTarget = removeAccents(target).toLowerCase();
-      const normalizedInput = removeAccents(input).toLowerCase();
       
-      let inputPtr = 0;
       for (let i = 0; i < normalizedTarget.length; i++) {
         if (!revealed.includes(i)) {
-          if ((normalizedInput[inputPtr] || "") !== normalizedTarget[i]) return false;
-          inputPtr++;
+          const char = input[i] || "";
+          if (removeAccents(char.toLowerCase()) !== normalizedTarget[i]) return false;
         }
       }
-      const requiredLength = normalizedTarget.length - revealed.length;
-      return normalizedInput.length >= requiredLength;
+      return true;
     };
 
-    const esCorrect = state.memorizeMode === 'en' || isTextCorrect(esTarget, esInput, revealedIndicesEs);
-    const enCorrect = state.memorizeMode === 'es' || isTextCorrect(enTarget, enInput, revealedIndicesEn);
+    const esCorrect = state.memorizeMode === 'en' || isTextCorrect(esTarget, userInputEs, revealedIndicesEs);
+    const enCorrect = state.memorizeMode === 'es' || isTextCorrect(enTarget, userInputEn, revealedIndicesEn);
     
     if (esCorrect && enCorrect) {
       setIsCorrect(true);
@@ -478,17 +466,11 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
     }
   };
 
-  // Remove auto-check useEffect to fix attempts counter glitch and allow manual submission
-  
-  const renderVerseContent = (text: string | null | undefined, userInput: string, lang: 'es' | 'en', isCurrentActive: boolean = true) => {
+  const renderVerseContent = (text: string | null | undefined, userInput: string[], lang: 'es' | 'en', isCurrentActive: boolean = true) => {
     if (!text) return null;
     
-    // Use the shared line-break utility as the single source of truth for layout
     const lines = getVerseLines(text);
-    
     let letterIndex = 0;
-    let inputIdx = 0;
-    const cleanInput = getCleanLetters(userInput);
     const revealed = lang === 'es' ? revealedIndicesEs : revealedIndicesEn;
 
     return (
@@ -504,8 +486,6 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                     <div key={wordIdx} className="flex flex-row flex-nowrap gap-x-[1px]">
                       {chars.map((char, charIdx) => {
                         const isLetter = /[a-zA-ZáéíóúÁÉÍÓÚñÑ]/.test(char);
-                        
-                        // Base classes for every character slot to ensure dimensions never shift
                         const baseSlotClasses = `relative inline-flex flex-col items-center justify-center min-w-[0.2em] ${VERSE_LAYOUT.CHAR_HEIGHT} transition-all duration-300`;
                       
                       if (!isLetter) {
@@ -516,7 +496,6 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                         );
                       }
                       
-                      // Handle Stages 1-4 (Memorization rehearsal)
                       if (stage < 5 && !isRevealed) {
                         let isHidden = false;
                         if (stage === 1) {
@@ -531,7 +510,6 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
 
                         return (
                           <span key={charIdx} className={baseSlotClasses}>
-                            {/* The 'Ghost' character preserves natural width even when hidden */}
                             <span className={`transition-all duration-300 ${isHidden ? 'opacity-0' : 'opacity-100'}`}>
                               {char}
                             </span>
@@ -542,14 +520,11 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                         );
                       }
 
-                      // Handle Stage 5 (Interactive typing)
                       if (stage === 5 && !isRevealed) {
                         const isRevealedByClue = revealed.includes(letterIndex);
-                        const userChar = isRevealedByClue ? "" : cleanInput[inputIdx];
-                        const currentInputIdx = inputIdx;
-                        const isSlotActive = isCurrentActive && !isRevealedByClue && currentInputIdx === (lang === 'es' ? cursorIndexEs : cursorIndexEn);
-                        
-                        // Normalize for visual feedback comparison (ignore accents)
+                        const userChar = isRevealedByClue ? "" : (userInput[letterIndex] || "");
+                        const currentLetterIndex = letterIndex;
+                        const isSlotActive = isCurrentActive && !isRevealedByClue && currentLetterIndex === (lang === 'es' ? cursorIndexEs : cursorIndexEn);
                         const isWrongChar = hasSubmitted && !isCorrect && userChar && 
                           removeAccents(userChar.toLowerCase()) !== removeAccents(char.toLowerCase());
                         
@@ -559,35 +534,23 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                             onClick={(e) => {
                               e.stopPropagation();
                               if (!isRevealedByClue && isCurrentActive) {
-                                if (lang === 'es') setCursorIndexEs(currentInputIdx);
-                                else setCursorIndexEn(currentInputIdx);
+                                if (lang === 'es') setCursorIndexEs(currentLetterIndex);
+                                else setCursorIndexEn(currentLetterIndex);
                                 inputRef.current?.focus();
                               }
                             }}
                             className={`${baseSlotClasses} cursor-text ${
                               isRevealedByClue || userChar
-                                ? isWrongChar 
-                                  ? 'text-coral bg-coral/5' 
-                                  : isCorrect
-                                    ? 'text-teal'
-                                    : 'text-playful-purple'
+                                ? isWrongChar ? 'text-coral bg-coral/5' : isCorrect ? 'text-teal' : 'text-playful-purple'
                                 : 'text-transparent'
                             }`}
                           >
-                            {/* Individual Underline */}
                             <span className={`absolute bottom-1 left-0 right-0 h-[1.5px] rounded-full transition-all duration-300 ${
                               isRevealedByClue || userChar
-                                ? isWrongChar 
-                                  ? 'bg-coral' 
-                                  : isCorrect
-                                    ? 'bg-teal'
-                                    : 'bg-playful-purple'
-                                : isSlotActive && !hasSubmitted
-                                  ? 'bg-coral'
-                                  : 'bg-earth/10 dark:bg-white/10'
+                                ? isWrongChar ? 'bg-coral' : isCorrect ? 'bg-teal' : 'bg-playful-purple'
+                                : isSlotActive && !hasSubmitted ? 'bg-coral' : 'bg-earth/10 dark:bg-white/10'
                             }`} />
 
-                            {/* Caret */}
                             {isSlotActive && !hasSubmitted && (
                               <motion.div 
                                 initial={{ opacity: 0 }}
@@ -597,28 +560,22 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                               />
                             )}
 
-                            {/* Ghost character preserves width */}
                             <span className="opacity-0 pointer-events-none select-none">{char}</span>
-                            
-                            {/* User input or revealed clue rendered absolutely over the ghost */}
                             <span className={`absolute inset-0 flex items-center justify-center transition-all duration-200 ${(userChar || isRevealedByClue) ? 'opacity-100' : 'opacity-0'}`}>
                               {userChar || (isRevealedByClue ? char : "")}
                             </span>
                           </span>
                         );
 
-                        if (!isRevealedByClue) inputIdx++;
                         letterIndex++;
                         return result;
                       }
 
-                      // Handle Reveal / Normal View
                       const result = (
                         <span key={charIdx} className={`${baseSlotClasses} opacity-100`}>
                           {char}
                         </span>
                       );
-                      
                       letterIndex++;
                       return result;
                     })}
@@ -739,7 +696,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
   return (
     <div className="h-full flex flex-col relative overflow-hidden">
       {/* Scrollable Content Area */}
-      <div className="flex-1 overflow-y-auto px-1 pb-4 scrollbar-hide">
+      <div className="flex-1 overflow-y-auto px-4 pb-4 scrollbar-hide">
         {/* Progress Header */}
         <div className="space-y-4 mb-8">
           <div className="flex justify-between items-end">
@@ -814,7 +771,10 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
           </div>
         </div>
 
-        <div className="shimmer-border w-full rounded-[32px] bg-white dark:bg-charcoal">
+        <div 
+          id="memorize-verse-card"
+          className="shimmer-border w-full rounded-[32px] bg-white dark:bg-charcoal"
+        >
           <div className="card min-h-[480px] flex flex-col justify-center items-center text-center p-4 sm:p-8 md:p-12 relative group bg-white dark:bg-charcoal shadow-xl border-none">
             <div className="flex flex-col items-center w-full relative z-10 px-2">
             <div 
@@ -827,49 +787,89 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                   type="text"
                   className="sr-only"
                   autoFocus
-                  value={activeLanguage === 'es' ? userInputEs : userInputEn}
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="none"
+                  spellCheck="false"
+                  inputMode="text"
+                  value=""
                   onChange={(e) => {
-                    const val = e.target.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ]/g, "");
-                    const text = activeLanguage === 'es' ? esText : enText;
-                    const revealed = activeLanguage === 'es' ? revealedIndicesEs : revealedIndicesEn;
-                    
-                    let fillableCount = 0;
-                    if (text) {
-                      const cleanLetters = getCleanLetters(text);
-                      fillableCount = cleanLetters.length - revealed.length;
-                    }
+                    const char = e.target.value.slice(-1);
+                    if (char && /[a-zA-ZáéíóúÁÉÍÓÚñÑ]/.test(char)) {
+                      const text = activeLanguage === 'es' ? esText : enText;
+                      if (!text) return;
+                      
+                      const cleanTarget = getCleanLetters(text);
+                      const currentCursor = activeLanguage === 'es' ? cursorIndexEs : cursorIndexEn;
+                      const setCursor = activeLanguage === 'es' ? setCursorIndexEs : setCursorIndexEn;
+                      const currentInputArr = activeLanguage === 'es' ? userInputEs : userInputEn;
+                      const setInputArr = activeLanguage === 'es' ? setUserInputEs : setUserInputEn;
+                      const revealed = activeLanguage === 'es' ? revealedIndicesEs : revealedIndicesEn;
 
-                    const limitedVal = val.slice(0, fillableCount);
-                    const newCursor = e.target.selectionStart || 0;
+                      const nextInput = [...currentInputArr];
+                      nextInput[currentCursor] = char;
+                      setInputArr(nextInput);
 
-                    if (activeLanguage === 'es') {
-                      setUserInputEs(limitedVal);
-                      setCursorIndexEs(newCursor);
-                      // Auto-transition to English if Spanish is complete in bilingual mode
-                      if (state.memorizeMode === 'both' && limitedVal.length === fillableCount && newCursor === fillableCount) {
-                        setTimeout(() => setActiveLanguage('en'), 300);
+                      // Move cursor forward
+                      let nextC = currentCursor + 1;
+                      while (nextC < cleanTarget.length && revealed.includes(nextC)) {
+                        nextC++;
                       }
-                    } else {
-                      setUserInputEn(limitedVal);
-                      setCursorIndexEn(newCursor);
+                      
+                      if (nextC < cleanTarget.length) {
+                        setCursor(nextC);
+                      } else {
+                        setCursor(cleanTarget.length);
+                        // Auto-transition to English if Spanish is complete in bilingual mode
+                        if (state.memorizeMode === 'both' && activeLanguage === 'es') {
+                          setTimeout(() => setActiveLanguage('en'), 300);
+                        }
+                      }
                     }
+                    e.target.value = "";
                   }}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !hasSubmitted) {
                       handleCheck();
                     }
                     if (e.key === 'Backspace') {
-                      const currentInput = activeLanguage === 'es' ? userInputEs : userInputEn;
-                      if (currentInput.length === 0 && state.memorizeMode === 'both' && activeLanguage === 'en') {
-                        setActiveLanguage('es');
-                        setCursorIndexEs(userInputEs.length);
+                      const text = activeLanguage === 'es' ? esText : enText;
+                      if (!text) return;
+                      
+                      const cleanTarget = getCleanLetters(text);
+                      const currentCursor = activeLanguage === 'es' ? cursorIndexEs : cursorIndexEn;
+                      const setCursor = activeLanguage === 'es' ? setCursorIndexEs : setCursorIndexEn;
+                      const currentInputArr = activeLanguage === 'es' ? userInputEs : userInputEn;
+                      const setInputArr = activeLanguage === 'es' ? setUserInputEs : setUserInputEn;
+                      const revealed = activeLanguage === 'es' ? revealedIndicesEs : revealedIndicesEn;
+
+                      if (currentInputArr[currentCursor]) {
+                        // Clear current char if exists
+                        const nextInput = [...currentInputArr];
+                        nextInput[currentCursor] = "";
+                        setInputArr(nextInput);
+                      } else {
+                        // Move back if current is empty
+                        let prevC = currentCursor - 1;
+                        while (prevC >= 0 && revealed.includes(prevC)) {
+                          prevC--;
+                        }
+                        
+                        if (prevC >= 0) {
+                          const nextInput = [...currentInputArr];
+                          nextInput[prevC] = "";
+                          setInputArr(nextInput);
+                          setCursor(prevC);
+                        } else if (state.memorizeMode === 'both' && activeLanguage === 'en') {
+                          // Move to Spanish
+                          setActiveLanguage('es');
+                          const esClean = getCleanLetters(esText || "");
+                          let lastEs = esClean.length - 1;
+                          while (lastEs >= 0 && revealedIndicesEs.includes(lastEs)) lastEs--;
+                          setCursorIndexEs(Math.max(0, lastEs));
+                        }
                       }
                     }
-                  }}
-                  onSelect={(e) => {
-                    const target = e.target as HTMLInputElement;
-                    if (activeLanguage === 'es') setCursorIndexEs(target.selectionStart || 0);
-                    else setCursorIndexEn(target.selectionStart || 0);
                   }}
                 />
               )}
@@ -1017,11 +1017,14 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
     </div>
 
       {/* Fixed Bottom Action Area - Refined Visual Design */}
-      <div className="flex-shrink-0 flex flex-col gap-6 p-6 pb-10 z-30">
+      <div className="flex-shrink-0 flex flex-col gap-3 sm:gap-6 p-4 sm:p-6 pb-6 sm:pb-10 z-30">
         {/* Action Container - Styled like a card with matching radius */}
-        <div className="h-[180px] w-full bg-white/95 dark:bg-charcoal/95 rounded-[40px] shadow-2xl border border-earth/10 dark:border-white/10 p-8 flex flex-col justify-between">
+        <div 
+          id="memorize-controls"
+          className="h-auto sm:h-[180px] w-full bg-white/95 dark:bg-charcoal/95 rounded-[32px] sm:rounded-[40px] shadow-2xl border border-earth/10 dark:border-white/10 p-4 sm:p-8 flex flex-col justify-between"
+        >
           {/* Stable Button Row */}
-          <div className="h-20 flex items-center gap-4">
+          <div className="h-14 sm:h-20 flex items-center gap-3 sm:gap-4">
             {/* Back Button Slot - Always takes 50% space to keep Next button stable */}
             <div className="flex-1 h-full">
               <AnimatePresence>
@@ -1031,10 +1034,10 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     onClick={prevStage}
-                    className="w-full h-full rounded-2xl font-black text-lg uppercase tracking-widest bg-earth/5 dark:bg-white/5 text-earth-light/60 dark:text-lavender-muted/60 hover:bg-earth/10 dark:hover:bg-white/10 transition-all border-2 border-transparent flex items-center justify-center gap-2"
+                    className="w-full h-full rounded-xl sm:rounded-2xl font-black text-sm sm:text-lg uppercase tracking-widest bg-earth/5 dark:bg-white/5 text-earth-light/60 dark:text-lavender-muted/60 hover:bg-earth/10 dark:hover:bg-white/10 transition-all border-2 border-transparent flex items-center justify-center gap-2"
                     whileTap={{ scale: 0.98 }}
                   >
-                    <ArrowLeft size={20} />
+                    <ArrowLeft size={18} className="sm:w-5 sm:h-5" />
                     <span>{state.primaryLanguage === 'es' ? 'Atrás' : 'Back'}</span>
                   </motion.button>
                 )}
@@ -1045,38 +1048,38 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
             <div className="flex-1 h-full">
               <motion.button 
                 onClick={stage === 5 && !hasSubmitted ? handleCheck : nextStage}
-                className={`w-full h-full flex items-center justify-center gap-3 group rounded-2xl font-bold transition-all shadow-xl relative overflow-hidden ${
+                className={`w-full h-full flex items-center justify-center gap-2 sm:gap-3 group rounded-xl sm:rounded-2xl font-bold transition-all shadow-xl relative overflow-hidden ${
                   stage === 5 
                     ? 'bg-plum-deep dark:bg-indigo-rich text-white shadow-plum-deep/30 dark:shadow-indigo-rich/40' 
                     : 'btn-primary shadow-playful-purple/30 dark:shadow-plum/40'
                 }`}
                 whileTap={{ scale: 0.98 }}
               >
-                <span className="text-xl font-bold relative z-10 tracking-tight">
+                <span className="text-base sm:text-xl font-bold relative z-10 tracking-tight">
                   {stage === 5 
                     ? (hasSubmitted ? (state.primaryLanguage === 'es' ? 'Siguiente' : 'Next') : (state.primaryLanguage === 'es' ? 'Comprobar' : 'Check')) 
-                    : (state.primaryLanguage === 'es' ? 'Siguiente' : 'Next step')}
+                    : (state.primaryLanguage === 'es' ? 'Siguiente' : 'Siguiente')}
                 </span>
                 <div className="relative z-10">
-                  <ArrowRight size={24} strokeWidth={3} />
+                  <ArrowRight size={20} className="sm:w-6 sm:h-6" strokeWidth={3} />
                 </div>
               </motion.button>
             </div>
           </div>
 
           {/* Stable Step Indicators */}
-          <div className="h-6 flex justify-center items-center gap-4">
+          <div className="h-4 sm:h-6 mt-3 sm:mt-0 flex justify-center items-center gap-3 sm:gap-4">
             {[1, 2, 3, 4, 5].map(s => (
               <div 
                 key={s} 
-                className={`h-3 rounded-full transition-all duration-300 relative overflow-hidden ${s === stage ? 'w-12 bg-playful-purple dark:bg-plum shadow-lg shadow-playful-purple/40' : s < stage ? 'w-3 bg-teal shadow-sm' : 'w-3 bg-earth/10 dark:bg-white/10'}`} 
+                className={`h-2 sm:h-3 rounded-full transition-all duration-300 relative overflow-hidden ${s === stage ? 'w-8 sm:w-12 bg-playful-purple dark:bg-plum shadow-lg shadow-playful-purple/40' : s < stage ? 'w-2 sm:w-3 bg-teal shadow-sm' : 'w-2 sm:w-3 bg-earth/10 dark:bg-white/10'}`} 
               />
             ))}
           </div>
         </div>
 
         {/* Guidance Area - Outside the fixed action box */}
-        <div className="h-[140px] w-full">
+        <div className="h-auto min-h-[100px] sm:h-[140px] w-full">
           <CoachCard 
             state={state}
             type={coachType}
