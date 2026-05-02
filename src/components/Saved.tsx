@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from "motion/react";
 import { AppState, TRANSLATION_PAIRS, TRANSLATION_DETAILS } from "../types";
-import { Bookmark, Share2, Trash2, BookOpen, Search, Languages, Star, Heart, AlertCircle, X } from "lucide-react";
+import { Bookmark, Share2, Trash2, BookOpen, Search, Languages, Star, Heart, AlertCircle, X, Sprout, Sparkles } from "lucide-react";
 import { MOCK_VERSES } from "../constants";
 import React, { useState } from "react";
 import { handleShare } from "../utils/shareUtils";
@@ -95,34 +95,40 @@ export default function Saved({ state, setState, onStartMemorizing }: SavedProps
         state={state}
         onNativeShare={onNativeShare}
       />
-      <div className="flex justify-between items-end">
-        <div className="space-y-1">
-          <h2 className="text-3xl font-serif font-black text-earth dark:text-ivory tracking-tight">
-            {state.primaryLanguage === 'es' ? 'Mi Tesoro' : 'My Treasure'}
+      <div className="space-y-4">
+        <div className="text-center sm:text-left">
+          <h2 className="text-5xl sm:text-6xl font-serif font-black text-earth dark:text-ivory tracking-tighter">
+            {state.primaryLanguage === 'es' ? 'Arraigados' : 'Rooted'}
           </h2>
-          <p className="text-sm font-medium text-earth-light dark:text-lavender-muted">
-            {state.primaryLanguage === 'es' ? 'Versículos guardados y progreso.' : 'Saved verses and progress.'}
-          </p>
+          <div className="space-y-0.5 mt-1">
+            <p className="text-base font-medium text-teal/80 dark:text-teal/60">
+              {state.primaryLanguage === 'es' 
+                ? 'Versículos guardados, sembrados en tu corazón.' 
+                : 'Saved verses, planted in your heart.'}
+            </p>
+            <p className="text-lg font-serif font-semibold text-amber-600 dark:text-golden">
+              {state.primaryLanguage === 'es' ? 'Dios da el crecimiento' : 'God gives the growth'}
+            </p>
+          </div>
         </div>
       </div>
 
-      {/* Simple Progress Summary */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="card p-6 bg-white dark:bg-charcoal border border-earth/10 dark:border-white/10 shadow-sm flex flex-col items-center text-center space-y-2">
-          <span className="text-4xl font-serif font-black text-playful-purple dark:text-plum">
-            {state.progress.totalMemorized}
-          </span>
-          <span className="text-[10px] font-black uppercase tracking-widest text-earth/40 dark:text-ivory/40">
-            {state.primaryLanguage === 'es' ? 'Memorizados' : 'Memorized'}
-          </span>
-        </div>
-        <div className="card p-6 bg-white dark:bg-charcoal border border-earth/10 dark:border-white/10 shadow-sm flex flex-col items-center text-center space-y-2">
-          <span className="text-4xl font-serif font-black text-golden dark:text-gold">
+      {/* Hero Streak Card - Centered and Impactful */}
+      <div className="flex justify-center">
+        <div className="w-full max-w-sm card p-8 bg-white dark:bg-charcoal border border-earth/10 dark:border-white/10 shadow-xl flex flex-col items-center text-center space-y-3 ring-1 ring-teal/5">
+          <span className="text-6xl font-serif font-black text-teal dark:text-teal/70">
             {state.progress.currentStreak}
           </span>
-          <span className="text-[10px] font-black uppercase tracking-widest text-earth/40 dark:text-ivory/40">
-            {state.primaryLanguage === 'es' ? 'Días seguidos' : 'Day streak'}
-          </span>
+          <div className="flex flex-col items-center">
+            <span className="text-xs font-black uppercase tracking-widest text-teal/70 dark:text-teal/50">
+              {state.primaryLanguage === 'es' 
+                ? (state.progress.currentStreak === 1 ? '1 día seguido' : `${state.progress.currentStreak} días seguidos`)
+                : (state.progress.currentStreak === 1 ? '1-day streak' : `${state.progress.currentStreak}-day streak`)}
+            </span>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-600/60 dark:text-golden/40 mt-2">
+              {state.primaryLanguage === 'es' ? 'Arraigados en Su Palabra' : 'Rooted in His Word'}
+            </p>
+          </div>
         </div>
       </div>
 
@@ -163,6 +169,26 @@ export default function Saved({ state, setState, onStartMemorizing }: SavedProps
           {filteredList.map((verse, idx) => {
             const { esText, enText, esError, enError } = getValidatedVerse(verse, state);
             const isMemorized = state.progress.completedVerses.includes(verse.id);
+            const memorizationStage = state.progress.verseStages?.[verse.id] || 0;
+            
+            let growthLabel = "";
+            let growthIcon = null;
+            let growthColorClass = "";
+
+            if (isMemorized) {
+              growthLabel = state.primaryLanguage === 'es' ? 'Dando fruto' : 'Bearing Fruit';
+              growthIcon = <Sparkles size={10} className="text-amber-500" fill="currentColor" />;
+              growthColorClass = "bg-earth/80 dark:bg-charcoal text-ivory/90 dark:text-white/90 border-earth/20 dark:border-white/10 shadow-sm ring-1 ring-amber-500/20";
+            } else if (memorizationStage > 0) {
+              growthLabel = state.primaryLanguage === 'es' ? 'Echando raíces' : 'Taking Root';
+              growthIcon = <div className="w-1.5 h-1.5 rounded-full bg-playful-purple" />;
+              growthColorClass = "bg-playful-purple/10 text-playful-purple border-playful-purple/20";
+            } else {
+              growthLabel = state.primaryLanguage === 'es' ? 'Semilla sembrada' : 'Seed Planted';
+              growthIcon = <div className="w-1.5 h-1.5 rounded-full bg-golden" />;
+              growthColorClass = "bg-golden/10 text-golden border-golden/20";
+            }
+
             return (
               <motion.div 
                 key={verse.id}
@@ -174,28 +200,38 @@ export default function Saved({ state, setState, onStartMemorizing }: SavedProps
                 whileHover={{ scale: 1.01, y: -2 }}
                 className="card p-6 space-y-4 border border-earth/10 dark:border-white/10 bg-white dark:bg-charcoal shadow-lg relative overflow-hidden group"
               >
-                {isMemorized && (
-                  <div className="absolute top-0 right-0 p-2">
-                    <div className="bg-teal/10 text-teal px-2 py-1 rounded-bl-xl rounded-tr-xl flex items-center gap-1 border-l border-b border-teal/20">
-                      <Star size={10} fill="currentColor" />
-                      <span className="text-[8px] font-black uppercase tracking-widest">
-                        {state.primaryLanguage === 'es' ? 'Memorizado' : 'Memorized'}
-                      </span>
-                    </div>
+                <div className="absolute top-3 left-6">
+                  <div className={`${growthColorClass} px-2 py-1 rounded-lg flex items-center gap-1.5 border shadow-sm`}>
+                    {growthIcon}
+                    <span className="text-[8px] font-black uppercase tracking-widest">
+                      {growthLabel}
+                    </span>
                   </div>
-                )}
-                <div className="flex justify-between items-start relative z-10">
-                  <div className="space-y-1">
-                    <h3 className="text-2xl font-serif font-black text-earth dark:text-ivory tracking-tight">
-                      {getLocalizedBookName(verse.book, state.memorizeMode)} {verse.chapter}:{verse.verse}
-                    </h3>
+                </div>
+                <div className="flex justify-between items-start relative z-10 pt-6">
+                  <div className="space-y-1 flex items-start gap-3">
+                    <motion.div
+                      animate={{ 
+                        rotate: [0, 5, -5, 0],
+                        scale: [1, 1.05, 1] 
+                      }}
+                      transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                      className="mt-1 text-teal"
+                    >
+                      <Sprout size={20} />
+                    </motion.div>
+                    <div className="space-y-1">
+                      <h3 className="text-2xl font-serif font-black text-earth dark:text-ivory tracking-tight">
+                        {getLocalizedBookName(verse.book, state.memorizeMode)} {verse.chapter}:{verse.verse}
+                      </h3>
+                    </div>
                   </div>
                   <div className="flex gap-2">
                     <motion.button 
                       whileHover={{ scale: 1.1 }}
                       whileTap={{ scale: 0.9 }}
                       onClick={() => onShareClick(verse)}
-                      className="p-2.5 rounded-xl bg-earth/5 dark:bg-white/5 text-earth/60 dark:text-ivory/60 hover:text-playful-purple dark:hover:text-plum hover:bg-playful-purple/10 dark:hover:bg-plum/20 transition-all"
+                      className="p-2.5 rounded-xl bg-earth/5 dark:bg-white/5 text-earth/60 dark:text-ivory/60 hover:text-playful-purple dark:hover:text-plum hover:bg-playful-purple/10 dark:hover:bg-plum/20 transition-all ring-1 ring-teal/20"
                     >
                       <Share2 size={18} />
                     </motion.button>
@@ -260,7 +296,7 @@ export default function Saved({ state, setState, onStartMemorizing }: SavedProps
                     }
                   }}
                   disabled={!esText && !enText}
-                  className={`w-full py-4 rounded-2xl bg-playful-purple dark:bg-plum text-white font-bold text-sm tracking-tight flex items-center justify-center gap-2.5 transition-all shadow-lg hover:shadow-playful-purple/20 lowercase ${(!esText && !enText) ? 'opacity-50 grayscale cursor-not-allowed' : ''}`}
+                  className={`w-full py-4 rounded-2xl bg-playful-purple dark:bg-plum text-white font-bold text-sm tracking-tight flex items-center justify-center gap-2.5 transition-all shadow-lg hover:shadow-playful-purple/20 ring-1 ring-teal/30 lowercase ${(!esText && !enText) ? 'opacity-50 grayscale cursor-not-allowed' : ''}`}
                 >
                   <BookOpen size={16} />
                   <span>{state.primaryLanguage === 'es' ? 'memorizar ahora' : 'memorize now'}</span>
@@ -295,7 +331,7 @@ export default function Saved({ state, setState, onStartMemorizing }: SavedProps
             </div>
             <div className="space-y-2">
               <h3 className="text-2xl font-serif font-black text-earth dark:text-ivory">
-                {state.primaryLanguage === 'es' ? 'Tu tesoro está vacío' : 'Your treasure is empty'}
+                {state.primaryLanguage === 'es' ? 'Sin versículos guardados' : 'No saved verses'}
               </h3>
               <p className="text-earth-light dark:text-lavender-muted max-w-xs mx-auto">
                 {state.primaryLanguage === 'es' 

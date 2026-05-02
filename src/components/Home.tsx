@@ -1,25 +1,31 @@
 import { motion } from "motion/react";
 import { AppState, TRANSLATION_PAIRS, TRANSLATION_DETAILS } from "../types";
 import { MOCK_VERSES, getVerseByDate } from "../constants";
-import { Globe, Play, Flame, Trophy, Sparkles, Languages, BookOpen, History, AlertCircle, Share2, Star, X } from "lucide-react";
+import { Globe, Play, Flame, Trophy, Sparkles, Languages, BookOpen, History, AlertCircle, Share2, Star, X, Sprout, Compass, ChevronRight, CheckCircle2 } from "lucide-react";
 import React, { useState } from "react";
 import { getCurrentTranslationPair, getValidatedVerse, getLocalizedBookName, getLocalDateString, VERSE_LAYOUT } from "../utils/verseUtils";
 import { handleShare } from "../utils/shareUtils";
 import { AnimatePresence } from "motion/react";
 import ShareModal from "./ShareModal";
+import { PATHS } from "../constants";
 
 interface HomeProps {
   state: AppState;
   setState: React.Dispatch<React.SetStateAction<AppState>>;
   onStartMemorizing: (verseId: string) => void;
   onGetAnotherVerse: () => void;
+  onGoToSaved: () => void;
+  onGoToPaths: () => void;
+  onCompletePathDay: () => void;
 }
 
-export default function Home({ state, setState, onStartMemorizing, onGetAnotherVerse }: HomeProps) {
+export default function Home({ state, setState, onStartMemorizing, onGetAnotherVerse, onGoToSaved, onGoToPaths, onCompletePathDay }: HomeProps) {
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isQuickSwitchOpen, setIsQuickSwitchOpen] = useState(false);
+  const isEs = state.primaryLanguage === "es";
+
   const activePair = getCurrentTranslationPair(state);
   
   const esDetail = TRANSLATION_DETAILS[activePair?.es || "RVR1960"] || TRANSLATION_DETAILS["RVR1960"];
@@ -35,6 +41,12 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
   const isVotd = currentVerse.id === votd.id;
 
   const { esText, enText, esError, enError } = getValidatedVerse(currentVerse, state);
+
+  // Path Logic
+  const selectedPath = state.pathProgress.selectedPathId ? PATHS.find(p => p.id === state.pathProgress.selectedPathId) : null;
+  const isPathDayComplete = state.pathProgress.lastCompletedAt === today;
+  const currentPathVerseId = selectedPath ? selectedPath.verses[state.pathProgress.currentDay - 1] : null;
+  const currentPathVerse = currentPathVerseId ? MOCK_VERSES.find(v => v.id === currentPathVerseId) : null;
 
   const onShareClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -91,17 +103,22 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
       {/* Header Section - Clean and Focused */}
       <div className="flex justify-between items-center">
         <div className="space-y-1">
-          <motion.div 
+          <motion.button 
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ delay: 0.1 }}
-            className="flex items-center gap-2 bg-coral/10 px-3 py-1.5 rounded-full border border-coral/20"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={onGoToSaved}
+            className="flex items-center gap-2.5 bg-teal/10 px-4 py-2 rounded-full border border-teal/20 shadow-sm"
           >
-            <Flame size={14} className="text-coral" fill="currentColor" />
-            <span className="text-[10px] font-black text-coral uppercase tracking-widest">
-              {state.progress.currentStreak} {state.primaryLanguage === 'es' ? 'Días seguidos' : 'Day streak'}
+            <Sprout size={16} className="text-teal" fill="currentColor" />
+            <span className="text-[11px] font-black text-teal uppercase tracking-widest">
+              {state.progress.currentStreak} {state.primaryLanguage === 'es' 
+                ? (state.progress.currentStreak === 1 ? 'Día seguido' : 'Días seguidos') 
+                : (state.progress.currentStreak === 1 ? 'Day streak' : 'Day streak')}
             </span>
-          </motion.div>
+          </motion.button>
         </div>
         <div className="flex flex-col items-end gap-3 relative">
           <motion.button 
@@ -209,6 +226,139 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
             )}
           </AnimatePresence>
         </div>
+      </div>
+
+      {/* Paths Section */}
+      <div className="space-y-6">
+        <div className="flex items-center justify-between px-1">
+          <div className="flex items-center gap-2">
+            <Compass size={16} className="text-amber-500" />
+            <h2 className="text-xs font-black uppercase tracking-[0.2em] text-earth-light dark:text-lavender-muted">
+              {isEs ? "Tu camino" : "Your Path"}
+            </h2>
+          </div>
+          {selectedPath && (
+            <button 
+              onClick={onGoToPaths}
+              className="text-[10px] font-black uppercase tracking-widest text-playful-purple hover:underline"
+            >
+              {isEs ? "Cambiar" : "Change"}
+            </button>
+          )}
+        </div>
+
+        {!selectedPath ? (
+          <motion.button
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.99 }}
+            onClick={onGoToPaths}
+            className="w-full card bg-white dark:bg-charcoal p-8 shadow-xl border-earth/10 dark:border-white/10 relative overflow-hidden group cursor-pointer text-left"
+          >
+            <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+              <Compass size={120} className="text-amber-500 transform rotate-12" />
+            </div>
+            
+            <div className="relative space-y-4">
+              <div className="space-y-1">
+                <h3 className="text-2xl font-serif font-black text-earth dark:text-ivory">
+                  {isEs ? "¿Qué estás viviendo en este momento?" : "What are you going through right now?"}
+                </h3>
+                <p className="text-sm font-medium text-earth-light/70 dark:text-lavender-muted/70">
+                  {isEs ? "Elige un camino en la Palabra." : "Choose a path through Scripture."}
+                </p>
+              </div>
+              <div className="flex items-center gap-2 text-playful-purple font-black text-xs uppercase tracking-widest group-hover:gap-3 transition-all">
+                <span>{isEs ? "Elegir un camino" : "Choose a path"}</span>
+                <ChevronRight size={14} />
+              </div>
+            </div>
+          </motion.button>
+        ) : (
+          <motion.div
+            whileHover={{ scale: 1.01 }}
+            className="card bg-white dark:bg-charcoal p-8 shadow-xl border-earth/10 dark:border-white/10 relative overflow-hidden group"
+          >
+            <div className="absolute top-0 right-0 p-4 opacity-5">
+              <Compass size={100} className="text-amber-500 transform rotate-12" />
+            </div>
+
+            <div className="relative flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+              <div className="flex-1 space-y-4">
+                <div className="space-y-1">
+                  <h3 className="text-xl font-serif font-black text-earth dark:text-ivory">
+                    {isEs ? selectedPath.titleEs : selectedPath.title}
+                  </h3>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-golden">
+                      {isEs ? `Día ${state.pathProgress.currentDay} de ${selectedPath.duration}` : `Day ${state.pathProgress.currentDay} of ${selectedPath.duration}`}
+                    </span>
+                    <div className="h-1 w-24 bg-earth/5 dark:bg-white/5 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-amber-500" 
+                        style={{ width: `${(state.pathProgress.currentDay / selectedPath.duration) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {currentPathVerse && (
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-earth-light/50 dark:text-lavender-muted/50">
+                      {isEs ? "Versículo de hoy:" : "Today's verse:"}
+                    </p>
+                    <p className="text-lg font-serif italic text-earth dark:text-ivory">
+                      {getLocalizedBookName(currentPathVerse.book, state.memorizeMode)} {currentPathVerse.chapter}:{currentPathVerse.verse}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center gap-3 w-full md:w-auto">
+                {isPathDayComplete ? (
+                  <div className="flex items-center gap-2 px-6 py-3.5 bg-teal/10 text-teal rounded-2xl font-bold text-sm">
+                    <CheckCircle2 size={18} />
+                    <span>{isEs ? "Día completado" : "Day complete"}</span>
+                  </div>
+                ) : (
+                  <button 
+                    onClick={() => currentPathVerse && onStartMemorizing(currentPathVerse.id)}
+                    className="flex-1 md:flex-none flex items-center justify-center gap-2.5 py-3.5 px-8 bg-playful-purple dark:bg-plum text-white rounded-2xl font-bold shadow-lg hover:shadow-playful-purple/30 transition-all active:scale-95 text-sm tracking-tight"
+                  >
+                    <Play size={14} fill="currentColor" />
+                    <span>{isEs ? "Memorizar hoy" : "Memorize today"}</span>
+                  </button>
+                )}
+                
+                {!isPathDayComplete && (
+                   <button 
+                    onClick={onCompletePathDay}
+                    className="p-3.5 rounded-2xl border border-earth/10 dark:border-white/10 text-earth/40 hover:text-teal hover:border-teal/30 hover:bg-teal/5 transition-all"
+                    title={isEs ? "Marcar como hecho" : "Mark as complete"}
+                  >
+                    <CheckCircle2 size={20} />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {state.pathProgress.currentDay >= selectedPath.duration && isPathDayComplete && (
+               <div className="mt-8 pt-6 border-t border-earth/5 dark:border-white/5 space-y-4">
+                  <p className="text-sm font-medium text-teal flex items-center gap-2">
+                    <Sparkles size={16} />
+                    {isEs ? "¡Terminaste este camino!" : "You finished this path."}
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <button 
+                      onClick={onGoToPaths}
+                      className="text-[10px] font-black uppercase tracking-widest px-4 py-2 bg-earth/5 dark:bg-white/5 rounded-full hover:bg-earth/10 dark:hover:bg-white/10 transition-all"
+                    >
+                      {isEs ? "Elegir un nuevo camino" : "Choose a new path"}
+                    </button>
+                  </div>
+               </div>
+            )}
+          </motion.div>
+        )}
       </div>
 
       {/* Verse of the Day Card */}

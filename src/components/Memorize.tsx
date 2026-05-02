@@ -2,11 +2,10 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { AppState, TRANSLATION_PAIRS, TRANSLATION_DETAILS } from "../types";
 import { MOCK_VERSES, getVerseByDate } from "../constants";
-import { CheckCircle2, RotateCcw, Eye, EyeOff, ArrowRight, ArrowLeft, Star, Trophy, Languages, Sparkles, AlertCircle, Bookmark, Layers, MessageCircle } from "lucide-react";
+import { CheckCircle2, RotateCcw, Eye, EyeOff, ArrowRight, ArrowLeft, Star, Trophy, Languages, Sparkles, AlertCircle, Bookmark, Layers, MessageCircle, BookOpen } from "lucide-react";
 import React from "react";
 import confetti from "canvas-confetti";
 import { getCurrentTranslationPair, getValidatedVerse, getLocalizedBookName, getLocalDateString, getVerseLines, removeAccents, VERSE_LAYOUT } from "../utils/verseUtils";
-import CoachCard from "./CoachCard";
 
 interface MemorizeProps {
   state: AppState;
@@ -17,11 +16,11 @@ interface MemorizeProps {
 }
 
 const STAGES = [
-  { id: 1, label: "First & Second", es: "Primeras dos letras" },
-  { id: 2, label: "Random Mix A", es: "Mezcla aleatoria A" },
-  { id: 3, label: "Random Mix B", es: "Mezcla aleatoria B" },
-  { id: 4, label: "First Letter", es: "Primera letra" },
-  { id: 5, label: "Full Recall", es: "Recuerdo completo" },
+  { id: 1, label: "Reading", es: "Lectura" },
+  { id: 2, label: "", es: "" }, 
+  { id: 3, label: "", es: "" }, 
+  { id: 4, label: "Recall", es: "Recuerdo" },
+  { id: 5, label: "Typing", es: "Escritura" },
 ];
 
 export default function Memorize({ state, setState, onComplete, onGoToFlashcards, tourStepId }: MemorizeProps) {
@@ -37,7 +36,8 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
   const [isAlmostDone, setIsAlmostDone] = useState(false);
   const [showSparkles, setShowSparkles] = useState(false);
   const [coachType, setCoachType] = useState<'encouragement' | 'suggestion' | 'tip'>('encouragement');
-  const [attempts, setAttempts] = useState(0);
+  const [attemptsEs, setAttemptsEs] = useState(0);
+  const [attemptsEn, setAttemptsEn] = useState(0);
   const [userInputEs, setUserInputEs] = useState<string[]>([]);
   const [userInputEn, setUserInputEn] = useState<string[]>([]);
   const [cursorIndexEs, setCursorIndexEs] = useState(0);
@@ -46,13 +46,75 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
   const [clueCountEn, setClueCountEn] = useState(0);
   const [revealedIndicesEs, setRevealedIndicesEs] = useState<number[]>([]);
   const [revealedIndicesEn, setRevealedIndicesEn] = useState<number[]>([]);
-  const [isWrong, setIsWrong] = useState(false);
-  const [hasSubmitted, setHasSubmitted] = useState(false);
-  const [isCorrect, setIsCorrect] = useState(false);
+  const [isWrongEs, setIsWrongEs] = useState(false);
+  const [isWrongEn, setIsWrongEn] = useState(false);
+  const [hasSubmittedEs, setHasSubmittedEs] = useState(false);
+  const [hasSubmittedEn, setHasSubmittedEn] = useState(false);
+  const [isCorrectEs, setIsCorrectEs] = useState(false);
+  const [isCorrectEn, setIsCorrectEn] = useState(false);
+  const [didFailFlowEs, setDidFailFlowEs] = useState(false);
+  const [didFailFlowEn, setDidFailFlowEn] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
-  const [activeLanguage, setActiveLanguage] = useState<'es' | 'en'>(() => 
-    state.memorizeMode === 'en' ? 'en' : 'es'
-  );
+
+  const [activeLanguage, setActiveLanguage] = useState<'es' | 'en'>(() => {
+    if (state.memorizeMode === 'en') return 'en';
+    if (state.memorizeMode === 'es') return 'es';
+    return state.primaryLanguage === 'en' ? 'en' : 'es';
+  });
+
+  const attempts = activeLanguage === 'es' ? attemptsEs : attemptsEn;
+  const isWrong = activeLanguage === 'es' ? isWrongEs : isWrongEn;
+  const hasSubmitted = activeLanguage === 'es' ? hasSubmittedEs : hasSubmittedEn;
+  const isCorrect = activeLanguage === 'es' ? isCorrectEs : isCorrectEn;
+  const didFailFlow = activeLanguage === 'es' ? didFailFlowEs : didFailFlowEn;
+
+  const isEsDone = isCorrectEs || didFailFlowEs;
+  const isEnDone = isCorrectEn || didFailFlowEn;
+  const isStepComplete = state.memorizeMode === 'both' ? (isEsDone && isEnDone) : (state.memorizeMode === 'es' ? isEsDone : isEnDone);
+  
+  const isOverallSuccess = state.memorizeMode === 'both' 
+    ? (isCorrectEs && isCorrectEn) 
+    : (state.memorizeMode === 'es' ? isCorrectEs : isCorrectEn);
+
+  const isAnyPartFailed = state.memorizeMode === 'both'
+    ? (didFailFlowEs || didFailFlowEn)
+    : (state.memorizeMode === 'es' ? didFailFlowEs : didFailFlowEn);
+  
+  const [inputValue, setInputValue] = useState(" ");
+  
+  const [cardHeight, setCardHeight] = useState<number | null>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  // Measure card height on mount or verse change to LOCK IT
+  useEffect(() => {
+    if (cardRef.current && stage === 1) {
+      // Small timeout to allow content to settle
+      const timer = setTimeout(() => {
+        const rect = cardRef.current?.getBoundingClientRect();
+        if (rect && rect.height > 0) {
+          setCardHeight(rect.height);
+        }
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [verse.id, state.memorizeMode, stage]);
+
+  useEffect(() => {
+    // Reset height if verse changes
+    setCardHeight(null);
+  }, [verse.id, state.memorizeMode]);
+
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  const [bilingualPass, setBilingualPass] = useState(1);
+  const [showHalfwayTransition, setShowHalfwayTransition] = useState(false);
+
   const inputRef = useRef<HTMLInputElement>(null);
   
   const activePair = getCurrentTranslationPair(state);
@@ -110,13 +172,21 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
     if (configChanged) {
       setStage(1);
       setIsRevealed(false);
-      setIsAlmostDone(false);
-      setAttempts(0);
+      setDidFailFlowEs(false);
+      setDidFailFlowEn(false);
+      setAttemptsEs(0);
+      setAttemptsEn(0);
       setUserInputEs([]);
       setUserInputEn([]);
       setClueCountEs(0);
       setClueCountEn(0);
-      setIsWrong(false);
+      setIsWrongEs(false);
+      setIsWrongEn(false);
+      setHasSubmittedEs(false);
+      setHasSubmittedEn(false);
+      setIsCorrectEs(false);
+      setIsCorrectEn(false);
+      setFeedback(null);
       setRevealedIndicesEs([]);
       setRevealedIndicesEn([]);
       setCursorIndexEs(0);
@@ -150,8 +220,10 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
       console.log("[Memorize Debug] Tour step 'recall-challenge' detected. Forcing Stage 5.");
       setStage(5);
       setIsRevealed(false);
-      setHasSubmitted(false);
-      setIsCorrect(false);
+      setHasSubmittedEs(false);
+      setHasSubmittedEn(false);
+      setIsCorrectEs(false);
+      setIsCorrectEn(false);
     } else if (tourStepId === 'practice-mechanic' || tourStepId === 'nav-memorize-step') {
       console.log(`[Memorize Debug] Tour step '${tourStepId}' detected. Resetting to Stage 1.`);
       setStage(1);
@@ -162,19 +234,22 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
   // Sync input selection with cursorIndex
   useEffect(() => {
     if (stage === 5 && !isRevealed && !isAlmostDone && inputRef.current) {
-      const cursor = activeLanguage === 'es' ? cursorIndexEs : cursorIndexEn;
-      inputRef.current.setSelectionRange(cursor, cursor);
+      // For the stream-based input, we always want the cursor at the end (position 1 because value is " ")
+      inputRef.current.setSelectionRange(1, 1);
     }
   }, [cursorIndexEs, cursorIndexEn, activeLanguage, stage, isRevealed, isAlmostDone]);
 
   // Focus management for Stage 5 typing
   useEffect(() => {
-    if (stage === 5 && !isRevealed && !isAlmostDone && !hasSubmitted) {
+    // Allow focus if in stage 5, not revealed, and either not submitted OR submitted but wrong with attempts left
+    const canEdit = stage === 5 && !isRevealed && !isAlmostDone && (!hasSubmitted || (isWrong && attempts < 3));
+    
+    if (canEdit) {
       const focusInput = () => {
         if (inputRef.current) {
           inputRef.current.focus();
-          const cursor = activeLanguage === 'es' ? cursorIndexEs : cursorIndexEn;
-          inputRef.current.setSelectionRange(cursor, cursor);
+          // Keep selection at the end for detection
+          inputRef.current.setSelectionRange(1, 1);
         }
       };
       
@@ -185,10 +260,10 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
       window.addEventListener('focus', focusInput);
       return () => window.removeEventListener('focus', focusInput);
     }
-  }, [stage, isRevealed, isAlmostDone, hasSubmitted, activeLanguage, clueCountEs, clueCountEn]);
+  }, [stage, isRevealed, isAlmostDone, hasSubmitted, isWrong, attempts, activeLanguage, clueCountEs, clueCountEn]);
 
   useEffect(() => {
-    if (isAlmostDone) {
+    if (isAlmostDone && isOverallSuccess) {
       confetti({
         particleCount: 100,
         spread: 70,
@@ -196,7 +271,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
         colors: ['#8B5CF6', '#06B6D4', '#10B981']
       });
     }
-  }, [isAlmostDone]);
+  }, [isAlmostDone, isOverallSuccess]);
 
   if (!verse || (!esText && !enText)) {
     return (
@@ -229,29 +304,39 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
       const newStage = stage + 1;
       setStage(newStage);
       setIsRevealed(false);
-      setAttempts(0);
+      setDidFailFlowEs(false);
+      setDidFailFlowEn(false);
+      setAttemptsEs(0);
+      setAttemptsEn(0);
       setUserInputEs([]);
       setUserInputEn([]);
       setClueCountEs(0);
       setClueCountEn(0);
-      setIsWrong(false);
-      setHasSubmitted(false);
-      setIsCorrect(false);
+      setIsWrongEs(false);
+      setIsWrongEn(false);
+      setHasSubmittedEs(false);
+      setHasSubmittedEn(false);
+      setIsCorrectEs(false);
+      setIsCorrectEn(false);
       setFeedback(null);
       setRevealedIndicesEs([]);
       setRevealedIndicesEn([]);
       setCursorIndexEs(0);
       setCursorIndexEn(0);
       
-      // Ensure Spanish is active when entering a new stage in bilingual mode
+      // Ensure current language is active when entering a new stage in bilingual mode
       if (state.memorizeMode === 'both') {
-        setActiveLanguage('es');
+        // On mobile sequential, stick to the pass language. On desktop, default to es (or keep active)
+        if (!isMobile) {
+          setActiveLanguage('es');
+        }
       }
 
       // Initialize slot buffers for Stage 5
       if (newStage === 5) {
         if (esText) setUserInputEs(new Array(getCleanLetters(esText).length).fill(""));
         if (enText) setUserInputEn(new Array(getCleanLetters(enText).length).fill(""));
+        setInputValue(" ");
       }
 
       setState(s => ({
@@ -265,8 +350,40 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
         }
       }));
     } else {
-      setIsAlmostDone(true);
+      if (state.memorizeMode === 'both' && isMobile && bilingualPass === 1) {
+        setShowHalfwayTransition(true);
+      } else {
+        setIsAlmostDone(true);
+      }
     }
+  };
+
+  const handleHalfwayContinue = () => {
+    setBilingualPass(2);
+    setStage(1);
+    setShowHalfwayTransition(false);
+    setDidFailFlowEs(false);
+    setDidFailFlowEn(false);
+    // Switch to the OTHER language
+    setActiveLanguage(prev => prev === 'es' ? 'en' : 'es');
+    setIsRevealed(false);
+    setAttemptsEs(0);
+    setAttemptsEn(0);
+    setUserInputEs([]);
+    setUserInputEn([]);
+    setClueCountEs(0);
+    setClueCountEn(0);
+    setIsWrongEs(false);
+    setIsWrongEn(false);
+    setHasSubmittedEs(false);
+    setHasSubmittedEn(false);
+    setIsCorrectEs(false);
+    setIsCorrectEn(false);
+    setFeedback(null);
+    setRevealedIndicesEs([]);
+    setRevealedIndicesEn([]);
+    setCursorIndexEs(0);
+    setCursorIndexEn(0);
   };
 
   const prevStage = () => {
@@ -275,16 +392,23 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
       setStage(newStage);
       setIsRevealed(false);
       setIsAlmostDone(false);
-      setAttempts(0);
+      setShowHalfwayTransition(false);
+      setDidFailFlowEs(false);
+      setDidFailFlowEn(false);
+      setAttemptsEs(0);
+      setAttemptsEn(0);
       setUserInputEs([]);
       setUserInputEn([]);
       setCursorIndexEs(0);
       setCursorIndexEn(0);
       setClueCountEs(0);
       setClueCountEn(0);
-      setIsWrong(false);
-      setHasSubmitted(false);
-      setIsCorrect(false);
+      setIsWrongEs(false);
+      setIsWrongEn(false);
+      setHasSubmittedEs(false);
+      setHasSubmittedEn(false);
+      setIsCorrectEs(false);
+      setIsCorrectEn(false);
       setFeedback(null);
       setRevealedIndicesEs([]);
       setRevealedIndicesEn([]);
@@ -305,14 +429,20 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
     setStage(1);
     setIsRevealed(false);
     setIsAlmostDone(false);
-    setAttempts(0);
+    setDidFailFlowEs(false);
+    setDidFailFlowEn(false);
+    setAttemptsEs(0);
+    setAttemptsEn(0);
     setUserInputEs([]);
     setUserInputEn([]);
     setClueCountEs(0);
     setClueCountEn(0);
-    setIsWrong(false);
-    setHasSubmitted(false);
-    setIsCorrect(false);
+    setIsWrongEs(false);
+    setIsWrongEn(false);
+    setHasSubmittedEs(false);
+    setHasSubmittedEn(false);
+    setIsCorrectEs(false);
+    setIsCorrectEn(false);
     setFeedback(null);
     setRevealedIndicesEs([]);
     setRevealedIndicesEn([]);
@@ -331,9 +461,26 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
   const handleLanguageSwitch = (lang: 'es' | 'en') => {
     if (state.memorizeMode === 'both' && activeLanguage !== lang) {
       setActiveLanguage(lang);
-      // Set cursor to end of current input for that language
-      if (lang === 'es') setCursorIndexEs(userInputEs.length);
-      else setCursorIndexEn(userInputEn.length);
+      
+      const targetText = lang === 'es' ? esText : enText;
+      const targetCleanSize = getCleanLetters(targetText || "").length;
+      const currentUserInput = lang === 'es' ? userInputEs : userInputEn;
+      const revealed = lang === 'es' ? revealedIndicesEs : revealedIndicesEn;
+
+      // When clicking the container, try to find a sensible spot:
+      // Either first empty editable, or just the current index for that language.
+      // Actually, since we have cursorIndex per language, we just stick with it.
+      // But we must ensure it's valid.
+      const currentCursor = lang === 'es' ? cursorIndexEs : cursorIndexEn;
+      if (currentCursor >= targetCleanSize) {
+        // Find first empty
+        let firstEmpty = 0;
+        while (firstEmpty < targetCleanSize && (revealed.includes(firstEmpty) || currentUserInput[firstEmpty])) {
+          firstEmpty++;
+        }
+        if (lang === 'es') setCursorIndexEs(Math.min(firstEmpty, targetCleanSize));
+        else setCursorIndexEn(Math.min(firstEmpty, targetCleanSize));
+      }
       
       // Immediate focus for mobile
       setTimeout(() => {
@@ -343,63 +490,90 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
   };
 
   const handleClue = (lang: 'es' | 'en') => {
-    const text = lang === 'es' ? esText : enText;
-    if (!text) return;
+    const processClueForLang = (l: 'es' | 'en') => {
+      const text = l === 'es' ? esText : enText;
+      if (!text) return;
 
-    const count = lang === 'es' ? clueCountEs : clueCountEn;
-    const setCount = lang === 'es' ? setClueCountEs : setClueCountEn;
-    const revealed = lang === 'es' ? revealedIndicesEs : revealedIndicesEn;
-    const setRevealed = lang === 'es' ? setRevealedIndicesEs : setRevealedIndicesEn;
+      const count = l === 'es' ? clueCountEs : clueCountEn;
+      const setCount = l === 'es' ? setClueCountEs : setClueCountEn;
+      const revealed = l === 'es' ? revealedIndicesEs : revealedIndicesEn;
+      const setRevealed = l === 'es' ? setRevealedIndicesEs : setRevealedIndicesEn;
 
-    if (stage === 5) {
-      if (count >= 1) return; // Only one clue in stage 5
-      
-      const newRevealed: number[] = [];
-      let currentLetterIndex = 0;
-      
-      const lines = text.split("\n");
-      lines.forEach(line => {
-        const words = line.split(" ");
-        words.forEach(word => {
-          const chars = word.split("");
-          let wordHasLetter = false;
-          chars.forEach(char => {
-            const isLetter = /[a-zA-ZáéíóúÁÉÍÓÚñÑ]/.test(char);
-            if (isLetter) {
-              if (!wordHasLetter) {
-                newRevealed.push(currentLetterIndex);
-                wordHasLetter = true;
+      if (stage === 5) {
+        if (count >= 1) return;
+        
+        const newRevealed: number[] = [];
+        let currentLetterIndex = 0;
+        const lines = text.split("\n");
+        const cleanTargetArr = getCleanLetters(text).split("");
+        
+        lines.forEach(line => {
+          const words = line.split(" ");
+          words.forEach(word => {
+            const chars = word.split("");
+            let wordHasLetter = false;
+            chars.forEach(char => {
+              const isLetter = /[a-zA-ZáéíóúÁÉÍÓÚñÑ]/.test(char);
+              if (isLetter) {
+                if (!wordHasLetter) {
+                  newRevealed.push(currentLetterIndex);
+                  wordHasLetter = true;
+                }
+                currentLetterIndex++;
               }
-              currentLetterIndex++;
-            }
+            });
           });
         });
-      });
-      
-      setRevealed(newRevealed);
-      setCount(1);
-      
-      // Explicitly restore focus
+        
+        setRevealed(newRevealed);
+        setCount(1);
+
+        const setter = l === 'es' ? setUserInputEs : setUserInputEn;
+        setter(prev => {
+          const next = [...prev];
+          newRevealed.forEach(idx => {
+            next[idx] = cleanTargetArr[idx];
+          });
+          return next;
+        });
+
+        if (l === activeLanguage) {
+          const setCursor = l === 'es' ? setCursorIndexEs : setCursorIndexEn;
+          let firstEmpty = 0;
+          while (firstEmpty < cleanTargetArr.length && newRevealed.includes(firstEmpty)) {
+            firstEmpty++;
+          }
+          setCursor(firstEmpty);
+        }
+      } else {
+        if (count >= 2) return;
+        const cleanTarget = getCleanLetters(text);
+        const unrevealedIndices: number[] = [];
+        for (let i = 0; i < cleanTarget.length; i++) {
+          if (!revealed.includes(i)) {
+            unrevealedIndices.push(i);
+          }
+        }
+
+        if (unrevealedIndices.length > 0) {
+          const randomIdx = unrevealedIndices[Math.floor(Math.random() * unrevealedIndices.length)];
+          setRevealed(prev => [...prev, randomIdx]);
+          setCount(prev => prev + 1);
+        }
+      }
+    };
+
+    if (state.memorizeMode === 'both' && !isMobile) {
+      processClueForLang('es');
+      processClueForLang('en');
+    } else {
+      processClueForLang(lang);
+    }
+
+    if (stage === 5) {
       setTimeout(() => {
         inputRef.current?.focus();
       }, 0);
-      return;
-    }
-
-    if (count >= 2) return;
-
-    const cleanTarget = getCleanLetters(text);
-    const unrevealedIndices: number[] = [];
-    for (let i = 0; i < cleanTarget.length; i++) {
-      if (!revealed.includes(i)) {
-        unrevealedIndices.push(i);
-      }
-    }
-
-    if (unrevealedIndices.length > 0) {
-      const randomIdx = unrevealedIndices[Math.floor(Math.random() * unrevealedIndices.length)];
-      setRevealed(prev => [...prev, randomIdx]);
-      setCount(prev => prev + 1);
     }
   };
 
@@ -410,59 +584,99 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
 
   const getCleanLetters = (text: string | null | undefined) => {
     if (!text) return "";
-    return text.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ]/g, "");
+    return text.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ]/g, "");
   };
 
   const handleCheck = () => {
-    if (hasSubmitted || isCorrect) return;
+    if (isCorrect) return;
     
-    setHasSubmitted(true);
-    const esTarget = getCleanLetters(esText || "").toLowerCase();
-    const enTarget = getCleanLetters(enText || "").toLowerCase();
+    if (activeLanguage === 'es') setHasSubmittedEs(true);
+    else setHasSubmittedEn(true);
 
-    const isTextCorrect = (target: string, input: string[], revealed: number[]) => {
-      if (target.length === 0) return true;
-      
-      const normalizedTarget = removeAccents(target).toLowerCase();
-      
-      for (let i = 0; i < normalizedTarget.length; i++) {
-        if (!revealed.includes(i)) {
-          const char = input[i] || "";
-          if (removeAccents(char.toLowerCase()) !== normalizedTarget[i]) return false;
+    const targetText = activeLanguage === 'es' ? esText : enText;
+    const targetClean = getCleanLetters(targetText || "").toLowerCase();
+    const userInput = activeLanguage === 'es' ? userInputEs : userInputEn;
+    const revealed = activeLanguage === 'es' ? revealedIndicesEs : revealedIndicesEn;
+
+    if (targetClean.length === 0) return;
+    
+    const normalizedTarget = removeAccents(targetClean).toLowerCase();
+    let isCurrentCorrect = true;
+    
+    for (let i = 0; i < normalizedTarget.length; i++) {
+      if (!revealed.includes(i)) {
+        const char = userInput[i] || "";
+        if (removeAccents(char.toLowerCase()) !== normalizedTarget[i]) {
+          isCurrentCorrect = false;
+          break;
         }
       }
-      return true;
-    };
-
-    const esCorrect = state.memorizeMode === 'en' || isTextCorrect(esTarget, userInputEs, revealedIndicesEs);
-    const enCorrect = state.memorizeMode === 'es' || isTextCorrect(enTarget, userInputEn, revealedIndicesEn);
+    }
     
-    if (esCorrect && enCorrect) {
-      setIsCorrect(true);
-      setFeedback(state.primaryLanguage === 'es' ? "¡Correcto!" : "Correct!");
-      setTimeout(() => {
-        nextStage();
-      }, 1500);
-    } else {
-      setIsCorrect(false);
-      const newAttempts = attempts + 1;
-      setAttempts(newAttempts);
-      setIsWrong(true);
-      
-      if (newAttempts >= 3) {
-        setFeedback(state.primaryLanguage === 'es' ? "Se acabaron los intentos. Revelando texto..." : "Out of attempts. Revealing text...");
+    if (isCurrentCorrect) {
+      if (activeLanguage === 'es') setIsCorrectEs(true);
+      else setIsCorrectEn(true);
+
+      const otherLang = activeLanguage === 'es' ? 'en' : 'es';
+      const isOtherDone = state.memorizeMode !== 'both' || (otherLang === 'es' ? (isCorrectEs || didFailFlowEs) : (isCorrectEn || didFailFlowEn));
+
+      if (isOtherDone) {
+        setFeedback(state.primaryLanguage === 'es' ? "¡Todo correcto!" : "Everything correct!");
         setTimeout(() => {
-          setIsRevealed(true);
+          nextStage();
+        }, 1500);
+      } else {
+        // Only one correct so far in bilingual mode
+        if (activeLanguage === 'es') {
+          setFeedback(state.primaryLanguage === 'es' ? "Español correcto. Ahora completa inglés." : "Spanish correct. Now complete English.");
+        } else {
+          setFeedback(state.primaryLanguage === 'es' ? "Inglés correcto. Ahora completa español." : "English correct. Now complete Spanish.");
+        }
+        
+        setTimeout(() => {
+          handleLanguageSwitch(otherLang);
           setFeedback(null);
         }, 2000);
+      }
+    } else {
+      const currentAttempts = activeLanguage === 'es' ? attemptsEs : attemptsEn;
+      const nextAttempts = currentAttempts + 1;
+      
+      if (activeLanguage === 'es') {
+        setAttemptsEs(nextAttempts);
+        setIsWrongEs(true);
+        setTimeout(() => setIsWrongEs(false), 1500);
       } else {
-        const remaining = 3 - newAttempts;
+        setAttemptsEn(nextAttempts);
+        setIsWrongEn(true);
+        setTimeout(() => setIsWrongEn(false), 1500);
+      }
+      
+      if (nextAttempts >= 3) {
+        if (activeLanguage === 'es') setDidFailFlowEs(true);
+        else setDidFailFlowEn(true);
+
+        const otherLang = activeLanguage === 'es' ? 'en' : 'es';
+        const isOtherDone = state.memorizeMode !== 'both' || (otherLang === 'es' ? (isCorrectEs || didFailFlowEs) : (isCorrectEn || didFailFlowEn));
+
+        if (isOtherDone) {
+          setFeedback(state.primaryLanguage === 'es' ? "Se acabaron los intentos. Revelando texto..." : "Out of attempts. Revealing text...");
+          setTimeout(() => {
+            nextStage();
+          }, 2000);
+        } else {
+          setFeedback(state.primaryLanguage === 'es' ? "Se acabaron los intentos. Ahora completa el otro idioma." : "Out of attempts. Now complete the other language.");
+          setTimeout(() => {
+            handleLanguageSwitch(otherLang);
+            setFeedback(null);
+          }, 2500);
+        }
+      } else {
+        const remaining = 3 - nextAttempts;
         setFeedback(state.primaryLanguage === 'es' 
           ? `Todavía no. Te queda${remaining === 1 ? '' : 'n'} ${remaining} intento${remaining === 1 ? '' : 's'}.` 
           : `Not quite. You have ${remaining} tr${remaining === 1 ? 'y' : 'ies'} left.`);
       }
-      
-      setTimeout(() => setIsWrong(false), 1500);
     }
   };
 
@@ -472,20 +686,31 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
     const lines = getVerseLines(text);
     let letterIndex = 0;
     const revealed = lang === 'es' ? revealedIndicesEs : revealedIndicesEn;
+    const cleanTargetArr = getCleanLetters(text).split("");
 
+    const getNextEditable = (idx: number, dir: number) => {
+      let next = idx;
+      while (next >= 0 && next < cleanTargetArr.length && revealed.includes(next)) {
+        next += dir;
+      }
+      return Math.max(0, Math.min(next, cleanTargetArr.length));
+    };
+
+    const isLangRevealed = isRevealed || (lang === 'es' ? didFailFlowEs : didFailFlowEn);
+    
     return (
-      <div className={`space-y-4 sm:space-y-6 w-full font-serif ${VERSE_LAYOUT.FONT_SIZE_CLASSES} ${VERSE_LAYOUT.FONT_WEIGHT} ${VERSE_LAYOUT.LINE_HEIGHT} transition-opacity duration-500 ${!isCurrentActive ? 'opacity-60' : 'opacity-100'}`}>
+      <div className={`space-y-4 sm:space-y-6 w-full font-serif select-none ${VERSE_LAYOUT.FONT_SIZE_CLASSES} ${VERSE_LAYOUT.FONT_WEIGHT} ${VERSE_LAYOUT.LINE_HEIGHT} transition-opacity duration-500 ${!isCurrentActive ? 'opacity-60' : 'opacity-100'}`}>
         {lines.map((line, lineIdx) => {
           const words = line.split(" ");
           return (
-            <div key={lineIdx} className="flex flex-row justify-center flex-nowrap w-full min-w-0 px-2">
+            <div key={lineIdx} className="flex flex-row justify-center flex-nowrap w-full min-w-0 px-8 sm:px-2">
               <div className="flex flex-row justify-center flex-nowrap gap-x-[0.4em]">
                 {words.map((word, wordIdx) => {
                   const chars = word.split("");
                   return (
                     <div key={wordIdx} className="flex flex-row flex-nowrap gap-x-[1px]">
                       {chars.map((char, charIdx) => {
-                        const isLetter = /[a-zA-ZáéíóúÁÉÍÓÚñÑ]/.test(char);
+                        const isLetter = /[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ]/.test(char);
                         const baseSlotClasses = `relative inline-flex flex-col items-center justify-center min-w-[0.2em] ${VERSE_LAYOUT.CHAR_HEIGHT} transition-all duration-300`;
                       
                       if (!isLetter) {
@@ -496,7 +721,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                         );
                       }
                       
-                      if (stage < 5 && !isRevealed) {
+                      if (stage < 5 && !isLangRevealed) {
                         let isHidden = false;
                         if (stage === 1) {
                           if (charIdx >= 2) isHidden = true;
@@ -520,11 +745,11 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                         );
                       }
 
-                      if (stage === 5 && !isRevealed) {
+                      if (stage === 5 && !isLangRevealed) {
                         const isRevealedByClue = revealed.includes(letterIndex);
-                        const userChar = isRevealedByClue ? "" : (userInput[letterIndex] || "");
+                        const userChar = (userInput[letterIndex] || "").trim();
                         const currentLetterIndex = letterIndex;
-                        const isSlotActive = isCurrentActive && !isRevealedByClue && currentLetterIndex === (lang === 'es' ? cursorIndexEs : cursorIndexEn);
+                        const isSlotActive = isCurrentActive && currentLetterIndex === (lang === 'es' ? cursorIndexEs : cursorIndexEn);
                         const isWrongChar = hasSubmitted && !isCorrect && userChar && 
                           removeAccents(userChar.toLowerCase()) !== removeAccents(char.toLowerCase());
                         
@@ -533,25 +758,30 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                             key={charIdx} 
                             onClick={(e) => {
                               e.stopPropagation();
-                              if (!isRevealedByClue && isCurrentActive) {
-                                if (lang === 'es') setCursorIndexEs(currentLetterIndex);
-                                else setCursorIndexEn(currentLetterIndex);
-                                inputRef.current?.focus();
+                              if (!isCurrentActive) {
+                                setActiveLanguage(lang);
                               }
+                              // If clue, find nearest editable
+                              const targetIdx = isRevealedByClue ? getNextEditable(currentLetterIndex, 1) : currentLetterIndex;
+                              if (lang === 'es') setCursorIndexEs(targetIdx);
+                              else setCursorIndexEn(targetIdx);
+                              
+                              // Small timeout to ensure inputRef is ready after potentially switching activeLanguage
+                              setTimeout(() => inputRef.current?.focus(), 0);
                             }}
                             className={`${baseSlotClasses} cursor-text ${
                               isRevealedByClue || userChar
-                                ? isWrongChar ? 'text-coral bg-coral/5' : isCorrect ? 'text-teal' : 'text-playful-purple'
+                                ? isWrongChar ? 'text-coral bg-coral/5' : isCorrect || isRevealedByClue ? 'text-teal' : 'text-playful-purple'
                                 : 'text-transparent'
                             }`}
                           >
                             <span className={`absolute bottom-1 left-0 right-0 h-[1.5px] rounded-full transition-all duration-300 ${
                               isRevealedByClue || userChar
-                                ? isWrongChar ? 'bg-coral' : isCorrect ? 'bg-teal' : 'bg-playful-purple'
-                                : isSlotActive && !hasSubmitted ? 'bg-coral' : 'bg-earth/10 dark:bg-white/10'
+                                ? isWrongChar ? 'bg-coral' : isCorrect || isRevealedByClue ? 'bg-teal' : 'bg-playful-purple'
+                                : isSlotActive ? 'bg-coral' : 'bg-earth/10 dark:bg-white/10'
                             }`} />
 
-                            {isSlotActive && !hasSubmitted && (
+                            {isSlotActive && (
                               <motion.div 
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: [0, 1, 0] }}
@@ -600,18 +830,22 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
       >
         <div className="relative">
           <motion.div 
-            className="w-40 h-40 bg-playful-purple/10 dark:bg-plum/10 rounded-[48px] flex items-center justify-center shadow-2xl shadow-playful-purple/10"
+            className={`w-40 h-40 ${isAnyPartFailed ? 'bg-sky-blue/10 dark:bg-sky-blue/5' : 'bg-playful-purple/10 dark:bg-plum/10'} rounded-[48px] flex items-center justify-center shadow-2xl ${isAnyPartFailed ? 'shadow-sky-blue/10' : 'shadow-playful-purple/10'}`}
             animate={{ 
               scale: [1, 1.05, 1],
               y: [0, -5, 0]
             }}
             transition={{ duration: 3, repeat: Infinity }}
           >
-            <Sparkles size={80} className="text-playful-purple dark:text-plum" fill="currentColor" />
+            {isAnyPartFailed ? (
+              <BookOpen size={80} className="text-sky-blue" fill="none" strokeWidth={1.5} />
+            ) : (
+              <Sparkles size={80} className="text-playful-purple dark:text-plum" fill="currentColor" />
+            )}
           </motion.div>
           
-          {/* Animated Stars */}
-          {[...Array(5)].map((_, i) => (
+          {/* Animated Stars - Only for success */}
+          {!isAnyPartFailed && [...Array(5)].map((_, i) => (
             <motion.div
               key={i}
               className="absolute top-1/2 left-1/2"
@@ -636,7 +870,10 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
             transition={{ delay: 0.3 }}
             className="text-4xl font-serif font-black text-earth dark:text-ivory"
           >
-            {state.primaryLanguage === 'es' ? '¡Ya casi!' : "You're almost there!"}
+            {isAnyPartFailed 
+              ? (state.primaryLanguage === 'es' ? 'Todavía no' : 'Not quite yet')
+              : (state.primaryLanguage === 'es' ? '¡Ya casi!' : "You're almost there!")
+            }
           </motion.h2>
           <motion.p 
             initial={{ y: 20, opacity: 0 }}
@@ -644,18 +881,25 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
             transition={{ delay: 0.4 }}
             className="text-lg text-earth-light dark:text-lavender-muted font-medium max-w-sm mx-auto"
           >
-            {state.primaryLanguage === 'es' 
-              ? 'Texto completo. Ahora falta el último paso: la cita bíblica.' 
-              : 'Text complete. Now for the final step: the citation.'}
+            {isAnyPartFailed 
+              ? (state.primaryLanguage === 'es' 
+                  ? 'Puedes seguir e intentar el próximo paso, o repasar este versículo desde el principio.' 
+                  : 'You can keep going and try the next step, or review this verse from the beginning.')
+              : (state.primaryLanguage === 'es' 
+                  ? 'Texto completo. Ahora falta el último paso: la cita bíblica.' 
+                  : 'Text complete. Now for the final step: the citation.')
+            }
           </motion.p>
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.5 }}
-            className="text-sm font-black text-playful-purple dark:text-plum uppercase tracking-widest mt-4"
-          >
-            {state.primaryLanguage === 'es' ? 'Un paso más.' : 'One more step.'}
-          </motion.p>
+          {!isAnyPartFailed && (
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.5 }}
+              className="text-sm font-black text-playful-purple dark:text-plum uppercase tracking-widest mt-4"
+            >
+              {state.primaryLanguage === 'es' ? 'Un paso más.' : 'One more step.'}
+            </motion.p>
+          )}
         </div>
 
         <div className="w-full max-w-sm space-y-8 px-6">
@@ -665,429 +909,539 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.5 }}
               onClick={() => onGoToFlashcards?.(verse.id)} 
-              className="w-full bg-playful-purple dark:bg-plum text-white rounded-[32px] flex items-center justify-center gap-4 py-6 px-8 shadow-2xl shadow-playful-purple/30 hover:scale-[1.02] active:scale-95 transition-all group"
+              className={`w-full ${isAnyPartFailed ? 'bg-earth dark:bg-charcoal' : 'bg-playful-purple dark:bg-plum'} text-white rounded-[32px] flex items-center justify-center gap-4 py-6 px-8 shadow-2xl hover:scale-[1.02] active:scale-95 transition-all group`}
             >
               <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
                 <Layers size={24} />
               </div>
               <span className="text-sm sm:text-base font-bold tracking-tight leading-tight text-center">
-                {state.primaryLanguage === 'es' ? 'Reto: Cita bíblica' : 'Challenge: Citation'}
+                {isAnyPartFailed 
+                  ? (state.primaryLanguage === 'es' ? 'continuar' : 'continue')
+                  : (state.primaryLanguage === 'es' ? 'Reto: Cita bíblica' : 'Challenge: Citation')
+                }
               </span>
             </motion.button>
             
-            <motion.button 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.7 }}
-              onClick={() => setIsAlmostDone(false)}
-              className="text-xs font-black uppercase tracking-[0.2em] text-earth-light/40 dark:text-ivory/40 hover:text-playful-purple dark:hover:text-plum transition-colors py-2 flex items-center gap-2 group"
-            >
-              <span>{state.primaryLanguage === 'es' ? '← Volver al texto' : '← Back to text'}</span>
-              <div className="relative w-4 h-4 opacity-40 group-hover:opacity-100 transition-opacity">
-                <Star size={16} fill="currentColor" className="text-gold" />
-              </div>
-            </motion.button>
+            {isAnyPartFailed ? (
+              <motion.button 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.7 }}
+                onClick={reset}
+                className="w-full bg-playful-purple dark:bg-plum text-white rounded-[32px] flex items-center justify-center gap-4 py-6 px-8 shadow-2xl hover:scale-[1.02] active:scale-95 transition-all group"
+              >
+                <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <RotateCcw size={24} />
+                </div>
+                <span className="text-sm sm:text-base font-bold tracking-tight leading-tight text-center">
+                  {state.primaryLanguage === 'es' ? 'repasar de nuevo' : 'review again'}
+                </span>
+              </motion.button>
+            ) : (
+              <motion.button 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.7 }}
+                onClick={() => setIsAlmostDone(false)}
+                className="text-xs font-black uppercase tracking-[0.2em] text-earth-light/40 dark:text-ivory/40 hover:text-playful-purple dark:hover:text-plum transition-colors py-2 flex items-center gap-2 group"
+              >
+                <span>{state.primaryLanguage === 'es' ? '← Volver al texto' : '← Back to text'}</span>
+                <div className="relative w-4 h-4 opacity-40 group-hover:opacity-100 transition-opacity">
+                  <Star size={16} fill="currentColor" className="text-gold" />
+                </div>
+              </motion.button>
+            )}
           </div>
         </div>
       </motion.div>
     );
   }
 
-  return (
-    <div className="h-full flex flex-col relative overflow-hidden">
-      {/* Scrollable Content Area */}
-      <div className="flex-1 overflow-y-auto px-4 pb-4 scrollbar-hide">
-        {/* Progress Header */}
-        <div className="space-y-4 mb-8">
-          <div className="flex justify-between items-end">
-            <div className="space-y-1">
-              <motion.h3 
-                className="text-2xl font-serif font-black text-playful-purple dark:text-plum tracking-tight"
-                key={verse.id}
-                initial={{ x: -20, opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-              >
-                {getLocalizedBookName(verse.book, state.memorizeMode)} {verse.chapter}:{verse.verse}
-              </motion.h3>
-              <div className="flex items-center gap-2">
-                <p className="text-xs font-black uppercase tracking-widest text-earth-light dark:text-lavender-muted">
-                  {STAGES[Math.max(0, Math.min(stage - 1, STAGES.length - 1))]?.[state.primaryLanguage === 'es' ? 'es' : 'label'] || ""}
-                </p>
-                <span className="w-1.5 h-1.5 rounded-full bg-teal shadow-sm" />
-                <div className="flex items-center gap-1.5 bg-playful-purple/10 dark:bg-plum/20 px-3 py-1 rounded-full border border-playful-purple/20 dark:border-plum/30">
-                  <Languages size={12} className="text-playful-purple dark:text-plum" />
-                  <span className="text-[10px] font-black text-playful-purple dark:text-plum uppercase tracking-widest">
-                    {state.memorizeMode === 'both' 
-                      ? `${esDetail.label} / ${enDetail.label}`
-                      : state.memorizeMode === 'es' ? esDetail.label : enDetail.label
-                    }
-                  </span>
-                </div>
-              </div>
-            </div>
-            <div 
-              className="flex flex-col items-end"
-            >
-              <span className="text-lg font-black text-playful-purple dark:text-plum">
-                {stage} <span className="text-xs text-earth-light/40 dark:text-lavender-muted/40">/ 5</span>
-              </span>
-            </div>
-          </div>
-          
-          {/* Subtle Instruction */}
-          {stage < 5 && (
-            <motion.p 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="text-[10px] font-black uppercase tracking-[0.2em] text-earth-light/40 dark:text-lavender-muted/40 text-center"
-            >
-              {stage === 1 && (state.primaryLanguage === 'es' ? 'Lee y ensaya' : 'Read and rehearse')}
-              {stage > 1 && stage < 5 && (state.primaryLanguage === 'es' ? 'Dilo en voz alta mientras las letras desaparecen (No escribas)' : 'Say it out loud as the letters disappear (No typing yet)')}
-            </motion.p>
-          )}
+  if (showHalfwayTransition) {
+    const isEnNext = activeLanguage === 'es';
+    // Small logic fix: use proper failure check for the transition screen
+    // If we're halfway, we check if the just-finished language failed
+    const currentPassFailed = activeLanguage === 'es' ? didFailFlowEs : didFailFlowEn;
 
-          <div className="h-4 w-full bg-earth/10 dark:bg-white/10 rounded-full overflow-hidden p-1 relative shadow-inner">
-            <motion.div 
-              className="h-full bg-gradient-to-r from-playful-purple via-sky-blue to-teal rounded-full shadow-lg relative overflow-hidden"
-              initial={{ width: 0 }}
-              animate={{ width: `${(stage / 5) * 100}%` }}
-              transition={{ type: "spring", damping: 25, stiffness: 120 }}
-            >
-              {/* Shimmer Effect */}
-              <motion.div 
-                className="absolute inset-0 bg-white/30 skew-x-[-20deg]"
-                animate={{ 
-                  x: ['-100%', '200%'],
-                }}
-                transition={{ 
-                  duration: 2.5, 
-                  repeat: Infinity, 
-                  ease: "easeInOut",
-                  repeatDelay: 0.5
-                }}
-                style={{ width: '40%' }}
-              />
-            </motion.div>
+    return (
+      <motion.div 
+        className="h-full flex flex-col items-center justify-center text-center space-y-10"
+        initial={{ opacity: 0, x: 50 }}
+        animate={{ opacity: 1, x: 0 }}
+        exit={{ opacity: 0, x: -50 }}
+      >
+        <div className="relative">
+          <motion.div 
+            className={`w-40 h-40 ${currentPassFailed ? 'bg-sky-blue/10 dark:bg-sky-blue/5' : 'bg-teal/10'} rounded-[48px] flex items-center justify-center shadow-2xl ${currentPassFailed ? 'shadow-sky-blue/5' : 'shadow-teal/5'}`}
+            animate={{ 
+              scale: [1, 1.05, 1],
+            }}
+            transition={{ duration: 3, repeat: Infinity }}
+          >
+            {currentPassFailed ? (
+              <BookOpen size={80} className="text-sky-blue" fill="none" strokeWidth={1.5} />
+            ) : (
+              <Trophy size={80} className="text-teal" fill="currentColor" />
+            )}
+          </motion.div>
+        </div>
+
+        <div className="space-y-4 px-8">
+          <h2 className="text-4xl font-serif font-black text-earth dark:text-ivory">
+            {currentPassFailed 
+              ? (state.primaryLanguage === 'es' ? 'Todavía no' : 'Not quite yet')
+              : (state.primaryLanguage === 'es' ? '¡Vas muy bien!' : "You’re doing great!")
+            }
+          </h2>
+          <div className="space-y-2">
+            {!currentPassFailed && (
+              <p className="text-xl font-bold text-playful-purple dark:text-plum">
+                {state.primaryLanguage === 'es' 
+                  ? (isEnNext ? 'Ahora en inglés' : 'Ahora en español')
+                  : (isEnNext ? 'Now in English' : 'Now in Spanish')
+                }
+              </p>
+            )}
+            <p className="text-earth-light dark:text-lavender-muted max-w-xs mx-auto leading-relaxed">
+              {currentPassFailed
+                ? (state.primaryLanguage === 'es' 
+                    ? 'Puedes seguir e intentar el próximo paso, o repasar este versículo desde el principio.' 
+                    : 'You can keep going and try the next step, or review this verse from the beginning.')
+                : (state.primaryLanguage === 'es' 
+                    ? `Ya memorizaste este versículo en ${activeLanguage === 'es' ? 'español' : 'inglés'}. Sigue con la versión en ${isEnNext ? 'inglés' : 'español'}.`
+                    : `You’ve memorized this verse in ${activeLanguage === 'es' ? 'Spanish' : 'English'}. Keep going with the ${isEnNext ? 'English' : 'Spanish'} version.`
+                  )
+              }
+            </p>
           </div>
         </div>
 
+        <div className="w-full max-w-[280px] px-6 space-y-4">
+          <button 
+            onClick={handleHalfwayContinue}
+            className={`w-full ${currentPassFailed ? 'bg-earth dark:bg-charcoal' : 'bg-playful-purple'} text-white rounded-[24px] py-5 font-bold shadow-xl shadow-playful-purple/20 hover:scale-[1.02] active:scale-95 transition-all lowercase`}
+          >
+            {state.primaryLanguage === 'es' ? 'continuar' : 'continue'}
+          </button>
+          {currentPassFailed && (
+            <button 
+              onClick={reset}
+              className="w-full bg-playful-purple text-white rounded-[24px] py-5 font-bold shadow-xl shadow-playful-purple/20 hover:scale-[1.02] active:scale-95 transition-all lowercase"
+            >
+              {state.primaryLanguage === 'es' ? 'repasar de nuevo' : 'review again'}
+            </button>
+          )}
+        </div>
+      </motion.div>
+    );
+  }
+
+  return (
+    <div className="flex-1 flex flex-col pt-2 pb-10">
+      {/* Top Section - Citation & Progress */}
+      <div className="px-6 sm:px-12 mb-6 sm:mb-10 flex-shrink-0">
+        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="bg-playful-purple/10 dark:bg-plum/20 text-[9px] font-black uppercase tracking-[0.2em] px-3 py-1 rounded-full text-playful-purple dark:text-plum border border-playful-purple/20">
+                {state.memorizeMode === 'both' ? 'Bilingual' : state.memorizeMode === 'es' ? 'Español' : 'English'}
+              </span>
+              <span className="text-earth/30 dark:text-ivory/30 text-[10px] font-black uppercase tracking-widest hidden sm:inline">
+                • {state.primaryLanguage === 'es' ? STAGES[stage - 1]?.es : STAGES[stage - 1]?.label}
+              </span>
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-serif font-black text-playful-purple dark:text-plum tracking-tight">
+              {getLocalizedBookName(verse.book, state.memorizeMode)} {verse.chapter}:{verse.verse}
+            </h2>
+          </div>
+          
+          {/* Desktop Step Counter */}
+          <div className="hidden sm:flex flex-col items-end">
+            <div className="flex items-baseline gap-1">
+              <span className="text-4xl font-black text-playful-purple dark:text-plum lining-nums">{stage}</span>
+              <span className="text-sm text-earth/30 dark:text-ivory/20 font-bold uppercase tracking-tighter">/ 5</span>
+            </div>
+          </div>
+        </div>
+        
+        {/* Colorful Animated Progress Bar - SHARED ACROSS ALL VIEWPORTS */}
+        <div className="h-4 sm:h-5 w-full bg-earth/10 dark:bg-white/10 rounded-full overflow-hidden p-1 relative mt-4 transition-all duration-500 shadow-inner">
+          <motion.div 
+            className="h-full bg-gradient-to-r from-playful-purple via-sky-blue to-teal rounded-full relative overflow-hidden shadow-[0_0_15px_rgba(109,40,217,0.4)]"
+            initial={{ width: 0 }}
+            animate={{ width: `${(stage / 5) * 100}%` }}
+            transition={{ type: "spring", damping: 25, stiffness: 120 }}
+          >
+            {/* Multiple Neon Scanners for "moving lights" effect */}
+            {[0, 1, 2].map((i) => (
+              <motion.div 
+                key={i}
+                className="absolute inset-y-0 w-24 bg-gradient-to-r from-transparent via-white/40 to-transparent blur-md"
+                animate={{ 
+                  left: ["-20%", "120%"] 
+                }}
+                transition={{ 
+                  duration: 2, 
+                  repeat: Infinity, 
+                  ease: "linear",
+                  delay: i * 0.7
+                }}
+              />
+            ))}
+            
+            {/* Inner Glow / Pulse */}
+            <motion.div 
+              className="absolute inset-0 bg-white/10"
+              animate={{ opacity: [0.1, 0.3, 0.1] }}
+              transition={{ duration: 2, repeat: Infinity }}
+            />
+          </motion.div>
+        </div>
+      </div>
+
+      {/* Main Verse Card Wrapper */}
+      <div className="flex-1 flex flex-col items-center px-4 sm:px-12 w-full max-w-5xl mx-auto mb-4">
         <div 
           id="memorize-verse-card"
-          className="shimmer-border w-full rounded-[32px] bg-white dark:bg-charcoal"
+          className="shimmer-border w-full rounded-[40px] bg-white dark:bg-charcoal shadow-2xl relative overflow-visible"
         >
-          <div className="card min-h-[480px] flex flex-col justify-center items-center text-center p-4 sm:p-8 md:p-12 relative group bg-white dark:bg-charcoal shadow-xl border-none">
-            <div className="flex flex-col items-center w-full relative z-10 px-2">
-            <div 
-              className={`flex flex-col gap-12 sm:gap-16 w-full py-12 my-auto ${stage === 5 && !isRevealed ? 'cursor-text' : ''}`}
-              onClick={() => stage === 5 && !isRevealed && inputRef.current?.focus()}
-            >
-              {stage === 5 && !isRevealed && (
-                <input
-                  ref={inputRef}
-                  type="text"
-                  className="sr-only"
-                  autoFocus
-                  autoComplete="off"
-                  autoCorrect="off"
-                  autoCapitalize="none"
-                  spellCheck="false"
-                  inputMode="text"
-                  value=""
-                  onChange={(e) => {
-                    const char = e.target.value.slice(-1);
-                    if (char && /[a-zA-ZáéíóúÁÉÍÓÚñÑ]/.test(char)) {
-                      const text = activeLanguage === 'es' ? esText : enText;
-                      if (!text) return;
-                      
-                      const cleanTarget = getCleanLetters(text);
-                      const currentCursor = activeLanguage === 'es' ? cursorIndexEs : cursorIndexEn;
-                      const setCursor = activeLanguage === 'es' ? setCursorIndexEs : setCursorIndexEn;
-                      const currentInputArr = activeLanguage === 'es' ? userInputEs : userInputEn;
-                      const setInputArr = activeLanguage === 'es' ? setUserInputEs : setUserInputEn;
-                      const revealed = activeLanguage === 'es' ? revealedIndicesEs : revealedIndicesEn;
+          {/* Card Body - DYNAMIC BUT STABLE HEIGHT */}
+          <div 
+            ref={cardRef}
+            style={cardHeight ? { height: `${cardHeight}px` } : { height: 'auto', minHeight: isMobile ? '340px' : '500px' }}
+            className="w-full flex flex-col items-center justify-between p-6 sm:p-12 relative bg-white dark:bg-charcoal border-none rounded-[40px] overflow-visible transition-[height] duration-300"
+          >
+            {/* Input Overlay for Stage 5 */}
+            {stage === 5 && !isRevealed && !isCorrect && !didFailFlow && (
+              <input
+                ref={inputRef}
+                type="text"
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck="false"
+                value={inputValue}
+                onKeyDown={(e) => {
+                  const revealed = activeLanguage === 'es' ? revealedIndicesEs : revealedIndicesEn;
+                  const cursor = activeLanguage === 'es' ? cursorIndexEs : cursorIndexEn;
+                  const setCursor = activeLanguage === 'es' ? setCursorIndexEs : setCursorIndexEn;
+                  const targetTextClean = getCleanLetters(activeLanguage === 'es' ? esText : enText);
+                  const setter = activeLanguage === 'es' ? setUserInputEs : setUserInputEn;
 
-                      const nextInput = [...currentInputArr];
-                      nextInput[currentCursor] = char;
-                      setInputArr(nextInput);
+                  const getNextIdx = (idx: number, dir: number) => {
+                    let next = idx + dir;
+                    while (next >= 0 && next < targetTextClean.length && revealed.includes(next)) {
+                      next += dir;
+                    }
+                    return Math.max(0, Math.min(next, targetTextClean.length));
+                  };
 
-                      // Move cursor forward
-                      let nextC = currentCursor + 1;
-                      while (nextC < cleanTarget.length && revealed.includes(nextC)) {
-                        nextC++;
-                      }
-                      
-                      if (nextC < cleanTarget.length) {
-                        setCursor(nextC);
+                  if (e.key === 'Backspace') {
+                    // Manual backspace handling
+                    e.preventDefault();
+
+                    // Reset "submitted" state if user starts correcting
+                    if (hasSubmitted) {
+                      if (activeLanguage === 'es') {
+                        setHasSubmittedEs(false);
+                        setIsWrongEs(false);
                       } else {
-                        setCursor(cleanTarget.length);
-                        // Auto-transition to English if Spanish is complete in bilingual mode
-                        if (state.memorizeMode === 'both' && activeLanguage === 'es') {
-                          setTimeout(() => setActiveLanguage('en'), 300);
-                        }
+                        setHasSubmittedEn(false);
+                        setIsWrongEn(false);
                       }
                     }
-                    e.target.value = "";
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !hasSubmitted) {
-                      handleCheck();
-                    }
-                    if (e.key === 'Backspace') {
-                      const text = activeLanguage === 'es' ? esText : enText;
-                      if (!text) return;
-                      
-                      const cleanTarget = getCleanLetters(text);
-                      const currentCursor = activeLanguage === 'es' ? cursorIndexEs : cursorIndexEn;
-                      const setCursor = activeLanguage === 'es' ? setCursorIndexEs : setCursorIndexEn;
-                      const currentInputArr = activeLanguage === 'es' ? userInputEs : userInputEn;
-                      const setInputArr = activeLanguage === 'es' ? setUserInputEs : setUserInputEn;
-                      const revealed = activeLanguage === 'es' ? revealedIndicesEs : revealedIndicesEn;
 
-                      if (currentInputArr[currentCursor]) {
-                        // Clear current char if exists
-                        const nextInput = [...currentInputArr];
-                        nextInput[currentCursor] = "";
-                        setInputArr(nextInput);
-                      } else {
-                        // Move back if current is empty
-                        let prevC = currentCursor - 1;
-                        while (prevC >= 0 && revealed.includes(prevC)) {
-                          prevC--;
-                        }
-                        
-                        if (prevC >= 0) {
-                          const nextInput = [...currentInputArr];
-                          nextInput[prevC] = "";
-                          setInputArr(nextInput);
-                          setCursor(prevC);
-                        } else if (state.memorizeMode === 'both' && activeLanguage === 'en') {
-                          // Move to Spanish
-                          setActiveLanguage('es');
-                          const esClean = getCleanLetters(esText || "");
-                          let lastEs = esClean.length - 1;
-                          while (lastEs >= 0 && revealedIndicesEs.includes(lastEs)) lastEs--;
-                          setCursorIndexEs(Math.max(0, lastEs));
-                        }
-                      }
+                    // Move to previous editable slot
+                    let prev = cursor - 1;
+                    while (prev >= 0 && revealed.includes(prev)) {
+                      prev--;
                     }
-                  }}
-                />
-              )}
-              
-              {(state.memorizeMode === 'es' || state.memorizeMode === 'both') && (
-                <div 
-                  className={`w-full flex flex-col gap-6 transition-all duration-500 ${state.memorizeMode === 'both' && activeLanguage !== 'es' ? 'opacity-50 cursor-pointer' : 'opacity-100'}`}
-                  onClick={() => handleLanguageSwitch('es')}
-                >
-                  {/* Dedicated Metadata Row - Spanish */}
-                  <div className="flex justify-center items-center px-2 min-h-[44px] w-full relative">
-                    <div className="h-px flex-1 bg-earth/10 dark:bg-white/10" />
-                    <span className={`mx-4 px-4 py-1.5 rounded-full text-[11px] font-black uppercase tracking-[0.2em] transition-all duration-300 border-2 ${
-                      activeLanguage === 'es' 
-                        ? 'bg-playful-purple text-white border-playful-purple shadow-lg shadow-playful-purple/20' 
-                        : 'bg-white/50 dark:bg-charcoal/50 text-playful-purple border-playful-purple/40 dark:text-plum dark:border-plum/40 backdrop-blur-sm'
-                    }`}>
-                      {esDetail.label}
-                    </span>
-                    <div className="h-px flex-1 bg-earth/10 dark:bg-white/10" />
                     
-                    {stage === 5 && !isRevealed && activeLanguage === 'es' && (
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); handleClue('es'); }}
-                        disabled={clueCountEs >= 1}
-                        className="absolute right-0 text-[10px] font-black uppercase tracking-widest text-playful-purple/60 hover:text-playful-purple disabled:opacity-30 flex items-center gap-1 bg-white/80 dark:bg-charcoal/80 backdrop-blur-sm px-2 py-1 rounded-lg border border-playful-purple/10"
-                      >
-                        <Sparkles size={12} />
-                        {state.primaryLanguage === 'es' ? 'Pista' : 'Clue'}
-                      </button>
-                    )}
-                  </div>
+                    if (prev >= 0) {
+                      setter(prevArr => {
+                        const next = [...prevArr];
+                        next[prev] = ""; // Clear the character
+                        return next;
+                      });
+                      setCursor(prev);
+                    }
+                  } else if (e.key === 'ArrowLeft') {
+                    e.preventDefault();
+                    setCursor(getNextIdx(cursor, -1));
+                  } else if (e.key === 'ArrowRight') {
+                    e.preventDefault();
+                    setCursor(getNextIdx(cursor, 1));
+                  } else if (e.key === 'Enter') {
+                    handleCheck();
+                  }
+                }}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  const cursor = activeLanguage === 'es' ? cursorIndexEs : cursorIndexEn;
+                  const setCursor = activeLanguage === 'es' ? setCursorIndexEs : setCursorIndexEn;
+                  const revealed = activeLanguage === 'es' ? revealedIndicesEs : revealedIndicesEn;
+                  const targetText = activeLanguage === 'es' ? esText : enText;
+                  const targetClean = getCleanLetters(targetText || "");
+                  const setter = activeLanguage === 'es' ? setUserInputEs : setUserInputEn;
                   
-                  <div className="w-full">
+                  // Reset "submitted" state if user starts interaction
+                  if (hasSubmitted) {
+                    if (activeLanguage === 'es') {
+                      setHasSubmittedEs(false);
+                      setIsWrongEs(false);
+                    } else {
+                      setHasSubmittedEn(false);
+                      setIsWrongEn(false);
+                    }
+                  }
+
+                  // Detect addition
+                  if (val.length > 1) {
+                    const char = val.charAt(val.length - 1);
+                    
+                    if (cursor < targetClean.length && !revealed.includes(cursor)) {
+                      // Update state
+                      setter(prev => {
+                        const next = [...prev];
+                        next[cursor] = char;
+                        return next;
+                      });
+
+                      // Advance cursor to next editable
+                      let next = cursor + 1;
+                      while (next < targetClean.length && revealed.includes(next)) {
+                        next++;
+                      }
+                      setCursor(Math.min(next, targetClean.length));
+                    }
+                  } else if (val.length === 0) {
+                    // Mobile Backspace detection fallback
+                    // Move to previous editable slot
+                    let prev = cursor - 1;
+                    while (prev >= 0 && revealed.includes(prev)) {
+                      prev--;
+                    }
+                    
+                    if (prev >= 0) {
+                      setter(prevArr => {
+                        const next = [...prevArr];
+                        next[prev] = ""; // Clear the character
+                        return next;
+                      });
+                      setCursor(prev);
+                    }
+                  }
+
+                  // Always reset input value to " " to be ready for next char/deletion
+                  setInputValue(" ");
+                }}
+                className="absolute opacity-0 inset-0 w-full h-full cursor-default"
+                autoFocus
+              />
+            )}
+
+            {/* Verse Content */}
+            <div className="w-full flex-1 flex flex-col items-center justify-center py-2 sm:py-6">
+              {state.memorizeMode === 'both' && !isMobile ? (
+                <div className="flex flex-col gap-10 sm:gap-16 w-full max-w-4xl">
+                  <div 
+                    className={`space-y-4 sm:space-y-6 cursor-pointer transition-transform duration-300 ${activeLanguage === 'es' ? 'scale-[1.01]' : 'hover:scale-[1.005]'}`}
+                    onClick={() => handleLanguageSwitch('es')}
+                  >
+                    <div className="flex items-center gap-4 opacity-20">
+                      <div className="h-px flex-1 bg-playful-purple" />
+                      <span className="text-[10px] font-black uppercase tracking-[0.3em]">{esDetail.label}</span>
+                      <div className="h-px flex-1 bg-playful-purple" />
+                    </div>
                     {renderVerseContent(esText, userInputEs, 'es', activeLanguage === 'es')}
                   </div>
-                </div>
-              )}
-
-              {state.memorizeMode === 'both' && (
-                <div className="flex items-center justify-center py-2">
-                  <div className="w-12 h-px bg-earth/5 dark:bg-white/5" />
-                  <div className="flex gap-1.5 px-4">
-                    <div className="w-1 h-1 rounded-full bg-earth/20 dark:bg-white/20" />
-                    <div className="w-1 h-1 rounded-full bg-earth/20 dark:bg-white/20" />
-                    <div className="w-1 h-1 rounded-full bg-earth/20 dark:bg-white/20" />
-                  </div>
-                  <div className="w-12 h-px bg-earth/5 dark:bg-white/5" />
-                </div>
-              )}
-
-              {(state.memorizeMode === 'en' || state.memorizeMode === 'both') && (
-                <div 
-                  className={`w-full flex flex-col gap-6 transition-all duration-500 ${state.memorizeMode === 'both' && activeLanguage !== 'en' ? 'opacity-50 cursor-pointer' : 'opacity-100'}`}
-                  onClick={() => handleLanguageSwitch('en')}
-                >
-                  {/* Dedicated Metadata Row - English */}
-                  <div className="flex justify-center items-center px-2 min-h-[44px] w-full relative">
-                    <div className="h-px flex-1 bg-earth/10 dark:bg-white/10" />
-                    <span className={`mx-4 px-4 py-1.5 rounded-full text-[11px] font-black uppercase tracking-[0.2em] transition-all duration-300 border-2 ${
-                      activeLanguage === 'en' 
-                        ? 'bg-golden text-white border-golden shadow-lg shadow-golden/20' 
-                        : 'bg-white/50 dark:bg-charcoal/50 text-golden border-golden/40 backdrop-blur-sm'
-                    }`}>
-                      {enDetail.label}
-                    </span>
-                    <div className="h-px flex-1 bg-earth/10 dark:bg-white/10" />
-                    
-                    {stage === 5 && !isRevealed && activeLanguage === 'en' && (
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); handleClue('en'); }}
-                        disabled={clueCountEn >= 1}
-                        className="absolute right-0 text-[10px] font-black uppercase tracking-widest text-golden/60 hover:text-golden disabled:opacity-30 flex items-center gap-1 bg-white/80 dark:bg-charcoal/80 backdrop-blur-sm px-2 py-1 rounded-lg border border-golden/10"
-                      >
-                        <Sparkles size={12} />
-                        {state.primaryLanguage === 'es' ? 'Pista' : 'Clue'}
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="w-full">
+                  <div 
+                    className={`space-y-4 sm:space-y-6 cursor-pointer transition-transform duration-300 ${activeLanguage === 'en' ? 'scale-[1.01]' : 'hover:scale-[1.005]'}`}
+                    onClick={() => handleLanguageSwitch('en')}
+                  >
+                    <div className="flex items-center gap-4 opacity-20">
+                      <div className="h-px flex-1 bg-golden" />
+                      <span className="text-[10px] font-black uppercase tracking-[0.3em]">{enDetail.label}</span>
+                      <div className="h-px flex-1 bg-golden" />
+                    </div>
                     {renderVerseContent(enText, userInputEn, 'en', activeLanguage === 'en')}
                   </div>
                 </div>
-              )}
-
-              {stage === 5 && !isRevealed && (
-                <div className="flex flex-col items-center gap-6 pt-4">
-                  {feedback && (
-                    <motion.div 
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className={`text-sm font-bold ${isCorrect ? 'text-teal' : 'text-coral'}`}
-                    >
-                      {feedback}
-                    </motion.div>
-                  )}
-                  
-                  {!hasSubmitted && (
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleCheck(); }}
-                      className="btn-primary px-8 py-3 text-sm"
-                    >
-                      {state.primaryLanguage === 'es' ? 'Comprobar' : 'Check'}
-                    </button>
-                  )}
-
-                  <div className="text-[10px] font-black uppercase tracking-widest text-earth/30 dark:text-ivory/30">
-                    {state.primaryLanguage === 'es' ? `Intentos: ${attempts}/3` : `Attempts: ${attempts}/3`}
-                  </div>
+              ) : (
+                <div className="w-full max-w-3xl">
+                  {activeLanguage === 'es' 
+                    ? renderVerseContent(esText, userInputEs, 'es', true)
+                    : renderVerseContent(enText, userInputEn, 'en', true)
+                  }
                 </div>
               )}
             </div>
-          </div>
-          
-          <div className="absolute top-4 right-4 z-20">
-            <button 
-              onPointerDown={() => setIsRevealed(true)}
-              onPointerUp={() => setIsRevealed(false)}
-              onPointerLeave={() => setIsRevealed(false)}
-              className={`p-2.5 rounded-xl transition-all duration-300 flex items-center gap-2 border active:scale-95 ${
-                isRevealed 
-                  ? 'bg-playful-purple/10 dark:bg-plum/20 text-playful-purple dark:text-plum border-playful-purple/20 dark:border-plum/30' 
-                  : 'bg-earth/5 dark:bg-white/5 text-earth/30 dark:text-ivory/30 border-transparent hover:text-playful-purple dark:hover:text-plum hover:bg-earth/10 dark:hover:bg-white/10'
-              }`}
-              title={state.primaryLanguage === 'es' ? 'Mantén presionado para ver' : 'Hold to reveal'}
-            >
-              {isRevealed ? <EyeOff size={20} /> : <Eye size={20} />}
-              <AnimatePresence>
-                {isRevealed && (
-                  <motion.span 
-                    initial={{ width: 0, opacity: 0 }}
-                    animate={{ width: 'auto', opacity: 1 }}
-                    exit={{ width: 0, opacity: 0 }}
-                    className="text-[9px] font-black uppercase tracking-widest overflow-hidden whitespace-nowrap pr-0.5"
-                  >
-                    {state.primaryLanguage === 'es' ? 'Viendo' : 'Revealed'}
-                  </motion.span>
-                )}
-              </AnimatePresence>
-            </button>
+
+            {/* Utility Controls (Clue/Eye) - RESERVED BOTTOM ROW */}
+            <div className="w-full h-14 sm:h-16 flex items-center justify-center gap-8 mt-2 sm:mt-6 flex-shrink-0 relative z-30">
+              <div className="flex-1 flex justify-end">
+                <AnimatePresence>
+                  {stage === 5 && !isRevealed && !hasSubmitted && (
+                    <motion.button 
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.9 }}
+                      onClick={(e) => { e.stopPropagation(); handleClue(activeLanguage); }}
+                      disabled={(activeLanguage === 'es' ? clueCountEs : clueCountEn) >= 1}
+                      className="flex items-center gap-2 px-5 py-2 rounded-2xl bg-playful-purple/10 dark:bg-plum/10 border border-playful-purple/20 text-[10px] font-black uppercase tracking-widest text-playful-purple dark:text-plum shadow-sm hover:bg-playful-purple/20 transition-all active:scale-95 disabled:opacity-30"
+                    >
+                      <Sparkles size={16} />
+                      <span>{state.primaryLanguage === 'es' ? 'Pista' : 'Clue'}</span>
+                    </motion.button>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              <div className="w-px h-6 bg-earth/5 dark:bg-white/5" />
+
+              <div className="flex-1 flex justify-start">
+                <button
+                  onPointerDown={() => setIsRevealed(true)}
+                  onPointerUp={() => setIsRevealed(false)}
+                  onPointerLeave={() => setIsRevealed(false)}
+                  className={`p-3 rounded-full transition-all duration-300 border flex items-center justify-center shadow-lg active:scale-90 ${
+                    isRevealed 
+                      ? 'bg-playful-purple text-white border-playful-purple scale-110 shadow-playful-purple/20' 
+                      : 'bg-white dark:bg-charcoal text-earth/40 dark:text-ivory/40 border-earth/10 dark:border-white/10 hover:text-playful-purple hover:border-playful-purple/30'
+                  }`}
+                >
+                  {isRevealed ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
-    </div>
 
-      {/* Fixed Bottom Action Area - Refined Visual Design */}
-      <div className="flex-shrink-0 flex flex-col gap-2 sm:gap-6 p-4 sm:p-6 pb-4 sm:pb-10 z-30">
-        {/* Action Container - Styled like a card with matching radius */}
-        <div 
-          id="memorize-controls"
-          className="h-auto sm:h-[180px] w-full bg-white/95 dark:bg-charcoal/95 rounded-[24px] sm:rounded-[40px] shadow-2xl border border-earth/10 dark:border-white/10 p-3 sm:p-8 flex flex-col justify-between"
-        >
-          {/* Stable Button Row */}
-          <div className="h-12 sm:h-20 flex items-center gap-2 sm:gap-4">
-            {/* Back Button Slot - Always takes 50% space to keep Next button stable */}
-            <div className="flex-1 h-full">
-              <AnimatePresence>
-                {stage > 1 && (
-                  <motion.button 
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    onClick={prevStage}
-                    className="w-full h-full rounded-xl sm:rounded-2xl font-bold text-sm sm:text-lg lowercase tracking-tight bg-earth/10 dark:bg-white/10 text-earth-light dark:text-lavender-muted hover:bg-earth/15 dark:hover:bg-white/15 transition-all border border-earth/5 dark:border-white/5 flex items-center justify-center gap-2"
-                    whileTap={{ scale: 0.98 }}
-                  >
-                    <ArrowLeft size={16} className="sm:w-5 sm:h-5 text-earth/40 dark:text-white/40" />
-                    <span>{state.primaryLanguage === 'es' ? 'atrás' : 'back'}</span>
-                  </motion.button>
-                )}
-              </AnimatePresence>
-            </div>
-            
-            {/* Primary Action Slot - Fixed position (flex-1) */}
-            <div className="flex-1 h-full">
-              <motion.button 
-                onClick={stage === 5 && !hasSubmitted ? handleCheck : nextStage}
-                className={`w-full h-full flex items-center justify-center gap-2 sm:gap-3 group rounded-xl sm:rounded-2xl font-bold transition-all shadow-lg relative overflow-hidden ${
-                  stage === 5 
-                    ? 'bg-indigo-rich dark:bg-indigo-rich text-white shadow-indigo-rich/30' 
-                    : 'bg-playful-purple dark:bg-plum text-white shadow-playful-purple/20'
-                }`}
-                whileTap={{ scale: 0.98 }}
+      {/* FIXED BOTTOM NAVIGATION AREA - CLEAN & INTEGRATED */}
+      <div 
+        className="w-full flex-shrink-0 px-6 sm:px-12 pb-6 sm:pb-8 pt-4 relative z-[60]"
+      >
+        {/* Feedback Area (Reserved: 16/20) */}
+        <div className="h-12 w-full flex items-center justify-center mb-2">
+          <AnimatePresence mode="wait">
+            {stage === 5 && feedback ? (
+              <motion.div 
+                key={feedback}
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="flex items-center gap-3 bg-white dark:bg-charcoal px-6 py-2 rounded-full border border-playful-purple/20 dark:border-plum/20 shadow-xl"
               >
-                <span className="text-sm sm:text-xl font-bold relative z-10 tracking-tight lowercase">
-                  {stage === 5 
-                    ? (hasSubmitted ? (state.primaryLanguage === 'es' ? 'próximo' : 'next') : (state.primaryLanguage === 'es' ? 'revisar' : 'check')) 
-                    : (state.primaryLanguage === 'es' ? 'próximo' : 'next')}
+                <div className={`w-2.5 h-2.5 rounded-full ${isCorrect ? 'bg-teal animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-coral shadow-[0_0_8px_rgba(255,111,97,0.5)]'}`} />
+                <span className={`text-[11px] sm:text-sm font-black uppercase tracking-widest ${isCorrect ? 'text-teal' : 'text-coral'}`}>
+                  {feedback}
                 </span>
-                <div className="relative z-10">
-                  <ArrowRight size={18} className="sm:w-6 sm:h-6" strokeWidth={3} />
-                </div>
-              </motion.button>
-            </div>
-          </div>
-
-          {/* Stable Step Indicators */}
-          <div className="h-4 sm:h-6 mt-3 sm:mt-0 flex justify-center items-center gap-3 sm:gap-4">
-            {[1, 2, 3, 4, 5].map(s => (
-              <div 
-                key={s} 
-                className={`h-2 sm:h-3 rounded-full transition-all duration-300 relative overflow-hidden ${s === stage ? 'w-8 sm:w-12 bg-playful-purple dark:bg-plum shadow-lg shadow-playful-purple/40' : s < stage ? 'w-2 sm:w-3 bg-teal shadow-sm' : 'w-2 sm:w-3 bg-earth/10 dark:bg-white/10'}`} 
-              />
-            ))}
-          </div>
+                {!isCorrect && (
+                  <span className="text-[10px] font-black text-earth/30 dark:text-white/20 lowercase">
+                    ({attempts}/3)
+                  </span>
+                )}
+              </motion.div>
+            ) : null}
+          </AnimatePresence>
         </div>
 
-        {/* Guidance Area - Outside the fixed action box */}
-        <div className="h-auto min-h-[100px] sm:h-[140px] w-full">
-          <CoachCard 
-            state={state}
-            type={coachType}
-            verseReference={`${getLocalizedBookName(verse.book, state.memorizeMode)} ${verse.chapter}:${verse.verse}`}
-            verseText={esText || enText || ""}
-            stage={stage}
-            status="succeeding"
-          />
+        {/* Action Controls - Balanced & Outlined Circular Buttons */}
+        <div className="w-full max-w-2xl mx-auto flex items-center justify-center gap-6 sm:gap-10">
+          <AnimatePresence mode="popLayout" initial={false}>
+            {/* Back Button */}
+            {stage > 1 && (
+              <motion.button 
+                key="back-nav"
+                onClick={prevStage}
+                initial={{ opacity: 0, x: 20, scale: 0.8 }}
+                animate={{ opacity: 1, x: 0, scale: 1 }}
+                exit={{ opacity: 0, x: 20, scale: 0.8 }}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-white dark:bg-charcoal text-playful-purple dark:text-plum border-2 border-playful-purple/30 dark:border-plum/30 flex items-center justify-center hover:bg-playful-purple/5 hover:border-playful-purple transition-all shadow-sm group relative"
+                aria-label="Back"
+              >
+                <ArrowLeft size={24} strokeWidth={2.5} className="group-hover:-translate-x-0.5 transition-transform" />
+                {/* Subtle back ring */}
+                <motion.div 
+                  className="absolute inset-0 rounded-full border border-playful-purple/10"
+                  animate={{ scale: [1, 1.1, 1], opacity: [0.3, 0.1, 0.3] }}
+                  transition={{ duration: 3, repeat: Infinity }}
+                />
+              </motion.button>
+            )}
+
+            {/* Main Action (Next/Check) */}
+            <motion.button 
+              key="main-action"
+              layout
+              onClick={() => {
+                const currentAttempts = activeLanguage === 'es' ? attemptsEs : attemptsEn;
+                const currentIsWrong = activeLanguage === 'es' ? isWrongEs : isWrongEn;
+                const currentHasSubmitted = activeLanguage === 'es' ? hasSubmittedEs : hasSubmittedEn;
+
+                if (stage === 5) {
+                  if (isStepComplete || isRevealed || (currentIsWrong && currentAttempts >= 3)) {
+                    nextStage();
+                  } else if (currentHasSubmitted && currentIsWrong) {
+                    if (activeLanguage === 'es') {
+                      setHasSubmittedEs(false);
+                      setIsWrongEs(false);
+                    } else {
+                      setHasSubmittedEn(false);
+                      setIsWrongEn(false);
+                    }
+                    setTimeout(() => inputRef.current?.focus(), 0);
+                  } else {
+                    handleCheck();
+                  }
+                } else {
+                  nextStage();
+                }
+              }}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center group shadow-xl transition-all relative ${
+                stage === 5 
+                  ? (isStepComplete ? 'border-2 border-teal text-teal bg-teal/5' : (hasSubmitted && isWrong && attempts < 3 ? 'border-2 border-coral text-coral bg-coral/5' : 'border-2 border-playful-purple text-playful-purple bg-transparent'))
+                  : 'border-2 border-playful-purple text-playful-purple bg-transparent'
+              }`}
+            >
+              <ArrowRight size={28} strokeWidth={3} className="group-hover:translate-x-0.5 transition-transform" />
+              
+              {/* Pulsing Ring Animation */}
+              <motion.div 
+                className={`absolute -inset-1.5 rounded-full border-2 opacity-20 pointer-events-none ${
+                  stage === 5 && isStepComplete ? 'border-teal' : 'border-playful-purple'
+                }`}
+                animate={{ 
+                  scale: [1, 1.15, 1],
+                  opacity: [0.1, 0.3, 0.1]
+                }}
+                transition={{ 
+                  duration: 2.5, 
+                  repeat: Infinity,
+                  ease: "easeInOut"
+                }}
+              />
+            </motion.button>
+          </AnimatePresence>
+        </div>
+
+        {/* Pagination Dots (Reserved) */}
+        <div className="h-8 flex justify-center items-center gap-3 mt-2">
+          {[1, 2, 3, 4, 5].map(s => (
+            <div 
+              key={s} 
+              className={`h-1.5 rounded-full transition-all duration-500 ${
+                s === stage 
+                  ? 'w-8 bg-playful-purple dark:bg-plum shadow-[0_0_10px_rgba(151,71,255,0.3)]' 
+                  : s < stage ? 'w-1.5 bg-teal opacity-50' : 'w-1.5 bg-earth/10 dark:bg-white/10'
+              }`} 
+            />
+          ))}
         </div>
       </div>
     </div>

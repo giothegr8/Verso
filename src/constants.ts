@@ -312,3 +312,118 @@ export const getVerseByDate = (dateStr: string) => {
   const index = Math.abs(hash) % MOCK_VERSES.length;
   return MOCK_VERSES[index];
 };
+
+import { Path } from "./types";
+
+export const PATHS: Path[] = [
+  {
+    id: "fear-future",
+    title: "Fear about the Future",
+    titleEs: "Miedo al futuro",
+    description: "For the days when you do not know what comes next.",
+    descriptionEs: "Para los días en que no sabes qué viene.",
+    duration: 15,
+    verses: ["joshua-1-9", "5", "6", "14", "4", "joshua-1-9", "5", "6", "14", "4", "joshua-1-9", "5", "6", "14", "4"],
+    cta: "Start this path",
+    ctaEs: "Empezar este camino"
+  },
+  {
+    id: "anxiety",
+    title: "Anxiety",
+    titleEs: "Ansiedad",
+    description: "When your mind will not slow down, return to what is steady.",
+    descriptionEs: "Cuando tu mente no se detiene, vuelve a lo que permanece.",
+    duration: 15,
+    verses: ["14", "8", "2", "4", "5", "14", "8", "2", "4", "5", "14", "8", "2", "4", "5"],
+    cta: "Find peace here",
+    ctaEs: "Encontrar paz aquí"
+  },
+  {
+    id: "burnout",
+    title: "Burnout",
+    titleEs: "Agotamiento",
+    description: "When your soul feels tired and your strength feels thin.",
+    descriptionEs: "Cuando el alma está cansada y las fuerzas se sienten pocas.",
+    duration: 10,
+    verses: ["8", "13", "1", "12", "5", "8", "13", "1", "12", "5"],
+    cta: "Begin again",
+    ctaEs: "Empezar de nuevo"
+  },
+  {
+    id: "identity",
+    title: "Identity",
+    titleEs: "Identidad",
+    description: "For remembering who God says you are.",
+    descriptionEs: "Para recordar quién eres en Dios.",
+    duration: 21,
+    verses: ["3", "7", "12", "9", "3", "7", "12", "9", "3", "7", "12", "9", "3", "7", "12", "9", "3", "7", "12", "9", "3"],
+    cta: "Start this path",
+    ctaEs: "Empezar este camino"
+  },
+  {
+    id: "peace",
+    title: "Peace",
+    titleEs: "Paz",
+    description: "A quiet place to return to when life feels loud.",
+    descriptionEs: "Un lugar tranquilo para volver cuando la vida se siente ruidosa.",
+    duration: 15,
+    verses: ["12", "2", "14", "6", "5", "12", "2", "14", "6", "5", "12", "2", "14", "6", "5"],
+    cta: "Find peace",
+    ctaEs: "Encontrar paz"
+  },
+  {
+    id: "grief",
+    title: "Grief",
+    titleEs: "Duelo",
+    description: "For when loss feels heavy and hope feels far.",
+    descriptionEs: "Para cuando la pérdida pesa y la esperanza se siente lejos.",
+    duration: 21,
+    verses: ["2", "8", "12", "5", "6", "2", "8", "12", "5", "6", "2", "8", "12", "5", "6", "2", "8", "12", "5", "6", "2"],
+    cta: "Walk with hope",
+    ctaEs: "Caminar con esperanza"
+  },
+  {
+    id: "relationships",
+    title: "Relationships",
+    titleEs: "Relaciones",
+    description: "For love, patience, forgiveness, and wisdom with people.",
+    descriptionEs: "Para amar, perdonar y caminar con sabiduría.",
+    duration: 15,
+    verses: ["11", "10", "4", "11", "10", "4", "11", "10", "4", "11", "10", "4", "11", "10", "4"],
+    cta: "Start this path",
+    ctaEs: "Empezar este camino"
+  },
+  {
+    id: "purpose",
+    title: "Purpose",
+    titleEs: "Propósito",
+    description: "For the days when you wonder why you are here.",
+    descriptionEs: "Para los días en que te preguntas para qué estás aquí.",
+    duration: 15,
+    verses: ["6", "4", "9", "1", "6", "4", "9", "1", "6", "4", "9", "1", "6", "4", "9"],
+    cta: "Find direction",
+    ctaEs: "Encontrar dirección"
+  },
+  {
+    id: "new-beginnings",
+    title: "New Beginnings",
+    titleEs: "Nuevos comienzos",
+    description: "For starting again with grace.",
+    descriptionEs: "Para volver a empezar con gracia.",
+    duration: 10,
+    verses: ["12", "6", "5", "1", "9", "12", "6", "5", "1", "9"],
+    cta: "Begin again",
+    ctaEs: "Volver a empezar"
+  },
+  {
+    id: "students",
+    title: "Students",
+    titleEs: "Estudiantes",
+    description: "Scripture for focus, pressure, purpose, and identity.",
+    descriptionEs: "Palabra para el enfoque, la presión, el propósito y la identidad.",
+    duration: 15,
+    verses: ["10", "4", "1", "13", "14", "10", "4", "1", "13", "14", "10", "4", "1", "13", "14"],
+    cta: "Start this path",
+    ctaEs: "Empezar este camino"
+  }
+];

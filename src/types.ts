@@ -52,6 +52,25 @@ export interface UserProgress {
   lastCompletedDailyVerseDate: string | null; // ISO date string (YYYY-MM-DD) of last VOTD completion
 }
 
+export interface Path {
+  id: string;
+  title: string;
+  titleEs: string;
+  description: string;
+  descriptionEs: string;
+  duration: number; // in days
+  verses: string[]; // Order list of verse IDs
+  cta: string;
+  ctaEs: string;
+}
+
+export interface UserPathProgress {
+  selectedPathId: string | null;
+  currentDay: number; // 1-indexed
+  lastCompletedAt: string | null; // ISO date (YYYY-MM-DD)
+  completedPathIds: string[];
+}
+
 export type TranslationMode = "default" | "custom";
 
 export interface ReminderSettings {
@@ -73,6 +92,7 @@ export interface AppState {
   recentVerseIds: string[]; // History of verses seen recently
   lastVotdDate: string | null; // ISO date string (YYYY-MM-DD)
   progress: UserProgress;
+  pathProgress: UserPathProgress;
   reminders: ReminderSettings;
   trialStartDate: string | null; // ISO date string
   isSubscribed: boolean;

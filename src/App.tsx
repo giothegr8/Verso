@@ -5,14 +5,14 @@ import {
   Home as HomeIcon, 
   BookOpen, 
   Layers, 
-  Bookmark, 
+  Sprout, 
   Settings as SettingsIcon,
   Moon,
   Sun,
   RotateCcw
 } from "lucide-react";
 import { AppState, LanguageMode, Translation, TRANSLATION_PAIRS } from "./types";
-import { MOCK_VERSES, getVerseByDate } from "./constants";
+import { MOCK_VERSES, getVerseByDate, PATHS } from "./constants";
 import { getLocalDateString } from "./utils/verseUtils";
 
 // Components
@@ -24,6 +24,7 @@ import Onboarding from "./components/Onboarding";
 import Settings from "./components/Settings";
 import Paywall from "./components/Paywall";
 import ProductTour from "./components/ProductTour";
+import PathSelection from "./components/PathSelection";
 
 interface ErrorBoundaryProps {
   children: React.ReactNode;
@@ -80,6 +81,12 @@ const INITIAL_STATE: AppState = {
     lastStreakDate: null,
     lastCompletedDailyVerseDate: null,
   },
+  pathProgress: {
+    selectedPathId: null,
+    currentDay: 1,
+    lastCompletedAt: null,
+    completedPathIds: [],
+  },
   reminders: {
     enabled: false,
     type: "notification",
@@ -119,6 +126,9 @@ export default function App() {
         // Initialize new fields
         if (!merged.recentVerseIds) merged.recentVerseIds = [];
         if (merged.hasCompletedTour === undefined) merged.hasCompletedTour = false;
+        if (!merged.pathProgress) {
+          merged.pathProgress = INITIAL_STATE.pathProgress;
+        }
         
         return merged;
       } catch (e) {
@@ -154,43 +164,76 @@ export default function App() {
     }
   }, [state]);
 
-  // Daily Reset Logic - Using Local Midnight
+  // Streak & Votd Daily Update Logic
   useEffect(() => {
-    const checkMidnight = () => {
+    if (!state.onboarded) return;
+
+    const checkDailyUpdate = () => {
       const today = getLocalDateString();
-      if (state.lastVotdDate !== today) {
-        setState(prev => {
-          // Check if streak should reset
-          // If today is not yesterday + 1, reset streak
-          // Yesterday calculation
-          const yesterdayDate = new Date();
-          yesterdayDate.setDate(yesterdayDate.getDate() - 1);
-          const yesterdayStr = `${yesterdayDate.getFullYear()}-${String(yesterdayDate.getMonth() + 1).padStart(2, '0')}-${String(yesterdayDate.getDate()).padStart(2, '0')}`;
-          
-          let newStreak = prev.progress.currentStreak;
-          // If the last completion was NOT yesterday and NOT today, reset streak
-          if (prev.progress.lastPracticeDate !== yesterdayStr && prev.progress.lastPracticeDate !== today) {
-            newStreak = 0;
+      const yesterdayDate = new Date();
+      yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+      const yesterdayStr = `${yesterdayDate.getFullYear()}-${String(yesterdayDate.getMonth() + 1).padStart(2, '0')}-${String(yesterdayDate.getDate()).padStart(2, '0')}`;
+
+      setState(prev => {
+        // Only trigger update if the date has shifted
+        if (prev.progress.lastPracticeDate === today && prev.lastVotdDate === today) {
+          return prev;
+        }
+
+        let newStreak = prev.progress.currentStreak;
+        let newBestStreak = prev.progress.bestStreak;
+        let newProgress = { ...prev.progress };
+        let updateNeeded = false;
+
+        // If today is a new day relative to lastPracticeDate
+        if (prev.progress.lastPracticeDate !== today) {
+          updateNeeded = true;
+          if (prev.progress.lastPracticeDate === yesterdayStr) {
+            // Consecutive day visit
+            newStreak += 1;
+          } else {
+            // Missed a day or first visit
+            newStreak = 1;
           }
 
+          if (newStreak > newBestStreak) {
+            newBestStreak = newStreak;
+          }
+
+          newProgress = {
+            ...newProgress,
+            currentStreak: newStreak,
+            bestStreak: newBestStreak,
+            lastPracticeDate: today
+          };
+        }
+
+        // If today is a new day relative to VOTD
+        if (prev.lastVotdDate !== today) {
+          updateNeeded = true;
           return {
             ...prev,
             lastVotdDate: today,
-            selectedVerseId: null, // Reset to VOTD
-            progress: {
-              ...prev.progress,
-              currentStreak: newStreak
-            }
+            selectedVerseId: null, // Reset to VOTD on new day
+            progress: newProgress
           };
-        });
-      }
+        }
+
+        if (updateNeeded) {
+          return {
+            ...prev,
+            progress: newProgress
+          };
+        }
+
+        return prev;
+      });
     };
 
-    // Check on mount and every minute
-    checkMidnight();
-    const interval = setInterval(checkMidnight, 60000);
+    checkDailyUpdate();
+    const interval = setInterval(checkDailyUpdate, 60000);
     return () => clearInterval(interval);
-  }, [state.lastVotdDate, state.progress.lastPracticeDate]);
+  }, [state.onboarded]);
 
   useEffect(() => {
     const isDark = 
@@ -288,9 +331,62 @@ export default function App() {
     }
   };
 
+  const handleSelectPath = (pathId: string) => {
+    setState(s => ({
+      ...s,
+      pathProgress: {
+        ...s.pathProgress,
+        selectedPathId: pathId,
+        currentDay: 1,
+        lastCompletedAt: null
+      }
+    }));
+    setActiveTab("home");
+  };
+
+  const handleCompletePathDay = () => {
+    const today = getLocalDateString();
+    const currentPath = PATHS.find(p => p.id === state.pathProgress.selectedPathId);
+    if (!currentPath) return;
+
+    setState(s => {
+      const isLastDay = s.pathProgress.currentDay >= currentPath.duration;
+      const nextDay = isLastDay ? s.pathProgress.currentDay : s.pathProgress.currentDay + 1;
+      
+      return {
+        ...s,
+        pathProgress: {
+          ...s.pathProgress,
+          currentDay: nextDay,
+          lastCompletedAt: today,
+          completedPathIds: isLastDay 
+            ? [...s.pathProgress.completedPathIds, s.pathProgress.selectedPathId!]
+            : s.pathProgress.completedPathIds
+        }
+      };
+    });
+  };
+
   const renderTab = () => {
     switch (activeTab) {
-      case "home": return <Home state={state} setState={setState} onStartMemorizing={startMemorizing} onGetAnotherVerse={getAnotherVerse} />;
+      case "home": return (
+        <Home 
+          state={state} 
+          setState={setState} 
+          onStartMemorizing={startMemorizing} 
+          onGetAnotherVerse={getAnotherVerse} 
+          onGoToSaved={() => setActiveTab('saved')} 
+          onGoToPaths={() => setActiveTab('path-selection')}
+          onCompletePathDay={handleCompletePathDay}
+        />
+      );
+      case "path-selection": return (
+        <PathSelection 
+          state={state} 
+          onSelectPath={handleSelectPath} 
+          onBack={() => setActiveTab("home")} 
+        />
+      );
       case "memorize": return (
         <Memorize 
           state={state} 
@@ -312,7 +408,17 @@ export default function App() {
         />
       );
       case "saved": return <Saved state={state} setState={setState} onStartMemorizing={startMemorizing} />;
-      default: return <Home state={state} setState={setState} onStartMemorizing={startMemorizing} onGetAnotherVerse={getAnotherVerse} />;
+      default: return (
+        <Home 
+          state={state} 
+          setState={setState} 
+          onStartMemorizing={startMemorizing} 
+          onGetAnotherVerse={getAnotherVerse} 
+          onGoToSaved={() => setActiveTab('saved')} 
+          onGoToPaths={() => setActiveTab('path-selection')}
+          onCompletePathDay={handleCompletePathDay}
+        />
+      );
     }
   };
 
@@ -385,20 +491,20 @@ export default function App() {
           </div>
         </header>
 
-        {/* Content */}
+        {/* Content Area - Page Level Scroll */}
         <main 
-          className="flex-1 py-6 sm:py-12"
-          style={{ paddingBottom: "calc(var(--nav-height) + 1.5rem + var(--safe-area-bottom))" }}
+          className="flex-1 flex flex-col pt-4 sm:pt-6"
+          style={{ paddingBottom: "calc(var(--nav-height) + 2rem + var(--safe-area-bottom))" }}
         >
-          <div className="content-column h-full">
+          <div className="content-column flex-1">
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeTab}
-                initial={{ opacity: 0, y: 30, scale: 0.98 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -30, scale: 0.98 }}
-                transition={{ type: "spring", damping: 25, stiffness: 200 }}
-                className="h-full"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.3 }}
+                className="h-full flex flex-col"
               >
                 {renderTab()}
               </motion.div>
@@ -415,7 +521,7 @@ export default function App() {
             <NavButton id="nav-home" active={activeTab === 'home'} onClick={() => setActiveTab('home')} icon={<HomeIcon size={22} />} label={state.primaryLanguage === 'es' ? 'Inicio' : 'Home'} />
             <NavButton id="nav-memorize" active={activeTab === 'memorize'} onClick={() => setActiveTab('memorize')} icon={<BookOpen size={22} />} label={state.primaryLanguage === 'es' ? 'Memorizar' : 'Memorize'} />
             <NavButton id="nav-flashcards" active={activeTab === 'flashcards'} onClick={() => setActiveTab('flashcards')} icon={<Layers size={22} />} label={state.primaryLanguage === 'es' ? 'Tarjetas' : 'Cards'} />
-            <NavButton id="nav-saved" active={activeTab === 'saved'} onClick={() => setActiveTab('saved')} icon={<Bookmark size={22} />} label={state.primaryLanguage === 'es' ? 'Guardados' : 'Saved'} />
+            <NavButton id="nav-saved" active={activeTab === 'saved'} onClick={() => setActiveTab('saved')} icon={<Sprout size={22} />} label={state.primaryLanguage === 'es' ? 'Guardados' : 'Saved'} />
           </nav>
         </div>
 
