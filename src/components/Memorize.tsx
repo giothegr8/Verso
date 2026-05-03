@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { AppState, TRANSLATION_PAIRS, TRANSLATION_DETAILS } from "../types";
 import { MOCK_VERSES, getVerseByDate } from "../constants";
-import { CheckCircle2, RotateCcw, Eye, EyeOff, ArrowRight, ArrowLeft, Star, Trophy, Languages, Sparkles, AlertCircle, Bookmark, Layers, MessageCircle, BookOpen } from "lucide-react";
+import { CheckCircle2, RotateCcw, Eye, EyeOff, ArrowRight, ArrowLeft, Star, Trophy, Languages, Sparkles, AlertCircle, Bookmark, Layers, MessageCircle, BookOpen, Sprout } from "lucide-react";
 import React from "react";
 import confetti from "canvas-confetti";
 import { getCurrentTranslationPair, getValidatedVerse, getLocalizedBookName, getLocalDateString, getVerseLines, removeAccents, VERSE_LAYOUT } from "../utils/verseUtils";
@@ -264,12 +264,35 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
 
   useEffect(() => {
     if (isAlmostDone && isOverallSuccess) {
-      confetti({
-        particleCount: 100,
-        spread: 70,
-        origin: { y: 0.6 },
-        colors: ['#8B5CF6', '#06B6D4', '#10B981']
-      });
+      // Water-based burst using blue/teal shades
+      const duration = 2 * 1000;
+      const animationEnd = Date.now() + duration;
+      const colors = ['#0ea5e9', '#38bdf8', '#7dd3fc', '#e0f2fe'];
+
+      const frame = () => {
+        const timeLeft = animationEnd - Date.now();
+
+        if (timeLeft <= 0) return;
+
+        const particleCount = 10 * (timeLeft / duration);
+        
+        confetti({
+          particleCount,
+          startVelocity: 30,
+          spread: 360,
+          origin: { x: Math.random(), y: Math.random() - 0.2 },
+          colors: colors,
+          shapes: ['circle'],
+          gravity: 0.8,
+          scalar: 0.7,
+          drift: 0,
+          ticks: 100
+        });
+
+        requestAnimationFrame(frame);
+      };
+      
+      frame();
     }
   }, [isAlmostDone, isOverallSuccess]);
 
@@ -703,8 +726,8 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
         {lines.map((line, lineIdx) => {
           const words = line.split(" ");
           return (
-            <div key={lineIdx} className="flex flex-row justify-center flex-nowrap w-full min-w-0 px-8 sm:px-2">
-              <div className="flex flex-row justify-center flex-nowrap gap-x-[0.4em]">
+            <div key={lineIdx} className="flex flex-wrap justify-center w-full min-w-0 max-w-full px-2 sm:px-8">
+              <div className="flex flex-wrap justify-center gap-x-[0.4em] max-w-full">
                 {words.map((word, wordIdx) => {
                   const chars = word.split("");
                   return (
@@ -840,7 +863,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
             {isAnyPartFailed ? (
               <BookOpen size={80} className="text-sky-blue" fill="none" strokeWidth={1.5} />
             ) : (
-              <Sparkles size={80} className="text-playful-purple dark:text-plum" fill="currentColor" />
+              <Sprout size={80} className="text-teal-600 dark:text-teal-400" fill="none" strokeWidth={1.5} />
             )}
           </motion.div>
           
@@ -895,7 +918,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.5 }}
-              className="text-sm font-black text-playful-purple dark:text-plum uppercase tracking-widest mt-4"
+              className="text-sm font-black text-teal dark:text-teal-400 uppercase tracking-widest mt-4"
             >
               {state.primaryLanguage === 'es' ? 'Un paso más.' : 'One more step.'}
             </motion.p>
@@ -909,12 +932,14 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.5 }}
               onClick={() => onGoToFlashcards?.(verse.id)} 
-              className={`w-full ${isAnyPartFailed ? 'bg-earth dark:bg-charcoal' : 'bg-playful-purple dark:bg-plum'} text-white rounded-[32px] flex items-center justify-center gap-4 py-6 px-8 shadow-2xl hover:scale-[1.02] active:scale-95 transition-all group`}
+              className={`w-full ${
+                isAnyPartFailed 
+                  ? 'bg-earth/10 dark:bg-white/5 text-earth dark:text-ivory border border-earth/10 dark:border-white/10' 
+                  : 'bg-teal/10 hover:bg-teal/20 text-teal dark:text-teal-400 border border-teal/20 shadow-sm'
+              } rounded-full flex items-center justify-center gap-3 py-4 px-8 hover:scale-[1.01] active:scale-95 transition-all group`}
             >
-              <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
-                <Layers size={24} />
-              </div>
-              <span className="text-sm sm:text-base font-bold tracking-tight leading-tight text-center">
+              <Layers size={20} className={isAnyPartFailed ? 'text-earth/40 dark:text-ivory/40' : 'text-teal dark:text-teal-400'} />
+              <span className="text-sm sm:text-base font-bold tracking-tight lowercase">
                 {isAnyPartFailed 
                   ? (state.primaryLanguage === 'es' ? 'continuar' : 'continue')
                   : (state.primaryLanguage === 'es' ? 'Reto: Cita bíblica' : 'Challenge: Citation')
@@ -928,12 +953,10 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.7 }}
                 onClick={reset}
-                className="w-full bg-playful-purple dark:bg-plum text-white rounded-[32px] flex items-center justify-center gap-4 py-6 px-8 shadow-2xl hover:scale-[1.02] active:scale-95 transition-all group"
+                className="w-full bg-teal/10 hover:bg-teal/20 text-teal dark:text-teal-400 border border-teal/20 shadow-sm rounded-full flex items-center justify-center gap-3 py-4 px-8 transition-all hover:scale-[1.01] active:scale-95 group"
               >
-                <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <RotateCcw size={24} />
-                </div>
-                <span className="text-sm sm:text-base font-bold tracking-tight leading-tight text-center">
+                <RotateCcw size={18} />
+                <span className="text-sm font-bold tracking-tight lowercase">
                   {state.primaryLanguage === 'es' ? 'repasar de nuevo' : 'review again'}
                 </span>
               </motion.button>
@@ -943,7 +966,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.7 }}
                 onClick={() => setIsAlmostDone(false)}
-                className="text-xs font-black uppercase tracking-[0.2em] text-earth-light/40 dark:text-ivory/40 hover:text-playful-purple dark:hover:text-plum transition-colors py-2 flex items-center gap-2 group"
+                className="text-xs font-black uppercase tracking-[0.2em] text-earth-light/40 dark:text-ivory/40 hover:text-teal dark:hover:text-teal-400 transition-colors py-2 flex items-center gap-2 group"
               >
                 <span>{state.primaryLanguage === 'es' ? '← Volver al texto' : '← Back to text'}</span>
                 <div className="relative w-4 h-4 opacity-40 group-hover:opacity-100 transition-opacity">
@@ -1050,7 +1073,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                 • {state.primaryLanguage === 'es' ? STAGES[stage - 1]?.es : STAGES[stage - 1]?.label}
               </span>
             </div>
-            <h2 className="text-3xl sm:text-4xl font-serif font-black text-playful-purple dark:text-plum tracking-tight">
+            <h2 className="text-3xl sm:text-4xl font-serif font-black text-earth dark:text-white tracking-tight">
               {getLocalizedBookName(verse.book, state.memorizeMode)} {verse.chapter}:{verse.verse}
             </h2>
           </div>
@@ -1288,9 +1311,9 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                       exit={{ opacity: 0, scale: 0.9 }}
                       onClick={(e) => { e.stopPropagation(); handleClue(activeLanguage); }}
                       disabled={(activeLanguage === 'es' ? clueCountEs : clueCountEn) >= 1}
-                      className="flex items-center gap-2 px-5 py-2 rounded-2xl bg-playful-purple/10 dark:bg-plum/10 border border-playful-purple/20 text-[10px] font-black uppercase tracking-widest text-playful-purple dark:text-plum shadow-sm hover:bg-playful-purple/20 transition-all active:scale-95 disabled:opacity-30"
+                      className="flex items-center gap-2 px-5 py-2 rounded-2xl bg-teal/10 dark:bg-teal-900/20 border border-teal/20 text-[10px] font-black uppercase tracking-widest text-teal dark:text-teal-400 shadow-sm hover:bg-teal/20 transition-all active:scale-95 disabled:opacity-10"
                     >
-                      <Sparkles size={16} />
+                      <Sparkles size={16} className={(activeLanguage === 'es' ? clueCountEs : clueCountEn) >= 1 ? '' : 'text-amber-500/80 dark:text-amber-400/80 animate-pulse'} />
                       <span>{state.primaryLanguage === 'es' ? 'Pista' : 'Clue'}</span>
                     </motion.button>
                   )}

@@ -95,39 +95,66 @@ export default function Saved({ state, setState, onStartMemorizing }: SavedProps
         state={state}
         onNativeShare={onNativeShare}
       />
-      <div className="space-y-4">
-        <div className="text-center sm:text-left">
-          <h2 className="text-5xl sm:text-6xl font-serif font-black text-earth dark:text-ivory tracking-tighter">
-            {state.primaryLanguage === 'es' ? 'Arraigados' : 'Rooted'}
+      <div className="space-y-6 pt-2">
+        <div className="text-center">
+          <h2 className="text-5xl sm:text-7xl font-serif font-black text-earth dark:text-ivory tracking-tighter">
+            {state.primaryLanguage === 'es' ? 'La Cosecha' : 'The Harvest'}
           </h2>
-          <div className="space-y-0.5 mt-1">
-            <p className="text-base font-medium text-teal/80 dark:text-teal/60">
-              {state.primaryLanguage === 'es' 
-                ? 'Versículos guardados, sembrados en tu corazón.' 
-                : 'Saved verses, planted in your heart.'}
-            </p>
-            <p className="text-lg font-serif font-semibold text-amber-600 dark:text-golden">
-              {state.primaryLanguage === 'es' ? 'Dios da el crecimiento' : 'God gives the growth'}
-            </p>
+          <div className="mt-3 space-y-3">
+            <div className="text-sm sm:text-base font-medium text-teal/80 dark:text-teal/60 max-w-sm mx-auto leading-relaxed">
+              {state.primaryLanguage === 'es' ? (
+                <>
+                  <p>Versículos guardados, sembrados</p>
+                  <p>en tu corazón.</p>
+                </>
+              ) : (
+                <p>Saved verses, planted in your heart.</p>
+              )}
+            </div>
+            <div className="flex items-center justify-center gap-2">
+              <div className="h-px w-8 bg-earth/10 dark:bg-white/10" />
+              <div className="flex items-center text-xl sm:text-2xl font-script text-earth/90 dark:text-ivory/90">
+                <span className="text-coral mr-2">
+                  {state.primaryLanguage === 'es' ? 'Dios' : 'God'}
+                </span>
+                <span>
+                  {state.primaryLanguage === 'es' ? 'da el crecimiento' : 'gives the growth'}
+                </span>
+              </div>
+              <div className="h-px w-8 bg-earth/10 dark:bg-white/10" />
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Hero Streak Card - Centered and Impactful */}
       <div className="flex justify-center">
-        <div className="w-full max-w-sm card p-8 bg-white dark:bg-charcoal border border-earth/10 dark:border-white/10 shadow-xl flex flex-col items-center text-center space-y-3 ring-1 ring-teal/5">
-          <span className="text-6xl font-serif font-black text-teal dark:text-teal/70">
+        <div className="w-full max-w-sm card p-10 bg-white dark:bg-charcoal border-2 border-teal/10 dark:border-white/5 shadow-[0_0_40px_rgba(20,184,166,0.08)] flex flex-col items-center text-center space-y-4 ring-1 ring-teal/20 dark:ring-teal/10 relative overflow-hidden">
+          {/* Subtle background decoration */}
+          <div className="absolute -top-10 -right-10 w-32 h-32 bg-teal/5 rounded-full blur-3xl" />
+          <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-amber-500/5 rounded-full blur-3xl" />
+
+          <span className="text-7xl font-serif font-black text-earth dark:text-white drop-shadow-[0_2px_15px_rgba(0,0,0,0.15)] relative z-10 transition-colors">
             {state.progress.currentStreak}
           </span>
-          <div className="flex flex-col items-center">
-            <span className="text-xs font-black uppercase tracking-widest text-teal/70 dark:text-teal/50">
-              {state.primaryLanguage === 'es' 
-                ? (state.progress.currentStreak === 1 ? '1 día seguido' : `${state.progress.currentStreak} días seguidos`)
-                : (state.progress.currentStreak === 1 ? '1-day streak' : `${state.progress.currentStreak}-day streak`)}
-            </span>
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-600/60 dark:text-golden/40 mt-2">
-              {state.primaryLanguage === 'es' ? 'Arraigados en Su Palabra' : 'Rooted in His Word'}
-            </p>
+          <div className="flex flex-col items-center relative z-10">
+            <div className="flex items-center gap-1.5 px-3 py-1 bg-earth/5 dark:bg-white/5 rounded-full border border-earth/10 dark:border-white/10">
+              <span className="text-xs font-black uppercase tracking-[0.2em] text-earth-light/80 dark:text-white transition-colors">
+                {state.primaryLanguage === 'es' 
+                  ? (state.progress.currentStreak === 1 ? '1 día' : `${state.progress.currentStreak} días`)
+                  : (state.progress.currentStreak === 1 ? '1-day' : `${state.progress.currentStreak}-day`)}
+              </span>
+              <span className="text-xs font-black uppercase tracking-[0.2em] text-amber-500 dark:text-amber-400">
+                {state.primaryLanguage === 'es' ? 'seguidos' : 'streak'}
+              </span>
+            </div>
+            <div className="text-[10px] font-black uppercase tracking-[0.3em] mt-4 flex items-center gap-2">
+              <span className="text-teal dark:text-teal-400">
+                {state.primaryLanguage === 'es' ? 'ARRAIGADOS' : 'ROOTED'}
+              </span>
+              <span className="text-earth dark:text-white">
+                {state.primaryLanguage === 'es' ? 'EN SU PALABRA' : 'IN HIS WORD'}
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -177,16 +204,16 @@ export default function Saved({ state, setState, onStartMemorizing }: SavedProps
 
             if (isMemorized) {
               growthLabel = state.primaryLanguage === 'es' ? 'Dando fruto' : 'Bearing Fruit';
-              growthIcon = <Sparkles size={10} className="text-amber-500" fill="currentColor" />;
-              growthColorClass = "bg-earth/80 dark:bg-charcoal text-ivory/90 dark:text-white/90 border-earth/20 dark:border-white/10 shadow-sm ring-1 ring-amber-500/20";
+              growthIcon = <Sparkles size={10} className="text-amber-500 dark:text-amber-400" fill="currentColor" />;
+              growthColorClass = "bg-earth/90 dark:bg-charcoal text-ivory/90 dark:text-white/90 border-earth/20 dark:border-white/10 shadow-sm ring-1 ring-amber-500/20";
             } else if (memorizationStage > 0) {
               growthLabel = state.primaryLanguage === 'es' ? 'Echando raíces' : 'Taking Root';
-              growthIcon = <div className="w-1.5 h-1.5 rounded-full bg-playful-purple" />;
-              growthColorClass = "bg-playful-purple/10 text-playful-purple border-playful-purple/20";
+              growthIcon = <div className="w-1.5 h-1.5 rounded-full bg-teal" />;
+              growthColorClass = "bg-teal/10 text-teal border-teal/20";
             } else {
               growthLabel = state.primaryLanguage === 'es' ? 'Semilla sembrada' : 'Seed Planted';
-              growthIcon = <div className="w-1.5 h-1.5 rounded-full bg-golden" />;
-              growthColorClass = "bg-golden/10 text-golden border-golden/20";
+              growthIcon = <div className="w-1.5 h-1.5 rounded-full bg-amber-500 dark:bg-amber-400" />;
+              growthColorClass = "bg-amber-500/10 text-amber-500 border-amber-500/20";
             }
 
             return (
@@ -296,7 +323,7 @@ export default function Saved({ state, setState, onStartMemorizing }: SavedProps
                     }
                   }}
                   disabled={!esText && !enText}
-                  className={`w-full py-4 rounded-2xl bg-playful-purple dark:bg-plum text-white font-bold text-sm tracking-tight flex items-center justify-center gap-2.5 transition-all shadow-lg hover:shadow-playful-purple/20 ring-1 ring-teal/30 lowercase ${(!esText && !enText) ? 'opacity-50 grayscale cursor-not-allowed' : ''}`}
+                  className={`w-full py-4 rounded-full bg-teal/10 hover:bg-teal/20 text-teal dark:text-teal-400 font-bold text-sm tracking-tight flex items-center justify-center gap-2.5 transition-all shadow-sm border border-teal/20 lowercase ${(!esText && !enText) ? 'opacity-50 grayscale cursor-not-allowed' : ''}`}
                 >
                   <BookOpen size={16} />
                   <span>{state.primaryLanguage === 'es' ? 'memorizar ahora' : 'memorize now'}</span>
@@ -326,7 +353,7 @@ export default function Saved({ state, setState, onStartMemorizing }: SavedProps
               <motion.div
                 className="absolute -top-2 -right-2"
               >
-                <Star size={32} className="text-golden" fill="currentColor" />
+                <Star size={32} className="text-amber-500 dark:text-amber-400" fill="currentColor" />
               </motion.div>
             </div>
             <div className="space-y-2">

@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { AppState } from "../types";
 import { MOCK_VERSES, getVerseByDate } from "../constants";
-import { ChevronLeft, ChevronRight, RotateCcw, Sparkles, BookOpen, Brain, HelpCircle, Trophy, Star, Bookmark, CheckCircle2, ArrowRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, RotateCcw, Sparkles, BookOpen, Brain, HelpCircle, Trophy, Star, Bookmark, CheckCircle2, ArrowRight, Flower2, Sprout, Compass } from "lucide-react";
 import { getValidatedVerse, getCurrentTranslationPair, getLocalizedBookName, getLocalDateString, getVerseLines, removeAccents, VERSE_LAYOUT } from "../utils/verseUtils";
 import confetti from "canvas-confetti";
 
@@ -88,25 +88,36 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
 
   useEffect(() => {
     if (isCompleted) {
-      const duration = 3 * 1000;
+      const duration = 4 * 1000;
       const animationEnd = Date.now() + duration;
-      const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
+      // Richer blue/teal palette for "full bloom" water
+      const colors = ['#0284c7', '#0ea5e9', '#38bdf8', '#7dd3fc', '#bae6fd', '#0d9488'];
 
-      const randomInRange = (min: number, max: number) => Math.random() * (max - min) + min;
-
-      const interval: any = setInterval(function() {
+      const frame = () => {
         const timeLeft = animationEnd - Date.now();
 
-        if (timeLeft <= 0) {
-          return clearInterval(interval);
-        }
+        if (timeLeft <= 0) return;
 
-        const particleCount = 50 * (timeLeft / duration);
-        confetti({ ...defaults, particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } });
-        confetti({ ...defaults, particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } });
-      }, 250);
+        // More intense particle count for final bloom
+        const particleCount = 25 * (timeLeft / duration);
+        
+        confetti({
+          particleCount,
+          startVelocity: 35,
+          spread: 360,
+          origin: { x: Math.random(), y: Math.random() - 0.2 },
+          colors: colors,
+          shapes: ['circle'],
+          gravity: 0.7,
+          scalar: Math.random() * 0.5 + 0.5,
+          drift: 0,
+          ticks: 150
+        });
 
-      return () => clearInterval(interval);
+        requestAnimationFrame(frame);
+      };
+      
+      frame();
     }
   }, [isCompleted]);
 
@@ -339,12 +350,14 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
                     );
                   }
                   
-                  const isRevealed = revealed.includes(globalIdx);
+                  const isRevealedByClue = revealed.includes(globalIdx);
                   const fillIdx = fillableIndices.indexOf(globalIdx);
                   let userChar = "";
                   let isWrong = false;
                   
-                  if (!isRevealed) {
+                  const isSlotActive = !isRevealedByClue && !isCorrect && fillIdx !== -1 && fillIdx === (lang === 'es' ? inputRefEs.current?.selectionStart : inputRefEn.current?.selectionStart);
+                  
+                  if (!isRevealedByClue) {
                     if (fillIdx !== -1 && fillIdx < userInput.length) {
                       userChar = userInput[fillIdx];
                       if (hasSubmitted && userChar !== " " && normalize(userChar) !== normalize(char)) {
@@ -357,8 +370,8 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
                     <span 
                       key={i} 
                       onClick={(e) => { e.stopPropagation(); if (fillIdx !== -1) handleCharClick(lang, fillIdx); }}
-                      className={`w-3.5 sm:w-4.5 h-7 sm:h-9 flex items-center justify-center text-lg sm:text-x font-serif font-black border-b-2 transition-all duration-300 leading-none cursor-text ${
-                        isRevealed || (userChar && userChar !== " ")
+                      className={`w-4 sm:w-5 h-8 sm:h-10 flex items-center justify-center text-xl sm:text-2xl font-serif font-black border-b-2 transition-all duration-300 leading-none cursor-text relative ${
+                        isRevealedByClue || (userChar && userChar !== " ")
                           ? isWrong 
                             ? 'border-coral text-coral bg-coral/5' 
                             : isCorrect || (hasSubmitted && !isWrong)
@@ -367,7 +380,10 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
                           : 'border-earth/20 dark:border-white/20 text-transparent hover:border-playful-purple/40'
                       }`}
                     >
-                      {isRevealed ? char : (userChar === " " ? "_" : userChar)}
+                      {isRevealedByClue ? char : (userChar === " " ? "_" : userChar)}
+                      {isSlotActive && !isRevealedByClue && !isCorrect && (
+                        <div className="absolute -bottom-[2px] left-0 right-0 h-[2px] bg-coral animate-cursor-blink" />
+                      )}
                     </span>
                   );
                 })}
@@ -394,12 +410,14 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
               );
             }
             
-            const isRevealed = revealed.includes(globalIdx);
+            const isRevealedByClue = revealed.includes(globalIdx);
             const fillIdx = fillableIndices.indexOf(globalIdx);
             let userChar = "";
             let isWrong = false;
             
-            if (!isRevealed && fillIdx !== -1 && fillIdx < userInput.length) {
+            const isSlotActive = !isRevealedByClue && !isCorrect && fillIdx !== -1 && fillIdx === (lang === 'es' ? inputRefEs.current?.selectionStart : inputRefEn.current?.selectionStart);
+            
+            if (!isRevealedByClue && fillIdx !== -1 && fillIdx < userInput.length) {
               userChar = userInput[fillIdx];
               if (hasSubmitted && userChar !== " " && normalize(userChar) !== normalize(char)) {
                 isWrong = true;
@@ -410,8 +428,8 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
               <span 
                 key={i} 
                 onClick={(e) => { e.stopPropagation(); if (fillIdx !== -1) handleCharClick(lang, fillIdx); }}
-                className={`w-4 h-8 flex items-center justify-center text-xl font-serif font-black border-b-2 transition-all duration-300 leading-none cursor-text ${
-                  isRevealed || (userChar && userChar !== " ")
+                className={`w-4.5 h-10 flex items-center justify-center text-xl sm:text-2xl font-serif font-black border-b-2 transition-all duration-300 leading-none cursor-text relative ${
+                  isRevealedByClue || (userChar && userChar !== " ")
                     ? isWrong 
                       ? 'border-coral text-coral bg-coral/5' 
                       : isCorrect || (hasSubmitted && !isWrong)
@@ -420,7 +438,10 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
                     : 'border-earth/30 dark:border-white/30 text-transparent hover:border-playful-purple/40'
                 }`}
               >
-                {isRevealed ? char : (userChar === " " ? "_" : userChar)}
+                {isRevealedByClue ? char : (userChar === " " ? "_" : userChar)}
+                {isSlotActive && !isRevealedByClue && !isCorrect && (
+                  <div className="absolute -bottom-[2px] left-0 right-0 h-[2px] bg-coral animate-cursor-blink" />
+                )}
               </span>
             );
           })}
@@ -501,18 +522,18 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
       >
         <div className="relative">
           <motion.div 
-            className="w-40 h-40 bg-gold rounded-[48px] flex items-center justify-center shadow-2xl shadow-gold/40"
+            className="w-40 h-40 bg-amber-50 dark:bg-amber-950/20 rounded-[48px] flex items-center justify-center shadow-2xl shadow-amber-500/10 border border-amber-200/50 dark:border-amber-500/20"
             animate={{ 
-              rotate: [0, 10, -10, 10, 0], 
-              scale: [1, 1.1, 1],
-              y: [0, -10, 0]
+              rotate: [0, 5, -5, 5, 0], 
+              scale: [1, 1.05, 1],
+              y: [0, -8, 0]
             }}
-            transition={{ duration: 2, repeat: Infinity }}
+            transition={{ duration: 4, repeat: Infinity }}
           >
-            <Trophy size={80} className="text-white" fill="currentColor" />
+            <Flower2 size={80} className="text-amber-500 dark:text-amber-400" strokeWidth={1.2} />
           </motion.div>
           
-          {/* Animated Stars */}
+          {/* Animated "Pollen/Dust" stars in warm tones */}
           {[...Array(8)].map((_, i) => (
             <motion.div
               key={i}
@@ -521,13 +542,13 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
               animate={{ 
                 x: Math.cos(i * 45 * Math.PI / 180) * 120,
                 y: Math.sin(i * 45 * Math.PI / 180) * 120,
-                opacity: [0, 1, 0],
-                scale: [0, 1.5, 0],
-                rotate: [0, 180]
+                opacity: [0, 0.6, 0],
+                scale: [0, 1.2, 0],
+                rotate: [0, 90]
               }}
-              transition={{ duration: 2, repeat: Infinity, delay: i * 0.1 }}
+              transition={{ duration: 3, repeat: Infinity, delay: i * 0.2 }}
             >
-              <Star size={24} className="text-gold" fill="currentColor" />
+              <div className="w-1.5 h-1.5 rounded-full bg-amber-400/40 blur-[1px]" />
             </motion.div>
           ))}
         </div>
@@ -581,9 +602,9 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
               animate={{ x: 0, opacity: 1 }}
               transition={{ delay: 0.6 }}
               onClick={onGoToSaved}
-              className="w-full py-5 rounded-[32px] bg-white dark:bg-charcoal text-earth dark:text-ivory font-bold text-lg flex items-center justify-center gap-3 hover:bg-earth/5 dark:hover:bg-white/5 transition-all shadow-xl border-2 border-earth/5 dark:border-white/5"
+              className="w-full bg-teal/10 hover:bg-teal/20 text-teal dark:text-teal-400 border border-teal/20 shadow-sm rounded-full flex items-center justify-center gap-3 py-4 px-8 transition-all hover:scale-[1.01] active:scale-95 group"
             >
-              <Bookmark size={20} className="text-playful-purple dark:text-plum" fill="currentColor" />
+              <Sprout size={18} className="text-teal dark:text-teal-400" />
               <span className="font-bold tracking-tight lowercase">{state.primaryLanguage === 'es' ? 'ver guardados' : 'view saved'}</span>
             </motion.button>
           </div>
@@ -595,18 +616,21 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
   return (
     <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-700 flex flex-col items-center">
       {/* Page Header */}
-      <div className="w-full max-w-md space-y-1 text-center mb-4">
-        <h2 className="text-3xl font-serif font-black text-earth dark:text-ivory flex items-center justify-center gap-3">
-          <Brain className="text-playful-purple" />
-          <span>{state.primaryLanguage === 'es' ? 'Tarjetas' : 'Flashcards'}</span>
+      <div className="w-full max-w-md space-y-1 text-center mb-6">
+        <h2 className="text-2xl font-serif font-black text-earth dark:text-ivory">
+          {state.primaryLanguage === 'es' ? 'Tarjetas' : 'Flashcards'}
         </h2>
-        <p className="text-xs font-black text-earth-light/60 dark:text-lavender-muted uppercase tracking-widest">
-          {state.primaryLanguage === 'es' ? 'Versículo del día' : 'Verse of the Day'}
-        </p>
+        <div className="flex items-center justify-center gap-2">
+          <div className="h-px w-4 bg-earth/10 dark:bg-white/10" />
+          <p className="text-[10px] font-black text-earth-light/60 dark:text-lavender-muted uppercase tracking-[0.2em]">
+            {state.primaryLanguage === 'es' ? 'Memoriza la cita' : 'Memorize the reference'}
+          </p>
+          <div className="h-px w-4 bg-earth/10 dark:bg-white/10" />
+        </div>
       </div>
 
       {/* Card Container */}
-      <div className="relative w-full max-w-md h-[550px] sm:h-[580px] lg:h-[620px] perspective-1000 mb-10">
+      <div className="relative w-full max-w-lg h-[600px] sm:h-[640px] lg:h-[680px] perspective-1000 mb-10">
         <motion.div
           className="w-full h-full preserve-3d"
           animate={{ rotateY: isFlipped ? 180 : 0 }}
@@ -626,16 +650,16 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
               <div className="w-full h-full card flex flex-col bg-white dark:bg-charcoal shadow-2xl overflow-hidden rounded-[32px] border-none">
                 <div className="flex-1 flex flex-col p-6 sm:p-10 justify-between h-full">
                   {/* Top Section */}
-                  <div className="space-y-6">
+                  <div className="space-y-6 pt-2">
                     {/* Top Icon/Badge */}
                     <div className="flex justify-center">
-                      <div className="w-10 h-10 sm:w-12 sm:h-12 bg-playful-purple/10 rounded-2xl flex items-center justify-center text-playful-purple">
-                        <HelpCircle size={20} className="sm:w-6 sm:h-6" />
+                      <div className="w-10 h-10 sm:w-12 sm:h-12 bg-earth/5 dark:bg-white/5 rounded-2xl flex items-center justify-center text-earth-light/40 dark:text-ivory/30">
+                        <Compass size={20} className="sm:w-6 sm:h-6" />
                       </div>
                     </div>
 
                     {/* Translation Labels */}
-                    <div className="flex justify-center gap-2">
+                    <div className="flex justify-center gap-4">
                       {(state.memorizeMode === 'es' || state.memorizeMode === 'both') && (
                         <span className="text-[10px] font-black uppercase tracking-tighter text-playful-purple bg-playful-purple/10 dark:bg-plum/20 px-2 py-0.5 rounded border border-playful-purple/20 dark:border-plum/30">
                           {activePair.es}
@@ -650,10 +674,10 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
                   </div>
 
                   {/* Middle Section - Reference Placeholder Area */}
-                  <div className="flex-1 flex flex-col justify-center items-center space-y-6 sm:space-y-12">
+                  <div className="flex-1 flex flex-col justify-center items-center space-y-8 sm:space-y-16">
                     {(state.memorizeMode === 'es' || state.memorizeMode === 'both') && (
                       <div 
-                        className="space-y-4 sm:space-y-5 w-full cursor-text flex flex-col items-center"
+                        className="space-y-4 sm:space-y-6 w-full cursor-text flex flex-col items-center"
                         onClick={(e) => { e.stopPropagation(); if (!isCorrect && attemptsLeft > 0) inputRefEs.current?.focus(); }}
                       >
                         <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-earth-light/40 dark:text-lavender-muted/40 text-center">
@@ -812,27 +836,31 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
                   </div>
 
                   {/* Bottom Section - Integrated Controls */}
-                  <div className="flex flex-col items-center gap-6 pb-4 pt-4 border-t border-earth/5 dark:border-white/5 mt-auto">
+                  <div className="flex flex-col items-center gap-4 pb-6 pt-4 border-t border-earth/5 dark:border-white/5 mt-auto">
                     {/* Compact Clue Button and Attempts */}
-                    <div className="flex flex-col items-center gap-2 w-full max-w-[200px]">
+                    <div className="flex flex-col items-center gap-4 w-full">
                       {attemptsLeft > 0 && !isCorrect && (
                         <button
                           onClick={(e) => handleClue(e)}
                           disabled={clueCount >= 3}
-                          className={`flex items-center justify-center gap-2 w-full py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${
+                          className={`flex items-center justify-center gap-2 px-8 py-2.5 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all ${
                             clueCount >= 3
-                              ? 'text-earth/20 dark:text-white/20 cursor-not-allowed'
-                              : 'text-playful-purple bg-playful-purple/5 hover:bg-playful-purple/10 active:scale-95 border border-playful-purple/10'
+                              ? 'text-earth/20 dark:text-white/20 cursor-not-allowed border border-earth/10'
+                              : 'bg-teal/10 hover:bg-teal/20 text-teal dark:text-teal-400 border border-teal/20 shadow-sm active:scale-95'
                           }`}
                         >
-                          <Sparkles size={14} />
+                          <Sparkles size={14} className={clueCount >= 3 ? '' : 'animate-pulse text-amber-500 dark:text-amber-400'} />
                           <span>{state.primaryLanguage === 'es' ? 'pista' : 'clue'} ({3 - clueCount})</span>
                         </button>
                       )}
                       
-                      <p className="text-[9px] font-black uppercase tracking-[0.2em] text-earth-light/40 dark:text-lavender-muted/30">
-                        {state.primaryLanguage === 'es' ? `Intentos: ${attemptsLeft}` : `Attempts: ${attemptsLeft}`}
-                      </p>
+                      <div className="flex items-center gap-3 opacity-60">
+                        <div className="h-px w-4 bg-earth/10 dark:bg-white/10" />
+                        <p className="text-[9px] font-black uppercase tracking-[0.2em] text-earth-light/60 dark:text-lavender-muted/50">
+                          {state.primaryLanguage === 'es' ? `Intentos: ${attemptsLeft}` : `Attempts: ${attemptsLeft}`}
+                        </p>
+                        <div className="h-px w-4 bg-earth/10 dark:bg-white/10" />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -881,11 +909,18 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
                       {/* Revealed Reference Area */}
                       <div className="text-center">
                         <h3 className="text-2xl sm:text-3xl font-serif font-black text-earth dark:text-ivory tracking-tight">
-                          {getLocalizedBookName(verse.book, state.memorizeMode)} {verse.chapter}:{verse.verse}
+                          {(() => {
+                            const parts = verse.book.split(' / ');
+                            const esBook = parts[0];
+                            const enBook = parts[1] || parts[0];
+                            if (state.memorizeMode === 'es') return esBook;
+                            if (state.memorizeMode === 'en') return enBook;
+                            return state.primaryLanguage === 'es' ? `${esBook} / ${enBook}` : `${enBook} / ${esBook}`;
+                          })()} {verse.chapter}:{verse.verse}
                         </h3>
                         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-sky-blue mt-1">
                           {state.memorizeMode === 'both' 
-                            ? `${activePair.es} + ${activePair.en}`
+                            ? (state.primaryLanguage === 'es' ? `${activePair.es} + ${activePair.en}` : `${activePair.en} + ${activePair.es}`)
                             : state.memorizeMode === 'es' ? activePair.es : activePair.en
                           }
                         </p>
@@ -894,35 +929,49 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
 
                     {/* Middle Section - Verse Text Area */}
                     <div className="flex-1 flex flex-col justify-center items-center text-center space-y-6 overflow-y-auto scrollbar-hide py-4">
-                      {(state.memorizeMode === 'es' || state.memorizeMode === 'both') && (
-                        <div className={`space-y-1 font-serif font-bold text-earth/80 dark:text-ivory/80 ${VERSE_LAYOUT.LINE_HEIGHT}`}>
-                          {getVerseLines(esText).map((line, i) => (
-                            <p key={i} className="text-base sm:text-xl leading-relaxed">
-                              {line}
-                            </p>
-                          ))}
-                        </div>
-                      )}
-                      {state.memorizeMode === 'both' && (
-                        <div className="h-px w-12 bg-sky-blue/30 mx-auto my-2 shrink-0" />
-                      )}
-                      {(state.memorizeMode === 'en' || state.memorizeMode === 'both') && (
-                        <div className={`space-y-1 font-serif text-earth-light/70 dark:text-lavender-muted/70 ${VERSE_LAYOUT.LINE_HEIGHT}`}>
-                          {getVerseLines(enText).map((line, i) => (
-                            <p key={i} className="text-sm sm:text-lg leading-relaxed">
-                              {line}
-                            </p>
-                          ))}
-                        </div>
-                      )}
+                      {(() => {
+                        const esBlock = (state.memorizeMode === 'es' || state.memorizeMode === 'both') && (
+                          <div key="es" className={`space-y-1 font-serif font-bold text-earth/80 dark:text-ivory/80 ${VERSE_LAYOUT.LINE_HEIGHT}`}>
+                            {getVerseLines(esText).map((line, i) => (
+                              <p key={i} className="text-base sm:text-xl leading-relaxed">
+                                {line}
+                              </p>
+                            ))}
+                          </div>
+                        );
+
+                        const enBlock = (state.memorizeMode === 'en' || state.memorizeMode === 'both') && (
+                          <div key="en" className={`space-y-1 font-serif font-bold text-earth/80 dark:text-ivory/80 ${VERSE_LAYOUT.LINE_HEIGHT}`}>
+                            {getVerseLines(enText).map((line, i) => (
+                              <p key={i} className="text-base sm:text-xl leading-relaxed">
+                                {line}
+                              </p>
+                            ))}
+                          </div>
+                        );
+
+                        const divider = state.memorizeMode === 'both' && (
+                          <div key="divider" className="h-px w-12 bg-sky-blue/30 mx-auto my-2 shrink-0" />
+                        );
+
+                        if (state.memorizeMode !== 'both') return esBlock || enBlock;
+
+                        return state.primaryLanguage === 'es' 
+                          ? [esBlock, divider, enBlock] 
+                          : [enBlock, divider, esBlock];
+                      })()}
                     </div>
                   </div>
 
                   {/* Bottom Section - Integrated Spacer Area */}
                   <div className="flex flex-col items-center pt-8 mt-auto">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-sky-blue mb-4 opacity-40">
-                      {state.primaryLanguage === 'es' ? 'toca para volver' : 'tap to flip back'}
-                    </p>
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); onFlip(); }}
+                      className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-sky-blue/60 hover:text-sky-blue transition-colors"
+                    >
+                      <RotateCcw size={14} />
+                      <span>{state.primaryLanguage === 'es' ? 'volver' : 'back'}</span>
+                    </button>
                   </div>
                 </div>
               </div>

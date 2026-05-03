@@ -1,5 +1,6 @@
 import { Verse } from "./types";
 
+// Temporary mock verse text for development only. Replace with API.Bible or licensed provider before production.
 export const MOCK_VERSES: Verse[] = [
   {
     id: "joshua-1-9",
@@ -322,8 +323,15 @@ export const PATHS: Path[] = [
     titleEs: "Miedo al futuro",
     description: "For the days when you do not know what comes next.",
     descriptionEs: "Para los días en que no sabes qué viene.",
-    duration: 15,
-    verses: ["joshua-1-9", "5", "6", "14", "4", "joshua-1-9", "5", "6", "14", "4", "joshua-1-9", "5", "6", "14", "4"],
+    duration: 5,
+    verses: ["joshua-1-9", "5", "7", "14", "4"],
+    days: [
+      { day: 1, reference: "Joshua 1:9", status: "full-text", contextNote: "A command to be strong and courageous." },
+      { day: 2, reference: "Isaiah 41:10", status: "full-text", contextNote: "God promises to strengthen and help you." },
+      { day: 3, reference: "Romans 8:28", status: "full-text", contextNote: "God works all things for good." },
+      { day: 4, reference: "Philippians 4:6", status: "full-text", contextNote: "Do not be anxious about anything." },
+      { day: 5, reference: "Proverbs 3:5", status: "full-text", contextNote: "Trust in the Lord with all your heart." }
+    ],
     cta: "Start this path",
     ctaEs: "Empezar este camino"
   },
@@ -333,8 +341,15 @@ export const PATHS: Path[] = [
     titleEs: "Ansiedad",
     description: "When your mind will not slow down, return to what is steady.",
     descriptionEs: "Cuando tu mente no se detiene, vuelve a lo que permanece.",
-    duration: 15,
-    verses: ["14", "8", "2", "4", "5", "14", "8", "2", "4", "5", "14", "8", "2", "4", "5"],
+    duration: 5,
+    verses: ["14", "8", "2", "4", "5"],
+    days: [
+      { day: 1, reference: "Philippians 4:6", status: "full-text" },
+      { day: 2, reference: "Matthew 11:28", status: "full-text" },
+      { day: 3, reference: "Psalms 23:1", status: "full-text" },
+      { day: 4, reference: "Proverbs 3:5", status: "full-text" },
+      { day: 5, reference: "Isaiah 41:10", status: "full-text" }
+    ],
     cta: "Find peace here",
     ctaEs: "Encontrar paz aquí"
   },
@@ -344,8 +359,15 @@ export const PATHS: Path[] = [
     titleEs: "Agotamiento",
     description: "When your soul feels tired and your strength feels thin.",
     descriptionEs: "Cuando el alma está cansada y las fuerzas se sienten pocas.",
-    duration: 10,
-    verses: ["8", "13", "1", "12", "5", "8", "13", "1", "12", "5"],
+    duration: 5,
+    verses: ["8", "13", "1", "12", "5"],
+    days: [
+      { day: 1, reference: "Matthew 11:28", status: "full-text" },
+      { day: 2, reference: "Ephesians 6:10", status: "full-text" },
+      { day: 3, reference: "Philippians 4:13", status: "full-text" },
+      { day: 4, reference: "Galatians 5:22", status: "full-text" },
+      { day: 5, reference: "Isaiah 41:10", status: "full-text" }
+    ],
     cta: "Begin again",
     ctaEs: "Empezar de nuevo"
   },
@@ -355,8 +377,14 @@ export const PATHS: Path[] = [
     titleEs: "Identidad",
     description: "For remembering who God says you are.",
     descriptionEs: "Para recordar quién eres en Dios.",
-    duration: 21,
-    verses: ["3", "7", "12", "9", "3", "7", "12", "9", "3", "7", "12", "9", "3", "7", "12", "9", "3", "7", "12", "9", "3"],
+    duration: 4,
+    verses: ["3", "7", "12", "9"],
+    days: [
+      { day: 1, reference: "John 3:16", status: "full-text" },
+      { day: 2, reference: "Romans 8:28", status: "full-text" },
+      { day: 3, reference: "Galatians 5:22", status: "full-text" },
+      { day: 4, reference: "Hebrews 11:1", status: "full-text" }
+    ],
     cta: "Start this path",
     ctaEs: "Empezar este camino"
   },
@@ -366,8 +394,15 @@ export const PATHS: Path[] = [
     titleEs: "Paz",
     description: "A quiet place to return to when life feels loud.",
     descriptionEs: "Un lugar tranquilo para volver cuando la vida se siente ruidosa.",
-    duration: 15,
-    verses: ["12", "2", "14", "6", "5", "12", "2", "14", "6", "5", "12", "2", "14", "6", "5"],
+    duration: 5,
+    verses: ["12", "2", "14", "7", "5"],
+    days: [
+      { day: 1, reference: "Galatians 5:22", status: "full-text" },
+      { day: 2, reference: "Psalms 23:1", status: "full-text" },
+      { day: 3, reference: "Philippians 4:6", status: "full-text" },
+      { day: 4, reference: "Romans 8:28", status: "full-text" },
+      { day: 5, reference: "Isaiah 41:10", status: "full-text" }
+    ],
     cta: "Find peace",
     ctaEs: "Encontrar paz"
   },
@@ -377,8 +412,15 @@ export const PATHS: Path[] = [
     titleEs: "Duelo",
     description: "For when loss feels heavy and hope feels far.",
     descriptionEs: "Para cuando la pérdida pesa y la esperanza se siente lejos.",
-    duration: 21,
-    verses: ["2", "8", "12", "5", "6", "2", "8", "12", "5", "6", "2", "8", "12", "5", "6", "2", "8", "12", "5", "6", "2"],
+    duration: 5,
+    verses: ["2", "8", "12", "5", "7"],
+    days: [
+      { day: 1, reference: "Psalms 23:1", status: "full-text" },
+      { day: 2, reference: "Matthew 11:28", status: "full-text" },
+      { day: 3, reference: "Galatians 5:22", status: "full-text" },
+      { day: 4, reference: "Isaiah 41:10", status: "full-text" },
+      { day: 5, reference: "Romans 8:28", status: "full-text" }
+    ],
     cta: "Walk with hope",
     ctaEs: "Caminar con esperanza"
   },
@@ -388,8 +430,13 @@ export const PATHS: Path[] = [
     titleEs: "Relaciones",
     description: "For love, patience, forgiveness, and wisdom with people.",
     descriptionEs: "Para amar, perdonar y caminar con sabiduría.",
-    duration: 15,
-    verses: ["11", "10", "4", "11", "10", "4", "11", "10", "4", "11", "10", "4", "11", "10", "4"],
+    duration: 3,
+    verses: ["11", "10", "4"],
+    days: [
+      { day: 1, reference: "1 Corinthians 13:4", status: "full-text" },
+      { day: 2, reference: "James 1:5", status: "full-text" },
+      { day: 3, reference: "Proverbs 3:5", status: "full-text" }
+    ],
     cta: "Start this path",
     ctaEs: "Empezar este camino"
   },
@@ -399,8 +446,14 @@ export const PATHS: Path[] = [
     titleEs: "Propósito",
     description: "For the days when you wonder why you are here.",
     descriptionEs: "Para los días en que te preguntas para qué estás aquí.",
-    duration: 15,
-    verses: ["6", "4", "9", "1", "6", "4", "9", "1", "6", "4", "9", "1", "6", "4", "9"],
+    duration: 4,
+    verses: ["7", "4", "9", "1"],
+    days: [
+      { day: 1, reference: "Romans 8:28", status: "full-text" },
+      { day: 2, reference: "Proverbs 3:5", status: "full-text" },
+      { day: 3, reference: "Hebrews 11:1", status: "full-text" },
+      { day: 4, reference: "Philippians 4:13", status: "full-text" }
+    ],
     cta: "Find direction",
     ctaEs: "Encontrar dirección"
   },
@@ -410,8 +463,15 @@ export const PATHS: Path[] = [
     titleEs: "Nuevos comienzos",
     description: "For starting again with grace.",
     descriptionEs: "Para volver a empezar con gracia.",
-    duration: 10,
-    verses: ["12", "6", "5", "1", "9", "12", "6", "5", "1", "9"],
+    duration: 5,
+    verses: ["12", "7", "5", "1", "joshua-1-9"],
+    days: [
+      { day: 1, reference: "Galatians 5:22", status: "full-text" },
+      { day: 2, reference: "Romans 8:28", status: "full-text" },
+      { day: 3, reference: "Isaiah 41:10", status: "full-text" },
+      { day: 4, reference: "Philippians 4:13", status: "full-text" },
+      { day: 5, reference: "Joshua 1:9", status: "full-text" }
+    ],
     cta: "Begin again",
     ctaEs: "Volver a empezar"
   },
@@ -421,9 +481,48 @@ export const PATHS: Path[] = [
     titleEs: "Estudiantes",
     description: "Scripture for focus, pressure, purpose, and identity.",
     descriptionEs: "Palabra para el enfoque, la presión, el propósito y la identidad.",
-    duration: 15,
-    verses: ["10", "4", "1", "13", "14", "10", "4", "1", "13", "14", "10", "4", "1", "13", "14"],
+    duration: 5,
+    verses: ["10", "4", "1", "13", "14"],
+    days: [
+      { day: 1, reference: "James 1:5", status: "full-text" },
+      { day: 2, reference: "Proverbs 3:5", status: "full-text" },
+      { day: 3, reference: "Philippians 4:13", status: "full-text" },
+      { day: 4, reference: "Ephesians 6:10", status: "full-text" },
+      { day: 5, reference: "Philippians 4:6", status: "full-text" }
+    ],
     cta: "Start this path",
     ctaEs: "Empezar este camino"
+  },
+  {
+    id: "forgiveness",
+    title: "Forgiveness",
+    titleEs: "Perdón",
+    description: "For letting go and finding freedom in grace.",
+    descriptionEs: "Para soltar y encontrar libertad en la gracia.",
+    duration: 3,
+    verses: [],
+    days: [
+      { day: 1, reference: "Colossians 3:13", status: "reference-only", contextNote: "Forgive as the Lord forgave you." },
+      { day: 2, reference: "Ephesians 4:32", status: "reference-only", contextNote: "Be kind and compassionate, forgiving each other." },
+      { day: 3, reference: "Matthew 6:14", status: "reference-only", contextNote: "If you forgive others, your heavenly Father will forgive you." }
+    ],
+    cta: "Start forgiving",
+    ctaEs: "Empezar a perdonar"
+  },
+  {
+    id: "hope",
+    title: "Hope",
+    titleEs: "Esperanza",
+    description: "For the seasons when hope feels like a whisper.",
+    descriptionEs: "Para las temporadas en que la esperanza parece un susurro.",
+    duration: 3,
+    verses: [],
+    days: [
+      { day: 1, reference: "Romans 15:13", status: "reference-only", contextNote: "May the God of hope fill you with all joy and peace." },
+      { day: 2, reference: "Lamentations 3:22-23", status: "reference-only", contextNote: "His mercies are new every morning." },
+      { day: 3, reference: "Psalm 130:5", status: "reference-only", contextNote: "In His word I put my hope." }
+    ],
+    cta: "Find hope",
+    ctaEs: "Encontrar esperanza"
   }
 ];

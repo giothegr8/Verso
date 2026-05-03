@@ -52,6 +52,13 @@ export interface UserProgress {
   lastCompletedDailyVerseDate: string | null; // ISO date string (YYYY-MM-DD) of last VOTD completion
 }
 
+export interface PathDay {
+  day: number;
+  reference: string;
+  contextNote?: string;
+  status: "reference-only" | "full-text";
+}
+
 export interface Path {
   id: string;
   title: string;
@@ -59,7 +66,8 @@ export interface Path {
   description: string;
   descriptionEs: string;
   duration: number; // in days
-  verses: string[]; // Order list of verse IDs
+  verses: string[]; // Keep for compatibility during transition, will migrate to days
+  days: PathDay[];
   cta: string;
   ctaEs: string;
 }

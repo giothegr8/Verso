@@ -45,15 +45,15 @@ export default function PathSelection({ state, onSelectPath, onBack }: PathSelec
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.05 }}
             onClick={() => onSelectPath(path.id)}
-            className="group relative flex flex-col items-start p-6 bg-white dark:bg-charcoal border border-earth/10 dark:border-white/10 rounded-3xl shadow-sm hover:shadow-xl hover:border-amber-500/30 transition-all text-left overflow-hidden ring-1 ring-amber-500/5"
+            className="group relative flex flex-col items-start p-6 bg-white dark:bg-charcoal border border-earth/10 dark:border-white/10 rounded-3xl shadow-sm hover:shadow-xl hover:border-playful-purple/30 transition-all text-left overflow-hidden ring-1 ring-playful-purple/5"
           >
             {/* Background Accent */}
             <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-              <Compass size={80} className="text-amber-500 transform rotate-12" />
+              <Compass size={80} className="text-playful-purple transform rotate-12" />
             </div>
 
             <div className="flex justify-between items-start w-full mb-4">
-              <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-600 dark:text-golden">
+              <div className="w-10 h-10 rounded-xl bg-teal/10 flex items-center justify-center text-teal">
                 <Sprout size={20} />
               </div>
               <div className="flex items-center gap-1.5 px-3 py-1 bg-earth/5 dark:bg-white/5 rounded-full border border-earth/10 dark:border-white/10">
@@ -65,7 +65,7 @@ export default function PathSelection({ state, onSelectPath, onBack }: PathSelec
             </div>
 
             <div className="space-y-2 relative z-10">
-              <h3 className="text-xl font-serif font-black text-earth dark:text-ivory group-hover:text-amber-600 dark:group-hover:text-golden transition-colors">
+              <h3 className="text-xl font-serif font-black text-earth dark:text-ivory group-hover:text-playful-purple transition-colors">
                 {isEs ? path.titleEs : path.title}
               </h3>
               <p className="text-sm text-earth-light/70 dark:text-lavender-muted/60 leading-relaxed line-clamp-2">
@@ -73,7 +73,7 @@ export default function PathSelection({ state, onSelectPath, onBack }: PathSelec
               </p>
             </div>
 
-            <div className="mt-8 flex items-center gap-2 text-amber-600 dark:text-golden font-bold text-sm tracking-tight group-hover:gap-3 transition-all relative z-10">
+            <div className="mt-8 flex items-center gap-2 text-amber-500 dark:text-amber-400 font-bold text-sm tracking-tight group-hover:gap-3 transition-all relative z-10 transition-colors">
               <span>{isEs ? path.ctaEs : path.cta}</span>
               <ChevronRight size={16} />
             </div>
