@@ -1,7 +1,7 @@
 import React, { useState, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { AppState, TRANSLATION_PAIRS, LanguageMode, TRANSLATION_DETAILS, Translation, TranslationMode, ReminderSettings, TranslationPair } from "../types";
-import { X, Moon, Sun, Monitor, Languages, Palette, Trash2, Info, ChevronRight, BookOpen, Settings2, Check, Globe, Sparkles, MessageSquare, Save, Book, Shield, FileText, HelpCircle } from "lucide-react";
+import { X, Moon, Sun, Monitor, Languages, Palette, Trash2, Info, ChevronRight, BookOpen, Settings2, Check, Globe, Sparkles, MessageSquare, Save, Book, Shield, FileText, HelpCircle, RotateCcw } from "lucide-react";
 import { getCurrentTranslationPair } from "../utils/verseUtils";
 import CoachCard from "./CoachCard";
 import PrivacyPolicyModal from "./PrivacyPolicyModal";
@@ -271,12 +271,32 @@ export default function Settings({ state, setState, onClose, onShowTour }: Setti
             
             <button
               onClick={onShowTour}
+              className="w-full h-16 px-6 rounded-2xl bg-teal/5 dark:bg-teal/10 border-2 border-teal/20 text-teal dark:text-teal shadow-[0_0_15px_rgba(20,184,166,0.1)] hover:bg-teal/10 transition-all flex items-center justify-between group"
+            >
+              <div className="flex items-center gap-3">
+                <Sparkles size={18} className="text-teal animate-pulse" />
+                <span className="font-black text-sm uppercase tracking-widest">
+                  {localState.primaryLanguage === 'es' ? 'Tomar recorrido de la app' : 'Take app tour'}
+                </span>
+              </div>
+              <ChevronRight size={18} className="text-teal group-hover:translate-x-1 transition-transform" />
+            </button>
+
+            <button
+              onClick={() => {
+                setLocalState(s => ({ ...s, onboarded: false }));
+                // handleSave will trigger the onClose and state update
+                setTimeout(() => {
+                  setState(prev => ({ ...prev, onboarded: false }));
+                  onClose();
+                }, 100);
+              }}
               className="w-full h-16 px-6 rounded-2xl bg-earth/5 dark:bg-white/5 border-2 border-transparent text-earth/60 dark:text-lavender-muted hover:bg-earth/10 dark:hover:bg-white/10 transition-all flex items-center justify-between group"
             >
               <div className="flex items-center gap-3">
-                <Sparkles size={18} className="text-playful-purple/40" />
+                <RotateCcw size={18} className="text-teal/40" />
                 <span className="font-black text-sm uppercase tracking-widest">
-                  {localState.primaryLanguage === 'es' ? 'Ver recorrido de la app' : 'View app tour'}
+                  {localState.primaryLanguage === 'es' ? 'Reiniciar configuración (Onboarding)' : 'Reset personalization (Onboarding)'}
                 </span>
               </div>
               <ChevronRight size={18} className="text-earth-light/40 group-hover:translate-x-1 transition-transform" />

@@ -1060,7 +1060,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
   }
 
   return (
-    <div className="flex-1 flex flex-col pt-2 pb-10">
+    <div id="memorize-content" className="flex-1 flex flex-col pt-2 pb-10">
       {/* Top Section - Citation & Progress */}
       <div className="px-6 sm:px-12 mb-6 sm:mb-10 flex-shrink-0">
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
@@ -1343,7 +1343,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
 
       {/* FIXED BOTTOM NAVIGATION AREA - CLEAN & INTEGRATED */}
       <div 
-        className="w-full flex-shrink-0 px-6 sm:px-12 pb-6 sm:pb-8 pt-4 relative z-[60]"
+        className="w-full flex-shrink-0 px-6 sm:px-12 pb-6 sm:pb-8 pt-4 relative z-10"
       >
         {/* Feedback Area (Reserved: 16/20) */}
         <div className="h-12 w-full flex items-center justify-center mb-2">

@@ -318,75 +318,134 @@ import { Path } from "./types";
 
 export const PATHS: Path[] = [
   {
-    id: "fear-future",
-    title: "Fear about the Future",
-    titleEs: "Miedo al futuro",
-    description: "For the days when you do not know what comes next.",
-    descriptionEs: "Para los días en que no sabes qué viene.",
-    duration: 5,
-    verses: ["joshua-1-9", "5", "7", "14", "4"],
+    id: "new-believer",
+    title: "New Believer",
+    titleEs: "Nuevo creyente",
+    description: "The first steps in your new journey with Jesus.",
+    descriptionEs: "Los primeros pasos en tu nuevo caminar con Jesús.",
+    duration: 7,
+    verses: [],
     days: [
-      { day: 1, reference: "Joshua 1:9", status: "full-text", contextNote: "A command to be strong and courageous." },
-      { day: 2, reference: "Isaiah 41:10", status: "full-text", contextNote: "God promises to strengthen and help you." },
-      { day: 3, reference: "Romans 8:28", status: "full-text", contextNote: "God works all things for good." },
-      { day: 4, reference: "Philippians 4:6", status: "full-text", contextNote: "Do not be anxious about anything." },
-      { day: 5, reference: "Proverbs 3:5", status: "full-text", contextNote: "Trust in the Lord with all your heart." }
+      { day: 1, reference: "2 Corinthians 5:17", status: "reference-only" },
+      { day: 2, reference: "John 1:12", status: "reference-only" },
+      { day: 3, reference: "Acts 2:38", status: "reference-only" },
+      { day: 4, reference: "1 Peter 2:2", status: "reference-only" },
+      { day: 5, reference: "Psalm 119:105", status: "reference-only" },
+      { day: 6, reference: "Matthew 28:19-20", status: "reference-only" },
+      { day: 7, reference: "Romans 12:2", status: "reference-only" }
     ],
-    cta: "Start this path",
-    ctaEs: "Empezar este camino"
+    cta: "Follow Jesus",
+    ctaEs: "Seguir a Jesús"
   },
   {
-    id: "anxiety",
-    title: "Anxiety",
-    titleEs: "Ansiedad",
-    description: "When your mind will not slow down, return to what is steady.",
-    descriptionEs: "Cuando tu mente no se detiene, vuelve a lo que permanece.",
-    duration: 5,
-    verses: ["14", "8", "2", "4", "5"],
+    id: "jesus",
+    title: "Jesus",
+    titleEs: "Jesús",
+    description: "Getting to know the Savior, his heart, and his walk.",
+    descriptionEs: "Conociendo al Salvador, Su corazón y Su caminar.",
+    duration: 10,
+    verses: [],
     days: [
-      { day: 1, reference: "Philippians 4:6", status: "full-text" },
-      { day: 2, reference: "Matthew 11:28", status: "full-text" },
-      { day: 3, reference: "Psalms 23:1", status: "full-text" },
-      { day: 4, reference: "Proverbs 3:5", status: "full-text" },
-      { day: 5, reference: "Isaiah 41:10", status: "full-text" }
+      { day: 1, reference: "John 1:1", status: "reference-only" },
+      { day: 2, reference: "John 10:11", status: "reference-only" },
+      { day: 3, reference: "John 14:6", status: "reference-only" },
+      { day: 4, reference: "Hebrews 4:15", status: "reference-only" },
+      { day: 5, reference: "Matthew 16:16", status: "reference-only" },
+      { day: 6, reference: "Mark 10:45", status: "reference-only" },
+      { day: 7, reference: "John 11:25", status: "reference-only" },
+      { day: 8, reference: "Philippians 2:5-7", status: "reference-only" },
+      { day: 9, reference: "Revelation 1:8", status: "reference-only" },
+      { day: 10, reference: "Hebrews 13:8", status: "reference-only" }
     ],
-    cta: "Find peace here",
-    ctaEs: "Encontrar paz aquí"
+    cta: "Follow Him",
+    ctaEs: "Seguirle"
   },
   {
-    id: "burnout",
-    title: "Burnout",
-    titleEs: "Agotamiento",
-    description: "When your soul feels tired and your strength feels thin.",
-    descriptionEs: "Cuando el alma está cansada y las fuerzas se sienten pocas.",
-    duration: 5,
-    verses: ["8", "13", "1", "12", "5"],
+    id: "gods-love",
+    title: "God’s Love",
+    titleEs: "El amor de Dios",
+    description: "Rest in the height, depth, and width of His affection.",
+    descriptionEs: "Descansa en la altura, profundidad y anchura de Su afecto.",
+    duration: 14,
+    verses: [],
     days: [
-      { day: 1, reference: "Matthew 11:28", status: "full-text" },
-      { day: 2, reference: "Ephesians 6:10", status: "full-text" },
-      { day: 3, reference: "Philippians 4:13", status: "full-text" },
-      { day: 4, reference: "Galatians 5:22", status: "full-text" },
-      { day: 5, reference: "Isaiah 41:10", status: "full-text" }
+      { day: 1, reference: "John 3:16", status: "reference-only" },
+      { day: 2, reference: "Romans 5:8", status: "reference-only" },
+      { day: 3, reference: "1 John 4:9", status: "reference-only" },
+      { day: 4, reference: "Zephaniah 3:17", status: "reference-only" },
+      { day: 5, reference: "Psalm 136:1", status: "reference-only" },
+      { day: 6, reference: "Ephesians 3:18", status: "reference-only" },
+      { day: 7, reference: "Romans 8:38-39", status: "reference-only" },
+      { day: 8, reference: "1 John 3:1", status: "reference-only" },
+      { day: 9, reference: "Psalm 86:15", status: "reference-only" },
+      { day: 10, reference: "Deuteronomy 7:9", status: "reference-only" },
+      { day: 11, reference: "Isaiah 54:10", status: "reference-only" },
+      { day: 12, reference: "Jeremiah 31:3", status: "reference-only" },
+      { day: 13, reference: "Galatians 2:20", status: "reference-only" },
+      { day: 14, reference: "Psalm 103:11", status: "reference-only" }
     ],
-    cta: "Begin again",
-    ctaEs: "Empezar de nuevo"
+    cta: "Experience Love",
+    ctaEs: "Vivir Su amor"
   },
   {
-    id: "identity",
-    title: "Identity",
-    titleEs: "Identidad",
-    description: "For remembering who God says you are.",
-    descriptionEs: "Para recordar quién eres en Dios.",
-    duration: 4,
-    verses: ["3", "7", "12", "9"],
+    id: "grace",
+    title: "Grace",
+    titleEs: "Gracia",
+    description: "Strength for your weakness, kindness for your failures.",
+    descriptionEs: "Fuerza para tu debilidad, bondad para tus fallas.",
+    duration: 7,
+    verses: [],
     days: [
-      { day: 1, reference: "John 3:16", status: "full-text" },
-      { day: 2, reference: "Romans 8:28", status: "full-text" },
-      { day: 3, reference: "Galatians 5:22", status: "full-text" },
-      { day: 4, reference: "Hebrews 11:1", status: "full-text" }
+      { day: 1, reference: "Ephesians 2:8-9", status: "reference-only" },
+      { day: 2, reference: "2 Corinthians 12:9", status: "reference-only" },
+      { day: 3, reference: "Hebrews 4:16", status: "reference-only" },
+      { day: 4, reference: "Romans 3:24", status: "reference-only" },
+      { day: 5, reference: "Titus 2:11", status: "reference-only" },
+      { day: 6, reference: "John 1:16", status: "reference-only" },
+      { day: 7, reference: "Romans 6:14", status: "reference-only" }
     ],
-    cta: "Start this path",
-    ctaEs: "Empezar este camino"
+    cta: "Walk in grace",
+    ctaEs: "Caminar en gracia"
+  },
+  {
+    id: "faith",
+    title: "Faith",
+    titleEs: "Fe",
+    description: "Trusting God when you cannot see the finish line.",
+    descriptionEs: "Confiar en Dios cuando no puedes ver la meta.",
+    duration: 7,
+    verses: [],
+    days: [
+      { day: 1, reference: "Hebrews 11:1", status: "reference-only" },
+      { day: 2, reference: "2 Corinthians 5:7", status: "reference-only" },
+      { day: 3, reference: "Matthew 17:20", status: "reference-only" },
+      { day: 4, reference: "Hebrews 11:6", status: "reference-only" },
+      { day: 5, reference: "Mark 11:22", status: "reference-only" },
+      { day: 6, reference: "James 1:6", status: "reference-only" },
+      { day: 7, reference: "Romans 10:17", status: "reference-only" }
+    ],
+    cta: "Deepen your faith",
+    ctaEs: "Aumentar mi fe"
+  },
+  {
+    id: "prayer",
+    title: "Prayer",
+    titleEs: "Oración",
+    description: "Learning to talk with God simply and daily.",
+    descriptionEs: "Aprendiendo a hablar con Dios de forma sencilla y diaria.",
+    duration: 7,
+    verses: [],
+    days: [
+      { day: 1, reference: "Philippians 4:6", status: "reference-only" },
+      { day: 2, reference: "1 Thessalonians 5:17", status: "reference-only" },
+      { day: 3, reference: "Matthew 6:6", status: "reference-only" },
+      { day: 4, reference: "Jeremiah 33:3", status: "reference-only" },
+      { day: 5, reference: "Luke 11:1", status: "reference-only" },
+      { day: 6, reference: "Psalm 145:18", status: "reference-only" },
+      { day: 7, reference: "Romans 8:26", status: "reference-only" }
+    ],
+    cta: "Pray more",
+    ctaEs: "Orar más"
   },
   {
     id: "peace",
@@ -407,6 +466,100 @@ export const PATHS: Path[] = [
     ctaEs: "Encontrar paz"
   },
   {
+    id: "anxiety",
+    title: "Anxiety",
+    titleEs: "Ansiedad",
+    description: "When your mind will not slow down, return to what is steady.",
+    descriptionEs: "Cuando tu mente no se detiene, vuelve a lo que permanece.",
+    duration: 5,
+    verses: ["14", "8", "2", "4", "5"],
+    days: [
+      { day: 1, reference: "Philippians 4:6", status: "full-text" },
+      { day: 2, reference: "Matthew 11:28", status: "full-text" },
+      { day: 3, reference: "Psalms 23:1", status: "full-text" },
+      { day: 4, reference: "Proverbs 3:5", status: "full-text" },
+      { day: 5, reference: "Isaiah 41:10", status: "full-text" }
+    ],
+    cta: "Find peace here",
+    ctaEs: "Encontrar paz aquí"
+  },
+  {
+    id: "fear-future",
+    title: "Fear about the Future",
+    titleEs: "Miedo al futuro",
+    description: "For the days when you do not know what comes next.",
+    descriptionEs: "Para los días en que no sabes qué viene.",
+    duration: 5,
+    verses: ["joshua-1-9", "5", "7", "14", "4"],
+    days: [
+      { day: 1, reference: "Joshua 1:9", status: "full-text", contextNote: "A command to be strong and courageous." },
+      { day: 2, reference: "Isaiah 41:10", status: "full-text", contextNote: "God promises to strengthen and help you." },
+      { day: 3, reference: "Romans 8:28", status: "full-text", contextNote: "God works all things for good." },
+      { day: 4, reference: "Philippians 4:6", status: "full-text", contextNote: "Do not be anxious about anything." },
+      { day: 5, reference: "Proverbs 3:5", status: "full-text", contextNote: "Trust in the Lord with all your heart." }
+    ],
+    cta: "Start this path",
+    ctaEs: "Empezar este camino"
+  },
+  {
+    id: "burnout",
+    title: "Burnout",
+    titleEs: "Agotamiento",
+    description: "When your soul feels tired and your strength feels thin.",
+    descriptionEs: "Cuando el alma está cansada y las fuerzas se sienten pocas.",
+    duration: 5,
+    verses: ["8", "13", "1", "12", "5"],
+    days: [
+      { day: 1, reference: "Matthew 11:28", status: "full-text" },
+      { day: 2, reference: "Ephesians 6:10", status: "full-text" },
+      { day: 3, reference: "Philippians 4:13", status: "full-text" },
+      { day: 4, reference: "Galatians 5:22", status: "full-text" },
+      { day: 5, reference: "Isaiah 41:10", status: "full-text" }
+    ],
+    cta: "Begin again",
+    ctaEs: "Empezar de nuevo"
+  },
+  {
+    id: "loneliness",
+    title: "Loneliness",
+    titleEs: "Soledad",
+    description: "For when you feel alone. You are never truly alone.",
+    descriptionEs: "Para cuando te sientes solo. Nunca lo estás realmente.",
+    duration: 7,
+    verses: [],
+    days: [
+      { day: 1, reference: "Hebrews 13:5", status: "reference-only" },
+      { day: 2, reference: "Matthew 28:20", status: "reference-only" },
+      { day: 3, reference: "Psalm 27:10", status: "reference-only" },
+      { day: 4, reference: "Isaiah 41:10", status: "reference-only" },
+      { day: 5, reference: "John 14:18", status: "reference-only" },
+      { day: 6, reference: "Psalm 139:7-10", status: "reference-only" },
+      { day: 7, reference: "Deuteronomy 31:6", status: "reference-only" }
+    ],
+    cta: "Find company",
+    ctaEs: "Encontrar compañía"
+  },
+  {
+    id: "shame-guilt",
+    title: "Shame and Guilt",
+    titleEs: "Vergüenza y culpa",
+    description: "For the moments when you feel unworthy. There is no condemnation.",
+    descriptionEs: "Para los momentos en que te sientes indigno. No hay condenación.",
+    duration: 7,
+    verses: [],
+    days: [
+      { day: 1, reference: "Romans 8:1", status: "reference-only" },
+      { day: 2, reference: "1 John 1:9", status: "reference-only" },
+      { day: 3, reference: "Psalm 103:12", status: "reference-only" },
+      { day: 4, reference: "Isaiah 1:18", status: "reference-only" },
+      { day: 5, reference: "Romans 5:1", status: "reference-only" },
+      { day: 6, reference: "Hebrews 8:12", status: "reference-only" },
+      { day: 7, reference: "2 Corinthians 5:17", status: "reference-only" }
+    ],
+    cta: "Be free",
+    ctaEs: "Vivir en libertad"
+  },
+  {
     id: "grief",
     title: "Grief",
     titleEs: "Duelo",
@@ -425,6 +578,38 @@ export const PATHS: Path[] = [
     ctaEs: "Caminar con esperanza"
   },
   {
+    id: "hope",
+    title: "Hope",
+    titleEs: "Esperanza",
+    description: "For the seasons when hope feels like a whisper.",
+    descriptionEs: "Para las temporadas en que la esperanza parece un susurro.",
+    duration: 3,
+    verses: [],
+    days: [
+      { day: 1, reference: "Romans 15:13", status: "reference-only", contextNote: "May the God of hope fill you with all joy and peace." },
+      { day: 2, reference: "Lamentations 3:22-23", status: "reference-only", contextNote: "His mercies are new every morning." },
+      { day: 3, reference: "Psalm 130:5", status: "reference-only", contextNote: "In His word I put my hope." }
+    ],
+    cta: "Find hope",
+    ctaEs: "Encontrar esperanza"
+  },
+  {
+    id: "forgiveness",
+    title: "Forgiveness",
+    titleEs: "Perdón",
+    description: "For letting go and finding freedom in grace.",
+    descriptionEs: "Para soltar y encontrar libertad en la gracia.",
+    duration: 3,
+    verses: [],
+    days: [
+      { day: 1, reference: "Colossians 3:13", status: "reference-only", contextNote: "Forgive as the Lord forgave you." },
+      { day: 2, reference: "Ephesians 4:32", status: "reference-only", contextNote: "Be kind and compassionate, forgiving each other." },
+      { day: 3, reference: "Matthew 6:14", status: "reference-only", contextNote: "If you forgive others, your heavenly Father will forgive you." }
+    ],
+    cta: "Start forgiving",
+    ctaEs: "Encontrar perdón"
+  },
+  {
     id: "relationships",
     title: "Relationships",
     titleEs: "Relaciones",
@@ -441,39 +626,88 @@ export const PATHS: Path[] = [
     ctaEs: "Empezar este camino"
   },
   {
+    id: "parenting",
+    title: "Parenting",
+    titleEs: "Padres",
+    description: "Wisdom and patience for the journey of raising children.",
+    descriptionEs: "Sabiduría y paciencia para el camino de criar hijos.",
+    duration: 7,
+    verses: [],
+    days: [
+      { day: 1, reference: "Proverbs 22:6", status: "reference-only" },
+      { day: 2, reference: "Deuteronomy 6:6-7", status: "reference-only" },
+      { day: 3, reference: "Ephesians 6:4", status: "reference-only" },
+      { day: 4, reference: "Psalm 127:3", status: "reference-only" },
+      { day: 5, reference: "Colossians 3:21", status: "reference-only" },
+      { day: 6, reference: "Joshua 24:15", status: "reference-only" },
+      { day: 7, reference: "Proverbs 3:12", status: "reference-only" }
+    ],
+    cta: "Seek guidance",
+    ctaEs: "Pedir guía"
+  },
+  {
+    id: "wisdom",
+    title: "Wisdom",
+    titleEs: "Sabiduría",
+    description: "For making decisions that honor God.",
+    descriptionEs: "Para tomar decisiones que honran a Dios.",
+    duration: 7,
+    verses: [],
+    days: [
+      { day: 1, reference: "James 1:5", status: "reference-only" },
+      { day: 2, reference: "Proverbs 2:6", status: "reference-only" },
+      { day: 3, reference: "Proverbs 4:7", status: "reference-only" },
+      { day: 4, reference: "Colossians 4:5", status: "reference-only" },
+      { day: 5, reference: "Psalm 111:10", status: "reference-only" },
+      { day: 6, reference: "Proverbs 16:16", status: "reference-only" },
+      { day: 7, reference: "James 3:17", status: "reference-only" }
+    ],
+    cta: "Seek wisdom",
+    ctaEs: "Pedir sabiduría"
+  },
+  {
+    id: "identity",
+    title: "Identity",
+    titleEs: "Identidad",
+    description: "For remembering who God says you are.",
+    descriptionEs: "Para recordar quién eres en Dios.",
+    duration: 4,
+    verses: ["3", "7", "12", "9"],
+    days: [
+      { day: 1, reference: "John 3:16", status: "full-text" },
+      { day: 2, reference: "Romans 8:28", status: "full-text" },
+      { day: 3, reference: "Galatians 5:22", status: "full-text" },
+      { day: 4, reference: "Hebrews 11:1", status: "full-text" }
+    ],
+    cta: "Start this path",
+    ctaEs: "Empezar este camino"
+  },
+  {
     id: "purpose",
     title: "Purpose",
     titleEs: "Propósito",
     description: "For the days when you wonder why you are here.",
     descriptionEs: "Para los días en que te preguntas para qué estás aquí.",
-    duration: 4,
+    duration: 14,
     verses: ["7", "4", "9", "1"],
     days: [
       { day: 1, reference: "Romans 8:28", status: "full-text" },
       { day: 2, reference: "Proverbs 3:5", status: "full-text" },
       { day: 3, reference: "Hebrews 11:1", status: "full-text" },
-      { day: 4, reference: "Philippians 4:13", status: "full-text" }
+      { day: 4, reference: "Philippians 4:13", status: "full-text" },
+      { day: 5, reference: "Jeremiah 1:5", status: "reference-only" },
+      { day: 6, reference: "Ephesians 2:10", status: "reference-only" },
+      { day: 7, reference: "Psalm 138:8", status: "reference-only" },
+      { day: 8, reference: "Isaiah 43:7", status: "reference-only" },
+      { day: 9, reference: "Colossians 3:23", status: "reference-only" },
+      { day: 10, reference: "Matthew 5:16", status: "reference-only" },
+      { day: 11, reference: "1 Peter 2:9", status: "reference-only" },
+      { day: 12, reference: "Romans 12:1", status: "reference-only" },
+      { day: 13, reference: "Micah 6:8", status: "reference-only" },
+      { day: 14, reference: "2 Timothy 1:9", status: "reference-only" }
     ],
     cta: "Find direction",
     ctaEs: "Encontrar dirección"
-  },
-  {
-    id: "new-beginnings",
-    title: "New Beginnings",
-    titleEs: "Nuevos comienzos",
-    description: "For starting again with grace.",
-    descriptionEs: "Para volver a empezar con gracia.",
-    duration: 5,
-    verses: ["12", "7", "5", "1", "joshua-1-9"],
-    days: [
-      { day: 1, reference: "Galatians 5:22", status: "full-text" },
-      { day: 2, reference: "Romans 8:28", status: "full-text" },
-      { day: 3, reference: "Isaiah 41:10", status: "full-text" },
-      { day: 4, reference: "Philippians 4:13", status: "full-text" },
-      { day: 5, reference: "Joshua 1:9", status: "full-text" }
-    ],
-    cta: "Begin again",
-    ctaEs: "Volver a empezar"
   },
   {
     id: "students",
@@ -494,35 +728,39 @@ export const PATHS: Path[] = [
     ctaEs: "Empezar este camino"
   },
   {
-    id: "forgiveness",
-    title: "Forgiveness",
-    titleEs: "Perdón",
-    description: "For letting go and finding freedom in grace.",
-    descriptionEs: "Para soltar y encontrar libertad en la gracia.",
-    duration: 3,
-    verses: [],
+    id: "new-beginnings",
+    title: "New Beginnings",
+    titleEs: "Nuevos comienzos",
+    description: "For starting again with grace.",
+    descriptionEs: "Para volver a empezar con gracia.",
+    duration: 5,
+    verses: ["12", "7", "5", "1", "joshua-1-9"],
     days: [
-      { day: 1, reference: "Colossians 3:13", status: "reference-only", contextNote: "Forgive as the Lord forgave you." },
-      { day: 2, reference: "Ephesians 4:32", status: "reference-only", contextNote: "Be kind and compassionate, forgiving each other." },
-      { day: 3, reference: "Matthew 6:14", status: "reference-only", contextNote: "If you forgive others, your heavenly Father will forgive you." }
+      { day: 1, reference: "Galatians 5:22", status: "full-text" },
+      { day: 2, reference: "Romans 8:28", status: "full-text" },
+      { day: 3, reference: "Isaiah 41:10", status: "full-text" },
+      { day: 4, reference: "Philippians 4:13", status: "full-text" },
+      { day: 5, reference: "Joshua 1:9", status: "full-text" }
     ],
-    cta: "Start forgiving",
-    ctaEs: "Empezar a perdonar"
+    cta: "Begin again",
+    ctaEs: "Volver a empezar"
   },
   {
-    id: "hope",
-    title: "Hope",
-    titleEs: "Esperanza",
-    description: "For the seasons when hope feels like a whisper.",
-    descriptionEs: "Para las temporadas en que la esperanza parece un susurro.",
-    duration: 3,
+    id: "surprising-moments",
+    title: "Surprising Bible Moments",
+    titleEs: "Momentos sorprendentes de la Biblia",
+    description: "Curious, unexpected, and even humorous moments in Scripture.",
+    descriptionEs: "Momentos curiosos, inesperados e incluso divertidos de la Biblia.",
+    duration: 5,
     verses: [],
     days: [
-      { day: 1, reference: "Romans 15:13", status: "reference-only", contextNote: "May the God of hope fill you with all joy and peace." },
-      { day: 2, reference: "Lamentations 3:22-23", status: "reference-only", contextNote: "His mercies are new every morning." },
-      { day: 3, reference: "Psalm 130:5", status: "reference-only", contextNote: "In His word I put my hope." }
+      { day: 1, reference: "Numbers 22:28", status: "reference-only", contextNote: "The talking donkey." },
+      { day: 2, reference: "Acts 20:9", status: "reference-only", contextNote: "Eutychus falls out the window." },
+      { day: 3, reference: "Genesis 18:12", status: "reference-only", contextNote: "Sarah laughs." },
+      { day: 4, reference: "Judges 3:21", status: "reference-only", contextNote: "The secret message for the king." },
+      { day: 5, reference: "Proverbs 21:9", status: "reference-only", contextNote: "Living on a corner of the roof." }
     ],
-    cta: "Find hope",
-    ctaEs: "Encontrar esperanza"
+    cta: "Be surprised",
+    ctaEs: "Sorpréndete"
   }
 ];

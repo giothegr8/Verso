@@ -6,6 +6,7 @@ import {
   BookOpen, 
   Layers, 
   Sprout, 
+  Compass,
   Settings as SettingsIcon,
   Moon,
   Sun,
@@ -25,6 +26,7 @@ import Settings from "./components/Settings";
 import Paywall from "./components/Paywall";
 import ProductTour from "./components/ProductTour";
 import PathSelection from "./components/PathSelection";
+import VersoLogo from "./components/VersoLogo";
 
 interface ErrorBoundaryProps {
   children: React.ReactNode;
@@ -85,7 +87,9 @@ const INITIAL_STATE: AppState = {
     selectedPathId: null,
     currentDay: 1,
     lastCompletedAt: null,
+    pathCompletedToday: false,
     completedPathIds: [],
+    savedProgress: {},
   },
   reminders: {
     enabled: false,
@@ -93,6 +97,7 @@ const INITIAL_STATE: AppState = {
     time: "09:00",
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
   },
+  onboardingProfile: {},
   trialStartDate: null,
   isSubscribed: false,
 };
@@ -114,6 +119,14 @@ export default function App() {
           ...INITIAL_STATE, 
           ...parsed,
           progress: { ...INITIAL_STATE.progress, ...(parsed.progress || {}) },
+          pathProgress: { 
+            ...INITIAL_STATE.pathProgress, 
+            ...(parsed.pathProgress || {}),
+            savedProgress: { 
+              ...(INITIAL_STATE.pathProgress.savedProgress || {}), 
+              ...(parsed.pathProgress?.savedProgress || {}) 
+            }
+          },
           reminders: { ...INITIAL_STATE.reminders, ...(parsed.reminders || {}) },
           selectedTranslations: { ...INITIAL_STATE.selectedTranslations, ...(parsed.selectedTranslations || {}) }
         };
@@ -125,6 +138,7 @@ export default function App() {
 
         // Initialize new fields
         if (!merged.recentVerseIds) merged.recentVerseIds = [];
+        if (!merged.onboardingProfile) merged.onboardingProfile = {};
         if (merged.hasCompletedTour === undefined) merged.hasCompletedTour = false;
         if (!merged.pathProgress) {
           merged.pathProgress = INITIAL_STATE.pathProgress;
@@ -147,13 +161,16 @@ export default function App() {
   const [currentTourStepId, setCurrentTourStepId] = useState<string | null>(null);
 
   useEffect(() => {
+    // Auto-launch product tour disabled as per requested refinements
+    // Access moved to Settings only
+    /*
     if (state.onboarded && !state.hasCompletedTour) {
-      // Small delay to ensure the main app layout is fully rendered before the tour starts
       const timer = setTimeout(() => {
         setShowTour(true);
       }, 500);
       return () => clearTimeout(timer);
     }
+    */
   }, [state.onboarded, state.hasCompletedTour]);
 
   useEffect(() => {
@@ -215,7 +232,11 @@ export default function App() {
             ...prev,
             lastVotdDate: today,
             selectedVerseId: null, // Reset to VOTD on new day
-            progress: newProgress
+            progress: newProgress,
+            pathProgress: {
+              ...prev.pathProgress,
+              pathCompletedToday: false
+            }
           };
         }
 
@@ -332,36 +353,57 @@ export default function App() {
   };
 
   const handleSelectPath = (pathId: string) => {
-    setState(s => ({
-      ...s,
-      pathProgress: {
-        ...s.pathProgress,
-        selectedPathId: pathId,
-        currentDay: 1,
-        lastCompletedAt: null
-      }
-    }));
+    setState(s => {
+      const saved = (s.pathProgress?.savedProgress || {})[pathId] || { currentDay: 1, completedDays: [] };
+      // Also check if the path has been previously completed entirely
+      const isPathFullyCompleted = (s.pathProgress?.completedPathIds || []).includes(pathId);
+      
+      return {
+        ...s,
+        pathProgress: {
+          ...s.pathProgress,
+          selectedPathId: pathId,
+          currentDay: saved.currentDay,
+          pathCompletedToday: s.pathProgress.lastCompletedAt === getLocalDateString() && (saved.completedDays.includes(saved.currentDay) || isPathFullyCompleted)
+        }
+      };
+    });
     setActiveTab("home");
   };
 
   const handleCompletePathDay = () => {
     const today = getLocalDateString();
-    const currentPath = PATHS.find(p => p.id === state.pathProgress.selectedPathId);
-    if (!currentPath) return;
+    const currentPathId = state.pathProgress.selectedPathId;
+    const currentPath = PATHS.find(p => p.id === currentPathId);
+    if (!currentPath || !currentPathId) return;
 
     setState(s => {
-      const isLastDay = s.pathProgress.currentDay >= currentPath.duration;
-      const nextDay = isLastDay ? s.pathProgress.currentDay : s.pathProgress.currentDay + 1;
+      const dayNum = s.pathProgress.currentDay;
+      const isLastDay = dayNum >= currentPath.duration;
+      const nextDay = isLastDay ? dayNum : dayNum + 1;
       
+      const currentSaved = (s.pathProgress?.savedProgress || {})[currentPathId] || { currentDay: 1, completedDays: [] };
+      const newCompletedDays = Array.from(new Set([...currentSaved.completedDays, dayNum]));
+      
+      const newSavedProgress = {
+        ...(s.pathProgress?.savedProgress || {}),
+        [currentPathId]: {
+          currentDay: nextDay,
+          completedDays: newCompletedDays
+        }
+      };
+
       return {
         ...s,
         pathProgress: {
           ...s.pathProgress,
           currentDay: nextDay,
           lastCompletedAt: today,
-          completedPathIds: isLastDay 
-            ? [...s.pathProgress.completedPathIds, s.pathProgress.selectedPathId!]
-            : s.pathProgress.completedPathIds
+          pathCompletedToday: true,
+          completedPathIds: isLastDay && !(s.pathProgress?.completedPathIds || []).includes(currentPathId)
+            ? [...(s.pathProgress?.completedPathIds || []), currentPathId]
+            : (s.pathProgress?.completedPathIds || []),
+          savedProgress: newSavedProgress
         }
       };
     });
@@ -376,11 +418,11 @@ export default function App() {
           onStartMemorizing={startMemorizing} 
           onGetAnotherVerse={getAnotherVerse} 
           onGoToSaved={() => setActiveTab('saved')} 
-          onGoToPaths={() => setActiveTab('path-selection')}
+          onGoToPaths={() => setActiveTab('paths')}
           onCompletePathDay={handleCompletePathDay}
         />
       );
-      case "path-selection": return (
+      case "paths": return (
         <PathSelection 
           state={state} 
           onSelectPath={handleSelectPath} 
@@ -415,7 +457,7 @@ export default function App() {
           onStartMemorizing={startMemorizing} 
           onGetAnotherVerse={getAnotherVerse} 
           onGoToSaved={() => setActiveTab('saved')} 
-          onGoToPaths={() => setActiveTab('path-selection')}
+          onGoToPaths={() => setActiveTab('paths')}
           onCompletePathDay={handleCompletePathDay}
         />
       );
@@ -473,10 +515,7 @@ export default function App() {
         <header className="sticky top-0 z-40 bg-parchment/90 dark:bg-espresso/90 backdrop-blur-xl border-b border-earth/10 dark:border-white/10 transition-colors duration-500">
           <div className="content-column py-6 flex justify-between items-center">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-playful-purple rounded-2xl flex items-center justify-center shadow-lg shadow-playful-purple/20">
-                <BookOpen size={20} className="text-white" />
-              </div>
-              <h1 className="text-2xl font-serif font-black text-playful-purple tracking-tight">Verso</h1>
+              <VersoLogo size="md" showText={true} />
             </div>
             <div className="flex items-center gap-4">
               <button 
@@ -514,14 +553,15 @@ export default function App() {
 
         {/* Navigation - Responsive Bottom Bar */}
         <div 
-          className="fixed bottom-0 left-0 right-0 z-50 px-6 pointer-events-none"
+          className="fixed bottom-0 left-0 right-0 z-40 px-6 pointer-events-none"
           style={{ paddingBottom: "calc(1rem + var(--safe-area-bottom))" }}
         >
-          <nav className="max-w-xl mx-auto bg-white/95 dark:bg-charcoal/95 backdrop-blur-2xl border border-earth/10 dark:border-white/10 px-6 sm:px-10 py-3.5 flex justify-around items-center rounded-[32px] shadow-2xl pointer-events-auto transition-colors duration-500 h-[var(--nav-height)]">
-            <NavButton id="nav-home" active={activeTab === 'home'} onClick={() => setActiveTab('home')} icon={<HomeIcon size={22} />} label={state.primaryLanguage === 'es' ? 'Inicio' : 'Home'} />
-            <NavButton id="nav-memorize" active={activeTab === 'memorize'} onClick={() => setActiveTab('memorize')} icon={<BookOpen size={22} />} label={state.primaryLanguage === 'es' ? 'Memorizar' : 'Memorize'} />
-            <NavButton id="nav-flashcards" active={activeTab === 'flashcards'} onClick={() => setActiveTab('flashcards')} icon={<Layers size={22} />} label={state.primaryLanguage === 'es' ? 'Tarjetas' : 'Cards'} />
-            <NavButton id="nav-saved" active={activeTab === 'saved'} onClick={() => setActiveTab('saved')} icon={<Sprout size={22} />} label={state.primaryLanguage === 'es' ? 'Guardados' : 'Saved'} />
+          <nav className="max-w-xl mx-auto bg-white dark:bg-charcoal border border-earth/10 dark:border-white/10 px-6 sm:px-10 py-3.5 flex justify-around items-center rounded-[32px] shadow-[0_15px_50px_rgba(0,0,0,0.15)] pointer-events-auto transition-colors duration-500 h-[var(--nav-height)]">
+            <NavButton id="nav-home" active={activeTab === 'home'} activeColor="text-playful-purple" onClick={() => setActiveTab('home')} icon={<HomeIcon size={22} />} label={state.primaryLanguage === 'es' ? 'Inicio' : 'Home'} />
+            <NavButton id="nav-memorize" active={activeTab === 'memorize'} activeColor="text-gold" onClick={() => setActiveTab('memorize')} icon={<BookOpen size={22} />} label={state.primaryLanguage === 'es' ? 'Memorizar' : 'Memorize'} />
+            <NavButton id="nav-flashcards" active={activeTab === 'flashcards'} activeColor="text-coral" onClick={() => setActiveTab('flashcards')} icon={<Layers size={22} />} label={state.primaryLanguage === 'es' ? 'Tarjetas' : 'Cards'} />
+            <NavButton id="nav-paths" active={activeTab === 'paths'} activeColor="text-sky-blue" onClick={() => setActiveTab('paths')} icon={<Compass size={22} />} label={state.primaryLanguage === 'es' ? 'Caminos' : 'Paths'} />
+            <NavButton id="nav-saved" active={activeTab === 'saved'} activeColor="text-teal" onClick={() => setActiveTab('saved')} icon={<Sprout size={22} />} label={state.primaryLanguage === 'es' ? 'Guardados' : 'Saved'} />
           </nav>
         </div>
 
@@ -541,17 +581,19 @@ export default function App() {
         </AnimatePresence>
 
         {/* Product Tour */}
-        <ProductTour 
-          isOpen={showTour} 
-          onClose={() => {
-            setShowTour(false);
-            setCurrentTourStepId(null);
-            setState(s => ({ ...s, hasCompletedTour: true }));
-          }} 
-          primaryLanguage={state.primaryLanguage}
-          onTabChange={setActiveTab}
-          onStepChange={setCurrentTourStepId}
-        />
+        {showTour && (
+          <ProductTour 
+            isOpen={showTour} 
+            onClose={() => {
+              setShowTour(false);
+              setCurrentTourStepId(null);
+              setState(s => ({ ...s, hasCompletedTour: true }));
+            }} 
+            primaryLanguage={state.primaryLanguage}
+            onTabChange={setActiveTab}
+            onStepChange={setCurrentTourStepId}
+          />
+        )}
       </div>
     );
   };
@@ -588,12 +630,12 @@ export default function App() {
   );
 }
 
-function NavButton({ id, active, onClick, icon, label }: { id: string, active: boolean, onClick: () => void, icon: any, label: string }) {
+function NavButton({ id, active, activeColor, onClick, icon, label }: { id: string, active: boolean, activeColor: string, onClick: () => void, icon: any, label: string }) {
   return (
     <button 
       id={id}
       onClick={onClick}
-      className={`flex flex-col items-center gap-1 transition-colors ${active ? 'text-playful-purple' : 'text-earth/40 dark:text-parchment/40'}`}
+      className={`flex flex-col items-center gap-1 transition-colors ${active ? activeColor : 'text-earth/40 dark:text-parchment/40'}`}
     >
       <motion.div
         animate={{ 

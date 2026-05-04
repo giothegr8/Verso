@@ -45,9 +45,14 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
 
   // Path Logic
   const selectedPath = state.pathProgress.selectedPathId ? PATHS.find(p => p.id === state.pathProgress.selectedPathId) : null;
-  const isPathDayComplete = state.pathProgress.lastCompletedAt === today;
+  const isPathDayComplete = state.pathProgress.pathCompletedToday;
   
-  const currentPathDay = selectedPath ? selectedPath.days[state.pathProgress.currentDay - 1] : null;
+  const currentPathDayNum = state.pathProgress.currentDay;
+  const nextPathDayNum = currentPathDayNum < (selectedPath?.duration || 0) ? currentPathDayNum + 1 : null;
+  
+  const currentPathDay = selectedPath ? selectedPath.days[currentPathDayNum - 1] : null;
+  const nextPathDay = selectedPath && nextPathDayNum ? selectedPath.days[nextPathDayNum - 1] : null;
+  
   const currentPathVerse = currentPathDay ? getVerseText({ reference: currentPathDay.reference }) : null;
 
   // The UI needs a verse object even if text is missing
@@ -115,7 +120,7 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
         )}
       </AnimatePresence>
       {/* Header Section - Clean and Focused */}
-      <div className="flex justify-between items-center">
+      <div id="home-summary" className="flex justify-between items-center">
         <div className="space-y-1">
           <motion.button 
             initial={{ scale: 0.8, opacity: 0 }}
@@ -259,9 +264,9 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
           {selectedPath && (
             <button 
               onClick={onGoToPaths}
-              className="text-[10px] font-black uppercase tracking-widest text-playful-purple hover:underline"
+              className="text-[10px] font-black uppercase tracking-widest text-teal hover:underline"
             >
-              {isEs ? "Cambiar" : "Change"}
+              {isEs ? "Ver todos" : "View all"}
             </button>
           )}
         </div>
@@ -274,19 +279,19 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
             className="w-full card bg-white dark:bg-charcoal p-8 shadow-xl border-earth/10 dark:border-white/10 relative overflow-hidden group cursor-pointer text-left"
           >
             <div className="absolute top-4 right-4 opacity-5 group-hover:opacity-10 transition-opacity pointer-events-none">
-              <Compass size={100} className="text-amber-500 dark:text-amber-400 transform rotate-12" />
+              <Compass size={100} className="text-teal transform rotate-12" />
             </div>
             
             <div className="relative space-y-4">
               <div className="space-y-1">
                 <h3 className="text-2xl font-serif font-black text-earth dark:text-ivory">
-                  {isEs ? "¿Qué estás viviendo en este momento?" : "What are you going through right now?"}
+                  {isEs ? "Elige un camino" : "Choose a path"}
                 </h3>
                 <p className="text-sm font-medium text-earth-light/70 dark:text-lavender-muted/70">
-                  {isEs ? "Elige un camino en la Palabra." : "Choose a path through Scripture."}
+                  {isEs ? "Empieza un recorrido en la Palabra para este momento." : "Start a Scripture journey for this season."}
                 </p>
               </div>
-              <div className="flex items-center gap-2 text-playful-purple font-black text-xs uppercase tracking-widest group-hover:gap-3 transition-all">
+              <div className="flex items-center gap-2 text-teal font-black text-xs uppercase tracking-widest group-hover:gap-3 transition-all">
                 <span>{isEs ? "Elegir un camino" : "Choose a path"}</span>
                 <ChevronRight size={14} />
               </div>
@@ -320,15 +325,28 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
                     </div>
                   </div>
 
-                {activePathVerse && (
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-earth-light/50 dark:text-lavender-muted/50">
-                      {isEs ? "Versículo de hoy:" : "Today's verse:"}
-                    </p>
-                    <p className="text-lg font-serif italic text-earth dark:text-ivory">
-                      {getLocalizedBookName(activePathVerse.book, state.memorizeMode)} {activePathVerse.chapter}:{activePathVerse.verse}
-                    </p>
+                {isPathDayComplete ? (
+                  <div className="space-y-2">
+                    <h4 className="text-lg font-serif font-black text-teal dark:text-teal-400">
+                      {isEs ? "Lo hiciste bien hoy." : "You’ve done well today."}
+                    </h4>
+                    {nextPathDay && (
+                      <p className="text-sm text-earth-light/60 dark:text-lavender-muted/60">
+                        {isEs ? `Vuelve mañana para ${nextPathDay.reference}.` : `Come back tomorrow for ${nextPathDay.reference}.`}
+                      </p>
+                    )}
                   </div>
+                ) : (
+                  activePathVerse && (
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-earth-light/50 dark:text-lavender-muted/50">
+                        {isEs ? "Versículo de hoy:" : "Today's verse:"}
+                      </p>
+                      <p className="text-lg font-serif italic text-earth dark:text-ivory">
+                        {getLocalizedBookName(activePathVerse.book, state.memorizeMode)} {activePathVerse.chapter}:{activePathVerse.verse}
+                      </p>
+                    </div>
+                  )
                 )}
               </div>
 
@@ -336,7 +354,7 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
                 {isPathDayComplete ? (
                   <div className="flex items-center gap-2 px-6 py-3 bg-teal/10 text-teal rounded-full font-bold text-sm border border-teal/20 shadow-sm">
                     <CheckCircle2 size={16} />
-                    <span className="lowercase">{isEs ? "día completado" : "day complete"}</span>
+                    <span className="lowercase">{isEs ? "hoy completado" : "today done"}</span>
                   </div>
                 ) : (
                   <button 
@@ -358,8 +376,8 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
                        <div className="w-1.5 h-1.5 rounded-full bg-amber-500 dark:bg-amber-400 shadow-[0_0_8px_rgba(245,158,11,0.5)]" />
                        <span className="lowercase">
                         {currentVerse.id === activePathVerse?.id 
-                          ? (isEs ? "ver el versículo de hoy" : "view today's verse")
-                          : (isEs ? "memorizar" : "memorize")}
+                          ? (isEs ? "ver el versículo" : "view the verse")
+                          : (isEs ? "ir al versículo" : "go to verse")}
                        </span>
                     </div>
                   </button>
@@ -376,44 +394,6 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
                 )}
               </div>
             </div>
-
-            {state.pathProgress.currentDay >= (selectedPath?.duration || 0) && isPathDayComplete && (
-               <div className="mt-8 pt-6 border-t border-earth/5 dark:border-white/5 space-y-4">
-                  <div className="space-y-1">
-                    <p className="text-sm font-bold text-teal flex items-center gap-2">
-                      <Sparkles size={16} />
-                      {isEs ? "¡Terminaste este camino!" : "You finished this path."}
-                    </p>
-                    <p className="text-xs text-earth-light/60 dark:text-lavender-muted/60">
-                      {isEs ? "¿Qué te gustaría hacer ahora?" : "What would you like to do next?"}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <button 
-                      onClick={() => {
-                        // Logic to review path verses could be added here
-                        // For now we just go to saved or keep viewing
-                        onGoToSaved();
-                      }}
-                      className="text-[10px] font-black uppercase tracking-widest px-4 py-2 bg-playful-purple/10 text-playful-purple rounded-full hover:bg-playful-purple/20 transition-all border border-playful-purple/20"
-                    >
-                      {isEs ? "repasar estos versículos" : "review these verses"}
-                    </button>
-                    <button 
-                      onClick={onGoToPaths}
-                      className="text-[10px] font-black uppercase tracking-widest px-4 py-2 bg-earth/5 dark:bg-white/5 rounded-full hover:bg-earth/10 dark:hover:bg-white/10 transition-all border border-earth/10 dark:border-white/10"
-                    >
-                      {isEs ? "elegir un nuevo camino" : "choose a new path"}
-                    </button>
-                    <button 
-                      onClick={onGoToPaths} // For now same as choose new path
-                      className="text-[10px] font-black uppercase tracking-widest px-4 py-2 bg-amber-500/10 text-amber-500 dark:text-amber-400 rounded-full hover:bg-amber-500/20 transition-all border border-amber-500/20"
-                    >
-                      {isEs ? "ayúdame a elegir" : "help me choose"}
-                    </button>
-                  </div>
-               </div>
-            )}
           </motion.div>
         )}
       </div>

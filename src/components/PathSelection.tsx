@@ -1,7 +1,8 @@
-import { motion } from "motion/react";
+import { useState } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import { AppState, Path } from "../types";
 import { PATHS } from "../constants";
-import { ArrowLeft, Compass, Clock, ChevronRight, Sprout } from "lucide-react";
+import { ArrowLeft, Compass, Clock, ChevronRight, Sprout, CheckCircle2, Lock, Flower2 } from "lucide-react";
 
 interface PathSelectionProps {
   state: AppState;
@@ -11,74 +12,217 @@ interface PathSelectionProps {
 
 export default function PathSelection({ state, onSelectPath, onBack }: PathSelectionProps) {
   const isEs = state.primaryLanguage === "es";
+  const [selectedPath, setSelectedPath] = useState<Path | null>(null);
+  const selectedPathId = state.pathProgress.selectedPathId;
+
+  // Sort paths to move currently selected path to the top
+  const sortedPaths = [...PATHS].sort((a, b) => {
+    if (a.id === selectedPathId) return -1;
+    if (b.id === selectedPathId) return 1;
+    return 0; // Maintain original curated order
+  });
+
+  if (selectedPath) {
+    return (
+      <motion.div 
+        initial={{ opacity: 0, x: 20 }}
+        animate={{ opacity: 1, x: 0 }}
+        exit={{ opacity: 0, x: -20 }}
+        className="flex flex-col space-y-8 pb-12"
+      >
+        {/* Detail Header */}
+        <div className="space-y-6">
+          <button 
+            onClick={() => setSelectedPath(null)}
+            className="flex items-center gap-2 text-earth/50 dark:text-ivory/50 hover:text-teal transition-colors group"
+          >
+            <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
+            <span className="text-sm font-black uppercase tracking-widest">
+              {isEs ? "Todos los caminos" : "All Paths"}
+            </span>
+          </button>
+
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6">
+            <div className="space-y-3 flex-1">
+              <div className="w-12 h-12 rounded-2xl bg-teal/10 flex items-center justify-center text-teal mb-2">
+                <Sprout size={24} />
+              </div>
+              <h2 className="text-4xl sm:text-5xl font-serif font-black text-earth dark:text-ivory tracking-tight">
+                {isEs ? selectedPath.titleEs : selectedPath.title}
+              </h2>
+              <p className="text-lg text-earth-light/80 dark:text-lavender-muted/80 font-medium max-w-xl">
+                {isEs ? selectedPath.descriptionEs : selectedPath.description}
+              </p>
+            </div>
+            <div className="shrink-0">
+              <div className="flex items-center gap-2 px-4 py-2 bg-amber-500/5 dark:bg-amber-500/10 rounded-2xl border border-amber-500/20 dark:border-amber-400/30">
+                <Clock size={16} className="text-amber-600 dark:text-amber-400" />
+                <span className="text-sm font-black uppercase tracking-widest text-amber-700 dark:text-amber-300/80">
+                  {selectedPath.duration} {isEs ? "días" : "days"}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Day Grid */}
+        <div className="space-y-6">
+          <h3 className="text-xs font-black uppercase tracking-[0.3em] text-earth/40 dark:text-ivory/40 border-b border-earth/5 pb-2">
+            {isEs ? "Recorrido diario" : "Daily Journey"}
+          </h3>
+          <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
+            {Array.from({ length: selectedPath.duration }).map((_, i) => {
+              const dayNum = i + 1;
+              const dayData = selectedPath.days?.find(d => d.day === dayNum);
+              
+              // Robust completion detection
+              const pathSaved = (state.pathProgress?.savedProgress || {})[selectedPath.id];
+              const isCompleted = pathSaved?.completedDays.includes(dayNum) || 
+                                (state.pathProgress?.selectedPathId === selectedPath.id && (state.pathProgress?.currentDay || 1) > dayNum);
+              const isActive = (selectedPathId === selectedPath.id) && (state.pathProgress?.currentDay === dayNum);
+              
+              return (
+                <div 
+                  key={dayNum}
+                  className={`p-5 rounded-[24px] border transition-all flex items-start gap-4 ${
+                    isCompleted 
+                      ? "bg-teal/5 border-teal/20 shadow-sm" 
+                      : isActive
+                        ? "bg-teal/10 border-teal-400/30 dark:border-teal-400/40 shadow-lg shadow-teal/5 ring-1 ring-teal/20"
+                        : "bg-white/40 dark:bg-charcoal/40 border-earth/5 dark:border-white/5 group hover:border-teal/20"
+                  }`}
+                >
+                  <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 text-sm font-black ${
+                    isCompleted 
+                      ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20" 
+                      : isActive
+                        ? "bg-teal text-white shadow-[0_0_15px_rgba(45,212,191,0.4)]"
+                        : "bg-earth/5 dark:bg-white/5 text-earth/20 dark:text-ivory/20"
+                  }`}>
+                    {isCompleted ? <Flower2 size={20} className="text-amber-600 dark:text-amber-400" /> : dayNum}
+                  </div>
+                  <div className="flex flex-col gap-0.5">
+                    <span className={`text-[10px] font-black uppercase tracking-[0.2em] ${
+                      isCompleted ? "text-amber-600/60 dark:text-amber-400/60" : isActive ? "text-teal" : "text-earth-light/30"
+                    }`}>
+                      {isEs ? `Día ${dayNum}` : `Day ${dayNum}`}
+                    </span>
+                    <span className={`font-serif font-bold text-lg ${isActive ? "text-teal-900 dark:text-teal-50" : isCompleted ? "text-earth/60 dark:text-ivory/60" : "text-earth dark:text-ivory"}`}>
+                      {dayData?.reference || (isEs ? "Versículo" : "Verse")}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* CTA */}
+        <div className="pt-8 sticky bottom-0 bg-gradient-to-t from-parchment dark:from-espresso to-transparent pb-4">
+          <button
+            onClick={() => onSelectPath(selectedPath.id)}
+            className="w-full relative overflow-hidden group flex items-center justify-center gap-3 py-5 px-10 bg-teal/10 dark:bg-teal/10 hover:bg-teal/20 text-teal dark:text-teal-400 rounded-[28px] font-bold border-2 border-teal/30 dark:border-teal/40 transition-all shadow-[0_0_30px_rgba(45,212,191,0.15)] active:scale-95"
+          >
+            <div className="flex items-center gap-3 relative z-10">
+              <div className="w-2.5 h-2.5 rounded-full bg-amber-500 dark:bg-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.8)]" />
+              <span className="text-xl font-serif font-black tracking-tight group-hover:tracking-wide transition-all">
+                {state.pathProgress.selectedPathId === selectedPath.id ? (isEs ? "Continuar camino" : "Continue path") : (isEs ? selectedPath.ctaEs : selectedPath.cta)}
+              </span>
+              <ChevronRight size={22} className="group-hover:translate-x-1 transition-transform" />
+            </div>
+            {/* Subtle inner glow */}
+            <div className="absolute inset-0 bg-gradient-to-b from-white/10 to-transparent pointer-events-none" />
+          </button>
+        </div>
+      </motion.div>
+    );
+  }
 
   return (
-    <div className="flex flex-col space-y-8 pb-12">
+    <div id="paths-content" className="flex flex-col space-y-8 pb-12">
       {/* Header */}
       <div className="space-y-4">
-        <button 
-          onClick={onBack}
-          className="flex items-center gap-2 text-earth/50 dark:text-ivory/50 hover:text-playful-purple transition-colors"
-        >
-          <ArrowLeft size={20} />
-          <span className="text-sm font-bold uppercase tracking-widest">
-            {isEs ? "Volver" : "Back"}
-          </span>
-        </button>
-
         <div className="space-y-2">
-          <h2 className="text-4xl font-serif font-black text-earth dark:text-ivory tracking-tight leading-tight">
+          <h2 className="text-4xl sm:text-6xl font-serif font-black text-earth dark:text-ivory tracking-tight leading-tight">
             {isEs ? "¿Qué estás viviendo en este momento?" : "What are you going through right now?"}
           </h2>
-          <p className="text-lg text-earth-light/80 dark:text-lavender-muted/80 font-medium">
-            {isEs ? "Elige un camino y vuelve cada día a la Palabra." : "Choose a path and return daily to the Word."}
+          <p className="text-lg text-teal dark:text-teal-400 font-medium">
+            {isEs ? "Elige un camino en la Palabra." : "Choose a path in the Word."}
           </p>
         </div>
       </div>
 
       {/* Path Cards */}
-      <div className="grid gap-4 sm:grid-cols-2">
-        {PATHS.map((path, index) => (
-          <motion.button
-            key={path.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.05 }}
-            onClick={() => onSelectPath(path.id)}
-            className="group relative flex flex-col items-start p-6 bg-white dark:bg-charcoal border border-earth/10 dark:border-white/10 rounded-3xl shadow-sm hover:shadow-xl hover:border-playful-purple/30 transition-all text-left overflow-hidden ring-1 ring-playful-purple/5"
-          >
-            {/* Background Accent */}
-            <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-              <Compass size={80} className="text-playful-purple transform rotate-12" />
-            </div>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {sortedPaths.map((path, index) => {
+          const isActive = path.id === selectedPathId;
+          
+          return (
+            <motion.button
+              key={path.id}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: index * 0.03 }}
+              onClick={() => setSelectedPath(path)}
+              className={`group relative flex flex-col items-start p-6 bg-white dark:bg-charcoal border transition-all text-left overflow-hidden ring-1 ${
+                isActive 
+                  ? "border-teal/50 ring-teal/20 bg-teal/[0.02] shadow-lg" 
+                  : "border-earth/10 dark:border-white/10 ring-teal/5 shadow-sm hover:shadow-xl hover:border-teal/30"
+              } rounded-[32px]`}
+            >
+              {/* Selected Indicator */}
+              {isActive && (
+                <div className="absolute top-0 right-0 pt-3 pr-3">
+                  <div className="flex items-center gap-1.5 px-3 py-1 bg-teal text-white rounded-full shadow-lg shadow-teal/20 border border-white/20">
+                    <CheckCircle2 size={10} />
+                    <span className="text-[9px] font-black uppercase tracking-widest">
+                      {isEs ? "Actual" : "Current"}
+                    </span>
+                  </div>
+                </div>
+              )}
 
-            <div className="flex justify-between items-start w-full mb-4">
-              <div className="w-10 h-10 rounded-xl bg-teal/10 flex items-center justify-center text-teal">
-                <Sprout size={20} />
+              {/* Background Accent */}
+              <div className="absolute -top-4 -right-4 p-8 opacity-[0.03] group-hover:opacity-[0.08] transition-opacity">
+                <Compass size={120} className="text-teal transform rotate-12" />
               </div>
-              <div className="flex items-center gap-1.5 px-3 py-1 bg-earth/5 dark:bg-white/5 rounded-full border border-earth/10 dark:border-white/10">
-                <Clock size={12} className="text-earth/40 dark:text-ivory/40" />
-                <span className="text-[10px] font-black uppercase tracking-widest text-earth/60 dark:text-ivory/60">
-                  {path.duration} {isEs ? "días" : "days"}
-                </span>
+
+              <div className="flex justify-between items-start w-full mb-6">
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${
+                  isActive ? "bg-teal text-white shadow-xl shadow-teal/20 scale-110" : "bg-teal/10 text-teal group-hover:scale-110"
+                }`}>
+                  <Sprout size={24} />
+                </div>
+                {!isActive && (
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 bg-teal/5 dark:bg-teal/10 rounded-full border border-teal/10 dark:border-teal/20">
+                    <Clock size={12} className="text-teal/40" />
+                    <span className="text-[10px] font-black uppercase tracking-widest text-teal/60 dark:text-teal-400/60">
+                      {path.duration} {isEs ? "días" : "days"}
+                    </span>
+                  </div>
+                )}
               </div>
-            </div>
 
-            <div className="space-y-2 relative z-10">
-              <h3 className="text-xl font-serif font-black text-earth dark:text-ivory group-hover:text-playful-purple transition-colors">
-                {isEs ? path.titleEs : path.title}
-              </h3>
-              <p className="text-sm text-earth-light/70 dark:text-lavender-muted/60 leading-relaxed line-clamp-2">
-                {isEs ? path.descriptionEs : path.description}
-              </p>
-            </div>
+              <div className="space-y-3 relative z-10 w-full">
+                <h3 className={`text-2xl font-serif font-black transition-colors leading-tight ${
+                  isActive ? "text-teal" : "text-earth dark:text-ivory group-hover:text-teal"
+                }`}>
+                  {isEs ? path.titleEs : path.title}
+                </h3>
+                <p className="text-sm text-earth-light/70 dark:text-lavender-muted/60 leading-relaxed line-clamp-2">
+                  {isEs ? path.descriptionEs : path.description}
+                </p>
+              </div>
 
-            <div className="mt-8 flex items-center gap-2 text-amber-500 dark:text-amber-400 font-bold text-sm tracking-tight group-hover:gap-3 transition-all relative z-10 transition-colors">
-              <span>{isEs ? path.ctaEs : path.cta}</span>
-              <ChevronRight size={16} />
-            </div>
-          </motion.button>
-        ))}
+              <div className={`mt-8 flex items-center gap-2 font-black text-[10px] uppercase tracking-widest transition-colors ${
+                isActive ? "text-teal" : "text-earth-light/40 dark:text-ivory/30 group-hover:text-teal"
+              }`}>
+                <span>{isEs ? "Ver detalles" : "View details"}</span>
+                <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform" />
+              </div>
+            </motion.button>
+          );
+        })}
       </div>
     </div>
   );

@@ -76,16 +76,47 @@ export default function Paywall({ state, onSubscribe }: PaywallProps) {
 
           {/* Pricing & CTA */}
           <div className="space-y-4">
+            <div className="grid grid-cols-1 gap-3">
+              {[
+                { id: 'monthly', price: '$12.99', period: isSpanish ? 'mes' : 'month', label: null },
+                { id: '3months', price: '$29.99', period: isSpanish ? '3 meses' : '3 months', label: isSpanish ? 'Más popular' : 'Most popular', default: true },
+                { id: 'annual', price: '$79.99', period: isSpanish ? 'año' : 'year', label: isSpanish ? 'Mejor valor' : 'Best value' },
+              ].map(plan => (
+                <button
+                  key={plan.id}
+                  onClick={onSubscribe}
+                  className={`p-5 rounded-2xl border-2 text-left transition-all relative ${plan.default ? 'border-playful-purple bg-playful-purple/5 shadow-lg' : 'border-earth/10 dark:border-white/10 hover:border-playful-purple/30'}`}
+                >
+                  {plan.label && (
+                    <div className="absolute -top-2 right-4 px-2 py-0.5 bg-playful-purple text-white text-[8px] font-black uppercase tracking-widest rounded-full">
+                      {plan.label}
+                    </div>
+                  )}
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <p className="text-sm font-black text-earth dark:text-ivory uppercase tracking-widest">
+                        {plan.id === '3months' ? (isSpanish ? '3 Meses' : '3 Months') : plan.id === 'annual' ? (isSpanish ? 'Anual' : 'Annual') : (isSpanish ? 'Mensual' : 'Monthly')}
+                      </p>
+                      <p className="text-[10px] font-bold text-earth-light/60 dark:text-lavender-muted uppercase tracking-widest">
+                        {plan.price} / {plan.period}
+                      </p>
+                    </div>
+                    {plan.default && <div className="w-6 h-6 rounded-full bg-playful-purple flex items-center justify-center text-white"><Check size={14} strokeWidth={4} /></div>}
+                  </div>
+                </button>
+              ))}
+            </div>
+
             <button 
               onClick={onSubscribe}
-              className="btn-primary w-full h-16 text-lg shadow-xl shadow-playful-purple/20 group"
+              className="btn-primary w-full h-16 text-lg shadow-xl shadow-playful-purple/20 group mt-4"
             >
               <Sparkles size={20} className="group-hover:rotate-12 transition-transform" />
               {isSpanish ? "Suscribirse ahora" : "Subscribe Now"}
               <ArrowRight size={20} className="ml-auto group-hover:translate-x-1 transition-transform" />
             </button>
             <p className="text-center text-[10px] font-black uppercase tracking-widest text-earth-light/40 dark:text-lavender-muted/40">
-              {isSpanish ? "$4.99 / mes — Cancela en cualquier momento" : "$4.99 / month — Cancel anytime"}
+              {isSpanish ? "Cancela en cualquier momento" : "Cancel anytime"}
             </p>
           </div>
 

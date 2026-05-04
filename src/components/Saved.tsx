@@ -82,7 +82,7 @@ export default function Saved({ state, setState, onStartMemorizing }: SavedProps
   };
 
   return (
-    <div className="space-y-8">
+    <div id="saved-content" className="space-y-8">
       {/* Share Modal */}
       <ShareModal 
         isOpen={isShareModalOpen}

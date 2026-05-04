@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { X, Download, Share2, Sparkles, BookOpen } from "lucide-react";
 import { AppState, TRANSLATION_DETAILS } from "../types";
 import { getCurrentTranslationPair, getLocalizedBookName } from "../utils/verseUtils";
+import VersoLogo from "./VersoLogo";
 
 interface ShareModalProps {
   isOpen: boolean;
@@ -64,12 +65,9 @@ export default function ShareModal({ isOpen, onClose, verse, state, onNativeShar
                 
                 <div className="space-y-6 sm:space-y-8 relative z-10">
                   <div className="flex items-center gap-2 mb-4 sm:mb-6">
-                    <div className="w-6 h-6 bg-playful-purple rounded-lg flex items-center justify-center">
-                      <BookOpen size={14} className="text-white" />
+                    <div className="opacity-80 scale-75 origin-left">
+                      <VersoLogo size="sm" showText={true} mode="white" />
                     </div>
-                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-ivory/60">
-                      Verso
-                    </span>
                   </div>
 
                   <div className="space-y-5 sm:space-y-6">
@@ -113,10 +111,7 @@ export default function ShareModal({ isOpen, onClose, verse, state, onNativeShar
                   
                   {/* Watermark */}
                   <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 bg-playful-purple rounded-xl flex items-center justify-center shadow-lg shadow-playful-purple/20">
-                      <BookOpen size={16} className="text-white" />
-                    </div>
-                    <span className="text-base sm:text-lg font-serif font-black text-playful-purple tracking-tight">Verso</span>
+                    <VersoLogo size="md" showText={true} mode="white" />
                   </div>
                 </div>
               </div>

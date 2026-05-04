@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { X, ChevronRight, ChevronLeft, Sparkles, Play, Languages, Bookmark, Check, Settings, Layers, Share2, EyeOff, MessageCircle } from "lucide-react";
+import { X, ChevronRight, ChevronLeft, Sparkles, BookOpen, Layers, Compass, Sprout, Check, Home, Brain } from "lucide-react";
 
 interface TourStep {
   id: string;
@@ -9,121 +9,81 @@ interface TourStep {
   targetId: string;
   icon: React.ReactNode;
   tab?: string;
-  cta?: { en: string; es: string };
+  highlightTab?: string;
 }
 
 const TOUR_STEPS: TourStep[] = [
   {
-    id: "votd",
+    id: "nav-home",
+    title: { en: "Home", es: "Inicio" },
+    description: { 
+      en: "Start each day with your verse, streak, and current path.", 
+      es: "Empieza cada día con tu versículo, tus días seguidos y tu camino actual." 
+    },
+    targetId: "home-summary",
+    icon: <Home className="text-playful-purple" size={24} />,
+    tab: "home",
+    highlightTab: "nav-home"
+  },
+  {
+    id: "votd-card",
     title: { en: "Today's Verse", es: "Versículo del día" },
     description: { 
-      en: "This is your daily focus. Read it carefully to begin.", 
-      es: "Este es tu enfoque de hoy. Léelo con atención para comenzar." 
+      en: "Read it slowly. This is your daily focus.", 
+      es: "Léelo con calma. Este es tu enfoque diario." 
     },
     targetId: "votd-card",
-    icon: <Sparkles className="text-golden" size={24} />,
-    tab: "home"
-  },
-  {
-    id: "translation",
-    title: { en: "Choose Your Version", es: "Elige tu versión" },
-    description: { 
-      en: "Want a different version? Switch translations instantly right here.", 
-      es: "Cambia aquí la versión de la Biblia." 
-    },
-    targetId: "translation-pill",
-    icon: <Languages className="text-playful-purple" size={24} />,
+    icon: <BookOpen className="text-teal" size={24} />,
     tab: "home",
-    cta: { en: "Got it", es: "Entendido" }
+    highlightTab: "nav-home"
   },
   {
-    id: "memorize-btn",
-    title: { en: "Start Memorizing", es: "Empieza a memorizar" },
+    id: "nav-paths",
+    title: { en: "Paths", es: "Caminos" },
     description: { 
-      en: "When you're ready, tap here to start. We'll guide you step by step.", 
-      es: "Cuando estés listo, toca este botón para comenzar tu práctica. Te guiaremos paso a paso hasta que lo grabes en tu corazón." 
+      en: "Choose a Scripture journey for what you’re walking through.", 
+      es: "Elige un recorrido en la Palabra para lo que estás viviendo." 
     },
-    targetId: "memorize-btn-main",
-    icon: <Play className="text-playful-purple" size={24} fill="currentColor" />,
-    tab: "home",
-    cta: { en: "Let's go!", es: "¡Vamos!" }
+    targetId: "paths-content",
+    icon: <Compass className="text-teal" size={24} />,
+    tab: "paths",
+    highlightTab: "nav-paths"
   },
   {
-    id: "nav-memorize-step",
-    title: { en: "Guided Practice", es: "Práctica guiada" },
+    id: "nav-memorize",
+    title: { en: "Memorize", es: "Memorizar" },
     description: { 
-      en: "This is where you'll rehearse the text until every word is in your memory.", 
-      es: "En esta sección ensayarás el texto hasta que cada palabra quede en tu memoria." 
+      en: "Practice the verse step by step until it settles in your heart.", 
+      es: "Practica el versículo paso a paso hasta guardarlo en el corazón." 
     },
-    targetId: "nav-memorize",
-    icon: <Play className="text-playful-purple" size={24} />,
-    tab: "memorize"
+    targetId: "memorize-content",
+    icon: <BookOpen className="text-gold" size={24} />,
+    tab: "memorize",
+    highlightTab: "nav-memorize"
   },
   {
-    id: "practice-mechanic",
-    title: { en: "Guided Practice", es: "Práctica guiada" },
+    id: "nav-flashcards",
+    title: { en: "Cards", es: "Tarjetas" },
     description: { 
-      en: "You won't type here yet. We'll gradually remove letters as you rehearse, so your memory gets stronger each round.", 
-      es: "Aquí no escribirás todavía. Iremos quitando letras gradualmente mientras ensayas, para que tu memoria se fortalezca en cada paso." 
+      en: "Review and test the reference from memory.", 
+      es: "Repasa y prueba la cita bíblica de memoria." 
     },
-    targetId: "memorize-verse-card",
-    icon: <EyeOff className="text-playful-purple" size={24} />,
-    tab: "memorize"
-  },
-  {
-    id: "recall-challenge",
-    title: { en: "Final Recall", es: "Recuerdo final" },
-    description: { 
-      en: "On the last step, you'll type the verse from memory. If you need a little help, you can use a clue.", 
-      es: "En el último paso, escribirás el versículo de memoria. Si necesitas un poco de ayuda, puedes usar una pista." 
-    },
-    targetId: "memorize-controls",
-    icon: <MessageCircle className="text-playful-purple" size={24} />,
-    tab: "memorize"
-  },
-  {
-    id: "nav-cards-step",
-    title: { en: "Citation Challenge", es: "Reto de la cita bíblica" },
-    description: { 
-      en: "Test your memory by recalling exactly where each verse is found.", 
-      es: "Aquí pondrás a prueba tu memoria recordando exactamente dónde está el versículo." 
-    },
-    targetId: "nav-flashcards",
+    targetId: "cards-content",
     icon: <Layers className="text-coral" size={24} />,
-    tab: "flashcards"
+    tab: "flashcards",
+    highlightTab: "nav-flashcards"
   },
   {
-    id: "nav-saved-step",
-    title: { en: "Your Progress", es: "Tus progresos" },
+    id: "nav-saved",
+    title: { en: "Saved", es: "Guardados" },
     description: { 
-      en: "All your memorized verses are saved here for quick review anytime.", 
-      es: "Todos tus versículos memorizados se guardan aquí para que los repases cuando quieras." 
+      en: "Keep verses you want to return to again and again.", 
+      es: "Guarda los versículos a los que quieres volver." 
     },
-    targetId: "nav-saved",
-    icon: <Bookmark className="text-earth-light" size={24} />,
-    tab: "saved"
-  },
-  {
-    id: "share-step",
-    title: { en: "Share Your Faith", es: "Comparte tu fe" },
-    description: { 
-      en: "Create beautiful images of your favorite verses to share with others.", 
-      es: "Crea imágenes hermosas de tus versículos favoritos para compartirlas con otros." 
-    },
-    targetId: "share-btn-home",
-    icon: <Share2 className="text-playful-purple" size={24} />,
-    tab: "home"
-  },
-  {
-    id: "bilingual",
-    title: { en: "Bilingual Mode", es: "Modo bilingüe" },
-    description: { 
-      en: "Ready for a bigger challenge? Enable bilingual mode to learn in two languages.", 
-      es: "¿Listo para un reto mayor? Activa el modo bilingüe para aprender en dos idiomas." 
-    },
-    targetId: "nav-settings",
-    icon: <Settings className="text-teal" size={24} />,
-    tab: "home"
+    targetId: "saved-content",
+    icon: <Sprout className="text-earth-light" size={24} />,
+    tab: "saved",
+    highlightTab: "nav-saved"
   }
 ];
 
@@ -138,115 +98,188 @@ interface ProductTourProps {
 export default function ProductTour({ isOpen, onClose, primaryLanguage, onTabChange, onStepChange }: ProductTourProps) {
   const [currentStep, setCurrentStep] = useState(0);
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
+  const [navRect, setNavRect] = useState<DOMRect | null>(null);
   const [tooltipPos, setTooltipPos] = useState({ top: 100, left: 20, placement: 'bottom' as 'top' | 'bottom' });
   const [arrowLeft, setArrowLeft] = useState(160);
-  const [hasError, setHasError] = useState(false);
+
+  // Explicitly reset step when tour is opened (e.g. manual replay from settings)
+  useEffect(() => {
+    if (isOpen) {
+      setCurrentStep(0);
+    }
+  }, [isOpen]);
+
+  const updateRect = useCallback((iteration = 0) => {
+    if (!isOpen) return;
+    
+    // Responsive configuration
+    const isSmallScreen = window.innerWidth < 640;
+    const tooltipWidth = isSmallScreen ? Math.min(window.innerWidth - 32, 280) : 320;
+    const margin = isSmallScreen ? 12 : 24;
+    const tooltipHeight = isSmallScreen ? 140 : 200;
+
+    const step = TOUR_STEPS[currentStep];
+    const target = document.getElementById(step.targetId);
+    const navItem = step.highlightTab ? document.getElementById(step.highlightTab) : null;
+    
+    if (navItem) {
+      setNavRect(navItem.getBoundingClientRect());
+    } else {
+      setNavRect(null);
+    }
+    
+    if (target || isSmallScreen) {
+      let rect: DOMRect;
+      
+      if (isSmallScreen) {
+        // Broad highlights for mobile logic moved to target-based detection
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+        
+        rect = target?.getBoundingClientRect() || { 
+          top: 100, 
+          bottom: 300, 
+          left: 16, 
+          right: width - 16, 
+          width: width - 32, 
+          height: 200 
+        } as DOMRect;
+      } else {
+        rect = target?.getBoundingClientRect()!;
+        if ((!rect || rect.width === 0) && iteration < 10) {
+          setTimeout(() => updateRect(iteration + 1), 100);
+          return;
+        }
+      }
+
+      if (!rect) return;
+
+      setTargetRect(rect);
+      
+      const bottomNavHeight = 84;
+      const safeBottom = window.innerHeight - bottomNavHeight - 20;
+
+      if (isSmallScreen) {
+        // Mobile positioning: Bottom if highlight is top, otherwise top
+        const isHighlightInTopHalf = rect.top < window.innerHeight / 2;
+        
+        let top: number;
+        if (isHighlightInTopHalf) {
+          // If highlight is at the top, place tooltip towards the bottom but above nav
+          top = Math.min(rect.bottom + 20, safeBottom - tooltipHeight);
+          // If even that overlaps, just stick to safe area
+          if (top < rect.bottom && rect.bottom < safeBottom) {
+             top = safeBottom - tooltipHeight;
+          }
+        } else {
+          // If highlight is at the bottom, place tooltip at the top
+          top = Math.max(margin, rect.top - tooltipHeight - 20);
+          if (top < margin) top = 80; // Default top
+        }
+
+        setTooltipPos({
+          top,
+          left: (window.innerWidth - tooltipWidth) / 2,
+          placement: isHighlightInTopHalf ? 'bottom' : 'top'
+        });
+      } else {
+        const spaceBelow = window.innerHeight - rect.bottom - bottomNavHeight - 40;
+        const spaceAbove = rect.top - 40;
+        
+        const placement = spaceBelow > tooltipHeight ? 'bottom' : 'top';
+        
+        let top = placement === 'bottom' 
+          ? rect.bottom + 16 
+          : rect.top - tooltipHeight - 16;
+          
+        // Constraint check: don't let it overlap bottom nav area on desktop
+        if (placement === 'bottom' && (top + tooltipHeight) > safeBottom) {
+          // If it overlaps, try placing it above
+          if (spaceAbove > tooltipHeight) {
+            top = rect.top - tooltipHeight - 16;
+          } else {
+             // If no space above or below, center it but shift away from bottom
+             top = Math.max(margin, safeBottom - tooltipHeight - 40);
+          }
+        }
+        
+        top = Math.max(margin, Math.min(window.innerHeight - tooltipHeight - margin, top));
+        
+        const targetCenter = rect.left + rect.width / 2;
+        let left = targetCenter - tooltipWidth / 2;
+        left = Math.max(margin, Math.min(window.innerWidth - tooltipWidth - margin, left));
+        
+        const arrowX = targetCenter - left;
+        setArrowLeft(Math.max(20, Math.min(tooltipWidth - 20, arrowX)));
+        setTooltipPos({ top, left, placement });
+      }
+    } else if (iteration < 15) {
+      setTimeout(() => updateRect(iteration + 1), 150);
+    } else {
+      // Fallback
+      setTargetRect(null);
+      setTooltipPos({ 
+        top: (window.innerHeight - tooltipHeight) / 2, 
+        left: (window.innerWidth - tooltipWidth) / 2, 
+        placement: 'bottom' 
+      });
+    }
+  }, [isOpen, currentStep]);
 
   useEffect(() => {
     if (isOpen) {
       const step = TOUR_STEPS[currentStep];
-      if (!step) {
-        setHasError(true);
-        return;
-      }
-
+      
+      // Navigate to the relevant tab
       if (step.tab && onTabChange) {
         onTabChange(step.tab);
       }
-
+      
       if (onStepChange) {
         onStepChange(step.id);
       }
 
-      const updateRect = (iteration = 0) => {
-        const target = document.getElementById(step.targetId);
-        
-        // Responsive tooltip width
-        const isSmallScreen = window.innerWidth < 640;
-        const tooltipWidth = isSmallScreen ? Math.min(window.innerWidth - 32, 280) : 320;
-        
-        if (target) {
-          const rect = target.getBoundingClientRect();
-          // This catches cases where elements are mid-animation or hidden initially
-          if (rect.width === 0 && iteration < 10) {
-            setTimeout(() => updateRect(iteration + 1), 100);
-            return;
-          }
+      // Re-measure after a short delay to allow tab transition to complete
+      const measureTimer = setTimeout(() => updateRect(), 300);
 
-          setTargetRect(rect);
-          
-          // Calculate tooltip position with safety margins
-          const spaceBelow = window.innerHeight - rect.bottom;
-          const tooltipHeight = isSmallScreen ? 180 : 220; // Estimate height based on compactness
-          const placement = spaceBelow > (tooltipHeight + 40) ? 'bottom' : 'top';
-          
-          let top = placement === 'bottom' 
-            ? rect.bottom + 12 
-            : rect.top - tooltipHeight - 12;
-            
-          // Bounds checking for vertical positioning
-          top = Math.max(isSmallScreen ? 10 : 20, Math.min(window.innerHeight - tooltipHeight - (isSmallScreen ? 10 : 20), top));
-          
-          // Horizontal positioning with edge safety
-          const targetCenter = rect.left + rect.width / 2;
-          let left = targetCenter - tooltipWidth / 2;
-          const margin = isSmallScreen ? 16 : 20;
-          left = Math.max(margin, Math.min(window.innerWidth - tooltipWidth - margin, left));
-          
-          // Calculate dynamic arrow position relative to tooltip
-          const arrowX = targetCenter - left;
-          // Clamp arrow position
-          setArrowLeft(Math.max(20, Math.min(tooltipWidth - 20, arrowX)));
-          
-          setTooltipPos({ top, left, placement });
-        } else {
-          // If returning to a tab, the element might not be in DOM yet
-          if (iteration < 15) {
-            setTimeout(() => updateRect(iteration + 1), 100);
-            return;
-          }
-          console.warn(`[Tour Debug] Target element NOT FOUND after retries: ${step.targetId}. Falling back to center.`);
-          setTargetRect(null);
-          setTooltipPos({ top: 100, left: (window.innerWidth - 320) / 2, placement: 'bottom' });
-          setArrowLeft(tooltipWidth / 2);
-        }
-      };
-      
-      // Multi-phase measurement to catch start, middle, and end of layout transitions
-      // This is crucial for spring animations that can take up to 1s to fully settle
-      const timerS = setTimeout(() => updateRect(0), 100);
-      const timerM = setTimeout(() => updateRect(0), 400);
-      const timerL = setTimeout(() => updateRect(0), 1000);
-      
-      window.addEventListener('resize', () => updateRect(0));
-      window.addEventListener('scroll', () => updateRect(0), true);
+      const isSmallScreen = window.innerWidth < 640;
+      if (!isSmallScreen) {
+        const observer = new ResizeObserver(() => updateRect());
+        observer.observe(document.body);
+        const updateInterval = setInterval(() => updateRect(), 1000);
 
-      return () => {
-        window.removeEventListener('resize', () => updateRect(0));
-        window.removeEventListener('scroll', () => updateRect(0), true);
-        clearTimeout(timerS);
-        clearTimeout(timerM);
-        clearTimeout(timerL);
-      };
+        return () => {
+          observer.disconnect();
+          clearInterval(updateInterval);
+          clearTimeout(measureTimer);
+        };
+      } else {
+        window.addEventListener('resize', () => updateRect());
+        return () => {
+          window.removeEventListener('resize', () => updateRect());
+          clearTimeout(measureTimer);
+        };
+      }
     }
-  }, [isOpen, currentStep, onTabChange]);
+  }, [isOpen, currentStep, onTabChange, onStepChange, updateRect]);
 
-  if (!isOpen || hasError) return null;
+  if (!isOpen) return null;
 
+  const isSmallScreen = window.innerWidth < 640;
   const step = TOUR_STEPS[currentStep];
   const isLastStep = currentStep === TOUR_STEPS.length - 1;
 
   return (
     <AnimatePresence>
       <div className="fixed inset-0 z-[100] pointer-events-none overflow-hidden">
-        {/* Backdrop with spotlight - Stronger dimming, no blur */}
+        {/* Backdrop with spotlight */}
         <motion.div 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="absolute inset-0 bg-espresso/80 pointer-events-auto"
+          className="absolute inset-0 bg-charcoal/60 pointer-events-auto backdrop-blur-[1px]"
           style={{
-            clipPath: targetRect ? `polygon(
+            clipPath: (targetRect) ? `polygon(
               0% 0%, 0% 100%, 
               ${targetRect.left - 4}px 100%, 
               ${targetRect.left - 4}px ${targetRect.top - 4}px, 
@@ -260,105 +293,127 @@ export default function ProductTour({ isOpen, onClose, primaryLanguage, onTabCha
           onClick={onClose}
         />
 
-        {/* Spotlight Border - Precise, no glow */}
-        <AnimatePresence>
-          {targetRect && (
-            <motion.div
-              layoutId="spotlight"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute z-[101] border border-white/40 rounded-[20px] sm:rounded-[32px]"
-              style={{
-                left: targetRect.left - 4,
-                top: targetRect.top - 4,
-                width: targetRect.width + 8,
-                height: targetRect.height + 8,
-              }}
-            />
-          )}
-        </AnimatePresence>
+        {/* Visual Highlight Border/Glow */}
+        {targetRect && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="absolute border-2 border-teal dark:border-teal-400 rounded-2xl pointer-events-none shadow-[0_0_20px_rgba(20,184,166,0.3)] z-[101]"
+            style={{
+              top: targetRect.top - 8,
+              left: targetRect.left - 8,
+              width: targetRect.width + 16,
+              height: targetRect.height + 16
+            }}
+          />
+        )}
 
-        {/* Tour Card - Relative to target */}
+        {/* Tour Card */}
         <div 
-          className="absolute z-[102] w-full pointer-events-auto transition-all duration-500 ease-out"
+          className="absolute z-[102] w-full pointer-events-auto transition-all duration-500 ease-out flex justify-center px-4"
           style={{
             top: tooltipPos.top,
-            left: tooltipPos.left,
-            maxWidth: window.innerWidth < 640 ? Math.min(window.innerWidth - 32, 280) : 320
+            left: isSmallScreen ? 0 : tooltipPos.left,
+            maxWidth: isSmallScreen ? '100%' : (window.innerWidth < 1024 ? 300 : 320)
           }}
         >
           <motion.div
             key={currentStep}
-            initial={{ opacity: 0, scale: 0.95, y: tooltipPos.placement === 'bottom' ? -10 : 10 }}
+            initial={{ opacity: 0, scale: 0.9, y: isSmallScreen ? 20 : (tooltipPos.placement === 'bottom' ? -20 : 20) }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: tooltipPos.placement === 'bottom' ? -10 : 10 }}
-            className="bg-white dark:bg-charcoal rounded-[24px] shadow-2xl border border-earth/10 dark:border-white/10 p-4 sm:p-6 relative"
+            exit={{ opacity: 0, scale: 0.9, y: isSmallScreen ? 20 : (tooltipPos.placement === 'bottom' ? -20 : 20) }}
+            className={`bg-charcoal border border-white/10 rounded-[32px] shadow-2xl ${isSmallScreen ? 'p-5' : 'p-6'} relative overflow-hidden ring-1 ring-white/5 w-full max-w-[320px]`}
           >
-            {/* Arrow */}
-            <div 
-              style={{ left: arrowLeft }}
-              className={`absolute -translate-x-1/2 w-0 h-0 border-l-[8px] border-l-transparent border-r-[8px] border-r-transparent ${
-                tooltipPos.placement === 'bottom' 
-                  ? 'bottom-full border-b-[8px] border-b-white dark:border-b-charcoal' 
-                  : 'top-full border-t-[8px] border-t-white dark:border-t-charcoal'
-              }`}
-            />
+            {/* Arrow - Hidden on mobile */}
+            {!isSmallScreen && targetRect && (
+              <div 
+                style={{ left: arrowLeft }}
+                className={`absolute -translate-x-1/2 w-0 h-0 border-l-[10px] border-l-transparent border-r-[10px] border-r-transparent ${
+                  tooltipPos.placement === 'bottom' 
+                    ? 'bottom-full border-b-[10px] border-b-charcoal' 
+                    : 'top-full border-t-[10px] border-t-charcoal'
+                }`}
+              />
+            )}
 
-            <div className="space-y-3 sm:space-y-4">
+            <div className={`${isSmallScreen ? 'space-y-3' : 'space-y-4'}`}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-earth/5 dark:bg-white/5 flex items-center justify-center">
-                    {step.icon}
+                  <div className={`${isSmallScreen ? 'w-8 h-8 rounded-xl' : 'w-10 h-10 rounded-2xl'} bg-white/5 flex items-center justify-center shadow-inner`}>
+                    {React.cloneElement(step.icon as React.ReactElement<any>, { size: isSmallScreen ? 20 : 24 })}
                   </div>
-                  <h3 className="text-base sm:text-lg font-serif font-black text-earth dark:text-ivory tracking-tight">
+                  <h3 className={`${isSmallScreen ? 'text-base' : 'text-lg'} font-serif font-black text-ivory tracking-tight`}>
                     {step.title[primaryLanguage]}
                   </h3>
                 </div>
-                <span className="text-[9px] sm:text-[10px] font-black text-earth-light/40 dark:text-lavender-muted/40 uppercase tracking-widest">
-                  {currentStep + 1} / {TOUR_STEPS.length}
-                </span>
+                <div className="px-2.5 py-1 bg-white/5 rounded-full border border-white/5">
+                  <span className="text-[10px] font-black text-ivory/40 uppercase tracking-widest whitespace-nowrap">
+                    {currentStep + 1} / {TOUR_STEPS.length}
+                  </span>
+                </div>
               </div>
               
-              <p className="text-xs sm:text-sm text-earth-light dark:text-lavender-muted leading-relaxed font-medium">
+              <p className={`${isSmallScreen ? 'text-xs' : 'text-sm'} text-lavender-muted leading-relaxed font-medium`}>
                 {step.description[primaryLanguage]}
               </p>
             </div>
 
-            <div className="mt-6 sm:mt-8 flex items-center justify-between">
+            <div className={`${isSmallScreen ? 'mt-6' : 'mt-8'} flex items-center justify-between`}>
               <button 
                 onClick={onClose}
-                className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-earth-light/40 dark:text-lavender-muted/40 hover:text-earth dark:hover:text-ivory transition-colors"
+                className="text-[10px] font-black uppercase tracking-widest text-lavender-muted/40 hover:text-ivory transition-colors"
               >
                 {primaryLanguage === 'es' ? 'Saltar' : 'Skip'}
               </button>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
                 {currentStep > 0 && (
                   <button 
                     onClick={() => setCurrentStep(s => s - 1)}
-                    className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-earth/5 dark:bg-white/5 flex items-center justify-center text-earth-light hover:bg-earth/10 dark:hover:bg-white/10 transition-colors"
+                    className={`${isSmallScreen ? 'w-8 h-8' : 'w-10 h-10'} rounded-full bg-white/5 flex items-center justify-center text-ivory/40 hover:bg-white/10 hover:text-ivory transition-all`}
                   >
-                    <ChevronLeft size={16} />
+                    <ChevronLeft size={isSmallScreen ? 16 : 20} />
                   </button>
                 )}
                 
                 <button 
                   onClick={() => isLastStep ? onClose() : setCurrentStep(s => s + 1)}
-                  className="bg-playful-purple text-white py-1.5 px-4 sm:py-2 sm:px-5 rounded-full shadow-lg shadow-playful-purple/20 flex items-center gap-2 hover:brightness-110 active:scale-95 transition-all"
+                  className={`bg-white text-charcoal ${isSmallScreen ? 'py-2 px-4' : 'py-2.5 px-6'} rounded-full shadow-xl flex items-center gap-2 hover:scale-[1.02] active:scale-95 transition-all`}
                 >
-                  <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest">
+                  <span className="text-[10px] font-black uppercase tracking-widest">
                     {isLastStep 
                       ? (primaryLanguage === 'es' ? 'Listo' : 'Done') 
-                      : (step.cta ? step.cta[primaryLanguage] : (primaryLanguage === 'es' ? 'Siguiente' : 'Next'))}
+                      : (primaryLanguage === 'es' ? 'Siguiente' : 'Next')}
                   </span>
-                  {isLastStep ? <Check size={14} /> : <ChevronRight size={14} />}
+                  {isLastStep ? <Check size={16} strokeWidth={3} /> : <ChevronRight size={16} strokeWidth={3} />}
                 </button>
               </div>
             </div>
           </motion.div>
         </div>
+
+        {/* Bottom Nav Highlight */}
+        {navRect && (
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="absolute z-[101] border-2 border-teal rounded-xl pointer-events-none shadow-[0_0_15px_rgba(20,184,166,0.6)]"
+            style={{
+              top: navRect.top - 4,
+              left: navRect.left - 4,
+              width: navRect.width + 8,
+              height: navRect.height + 8
+            }}
+          >
+             <motion.div 
+               animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.6, 0.3] }}
+               transition={{ duration: 2, repeat: Infinity }}
+               className="absolute inset-0 bg-teal/20 rounded-xl"
+             />
+          </motion.div>
+        )}
       </div>
     </AnimatePresence>
   );
 }
+

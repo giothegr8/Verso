@@ -74,12 +74,29 @@ export interface Path {
 
 export interface UserPathProgress {
   selectedPathId: string | null;
-  currentDay: number; // 1-indexed
+  currentDay: number; // 1-indexed (for the currently selected path)
   lastCompletedAt: string | null; // ISO date (YYYY-MM-DD)
+  pathCompletedToday: boolean; // Whether today's verse is done
   completedPathIds: string[];
+  savedProgress: Record<string, {
+    currentDay: number;
+    completedDays: number[];
+  }>;
 }
 
 export type TranslationMode = "default" | "custom";
+
+export type DailyRhythm = "daily" | "weekly" | "path-based" | "loose";
+export type IdentityAnchor = "returner" | "finisher" | "carrier" | "room-maker";
+export type Blocker = "busy" | "forgetful" | "inconsistent" | "clueless" | "distracted" | "other";
+export type ReminderPreference = "morning" | "midday" | "evening" | "bedtime" | "later";
+
+export interface OnboardingProfile {
+  dailyRhythm?: DailyRhythm;
+  identityAnchorId?: IdentityAnchor;
+  blocker?: Blocker;
+  reminderPreference?: ReminderPreference;
+}
 
 export interface ReminderSettings {
   enabled: boolean;
@@ -102,6 +119,7 @@ export interface AppState {
   progress: UserProgress;
   pathProgress: UserPathProgress;
   reminders: ReminderSettings;
+  onboardingProfile?: OnboardingProfile;
   trialStartDate: string | null; // ISO date string
   isSubscribed: boolean;
 }

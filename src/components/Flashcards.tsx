@@ -614,7 +614,7 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
   }
 
   return (
-    <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-700 flex flex-col items-center">
+    <div id="cards-content" className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-700 flex flex-col items-center">
       {/* Page Header */}
       <div className="w-full max-w-md space-y-1 text-center mb-6">
         <h2 className="text-2xl font-serif font-black text-earth dark:text-ivory">
