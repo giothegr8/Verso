@@ -93,7 +93,7 @@ export default function Saved({ state, setState, onStartMemorizing }: SavedProps
       />
       <div className="space-y-6 pt-2">
         <div className="text-center">
-          <h2 className="text-5xl sm:text-7xl font-serif font-black text-earth dark:text-ivory tracking-tighter">
+          <h2 className="text-4xl sm:text-7xl font-serif font-black text-earth dark:text-ivory tracking-tighter text-center">
             {state.primaryLanguage === 'es' ? 'La Cosecha' : 'The Harvest'}
           </h2>
           <div className="mt-3 space-y-3">

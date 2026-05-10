@@ -247,39 +247,38 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
       case 1: // LANGUAGE
         return (
           <div className="space-y-10 w-full animate-in fade-in duration-700">
-            <div className="text-center space-y-4">
-              <div className="w-16 h-16 bg-teal/10 rounded-2xl flex items-center justify-center mx-auto text-teal">
-                <Globe size={32} strokeWidth={1.5} />
+              <div className="space-y-4">
+                <div className="w-16 h-16 bg-teal/10 rounded-2xl flex items-center justify-center mx-auto text-teal">
+                  <Globe size={28} strokeWidth={1.5} />
+                </div>
+                <div className="space-y-1">
+                  <h1 className="text-3xl sm:text-4xl font-serif font-black text-earth dark:text-ivory tracking-tight">Choose your language</h1>
+                  <p className="text-lg sm:text-xl font-serif italic text-earth-light/60 dark:text-lavender-muted/60">Elige tu idioma</p>
+                </div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-earth-light/40 dark:text-ivory/30">
+                  Set your main app language
+                </p>
               </div>
-              <div className="space-y-2">
-                <h1 className="text-4xl font-serif font-black text-earth dark:text-ivory tracking-tight">Choose your language</h1>
-                <p className="text-xl font-serif italic text-earth-light/60 dark:text-lavender-muted/60">Elige tu idioma</p>
+              <div className="grid grid-cols-1 gap-3 px-2">
+                {[
+                  { id: 'en', label: 'English', sub: 'Inglés' },
+                  { id: 'es', label: 'Español', sub: 'Spanish' }
+                ].map(opt => (
+                  <button 
+                    key={opt.id}
+                    onClick={() => setAppLanguage(opt.id as "en" | "es")}
+                    className={`p-5 rounded-[24px] border-2 transition-all flex justify-between items-center ${appLanguage === opt.id ? 'border-teal/60 bg-teal/5 shadow-sm' : 'border-earth/10 dark:border-white/10 bg-white dark:bg-charcoal/50 hover:border-teal/30'}`}
+                  >
+                    <div className="text-left">
+                      <p className="text-lg font-black text-earth dark:text-ivory">{opt.label}</p>
+                      <p className="text-[9px] font-black uppercase tracking-widest text-earth-light/30 dark:text-ivory/20">{opt.sub}</p>
+                    </div>
+                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${appLanguage === opt.id ? 'bg-teal border-teal text-white' : 'border-earth/20 dark:border-white/20'}`}>
+                      {appLanguage === opt.id && <Check size={12} strokeWidth={4} />}
+                    </div>
+                  </button>
+                ))}
               </div>
-              <p className="text-sm font-black uppercase tracking-widest text-earth-light/40 dark:text-ivory/30">
-                Set your main app language <br/>
-                <span className="opacity-60 text-[10px]">Elige el idioma principal de la app</span>
-              </p>
-            </div>
-            <div className="grid grid-cols-1 gap-4">
-              {[
-                { id: 'en', label: 'English', sub: 'Inglés' },
-                { id: 'es', label: 'Español', sub: 'Spanish' }
-              ].map(opt => (
-                <button 
-                  key={opt.id}
-                  onClick={() => setAppLanguage(opt.id as "en" | "es")}
-                  className={`p-6 rounded-[24px] border-2 transition-all flex justify-between items-center ${appLanguage === opt.id ? 'border-teal bg-teal/[0.03] shadow-[0_0_15px_rgba(20,184,166,0.2)]' : 'border-earth/10 dark:border-white/10 bg-white dark:bg-charcoal/50 hover:border-teal/30'}`}
-                >
-                  <div className="text-left">
-                    <p className="text-xl font-black text-earth dark:text-ivory">{opt.label}</p>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-earth-light/30 dark:text-ivory/20">{opt.sub}</p>
-                  </div>
-                  <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${appLanguage === opt.id ? 'bg-teal border-teal text-white' : 'border-earth/20 dark:border-white/20'}`}>
-                    {appLanguage === opt.id && <Check size={14} strokeWidth={4} />}
-                  </div>
-                </button>
-              ))}
-            </div>
           </div>
         );
 
@@ -298,22 +297,22 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
         return (
           <div className="space-y-10 w-full animate-in fade-in duration-700">
             <div className="text-center space-y-3">
-              <div className="w-16 h-16 bg-gold/10 rounded-2xl flex items-center justify-center mx-auto text-gold mb-6">
-                <BookOpen size={30} />
+              <div className="w-16 h-16 bg-gold/10 rounded-2xl flex items-center justify-center mx-auto text-gold mb-4">
+                <BookOpen size={28} />
               </div>
-              <h2 className="text-3xl font-serif font-black text-earth dark:text-ivory tracking-tight">{curr.memTitle}</h2>
-              <p className="text-sm font-medium text-earth-light/60 dark:text-lavender-muted/60 px-6">{curr.memSub}</p>
+              <h2 className="text-2xl sm:text-3xl font-serif font-black text-earth dark:text-ivory tracking-tight">{curr.memTitle}</h2>
+              <p className="text-xs sm:text-sm font-medium text-earth-light/60 dark:text-lavender-muted/60 px-6">{curr.memSub}</p>
             </div>
-            <div className="grid grid-cols-1 gap-3">
+            <div className="grid grid-cols-1 gap-3 px-2">
               {curr.memOptions.map(opt => (
                 <button 
                   key={opt.id}
                   onClick={() => setMemMode(opt.id as LanguageMode)}
-                  className={`p-6 rounded-[24px] border-2 transition-all flex justify-between items-center ${memMode === opt.id ? 'border-teal bg-teal/[0.03] shadow-[0_0_15px_rgba(20,184,166,0.2)]' : 'border-earth/10 dark:border-white/10 bg-white dark:bg-charcoal/50 hover:border-teal/30'}`}
+                  className={`p-5 rounded-[24px] border-2 transition-all flex justify-between items-center ${memMode === opt.id ? 'border-teal/60 bg-teal/5 shadow-sm' : 'border-earth/10 dark:border-white/10 bg-white dark:bg-charcoal/50 hover:border-teal/30'}`}
                 >
-                  <span className="text-lg font-black text-earth dark:text-ivory">{opt.label}</span>
-                  <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${memMode === opt.id ? 'bg-teal border-teal text-white' : 'border-earth/20 dark:border-white/20'}`}>
-                    {memMode === opt.id && <Check size={14} strokeWidth={4} />}
+                  <span className="text-base sm:text-lg font-black text-earth dark:text-ivory">{opt.label}</span>
+                  <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${memMode === opt.id ? 'bg-teal border-teal text-white' : 'border-earth/20 dark:border-white/20'}`}>
+                    {memMode === opt.id && <Check size={12} strokeWidth={4} />}
                   </div>
                 </button>
               ))}
@@ -325,21 +324,21 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
         return (
           <div className="space-y-10 w-full animate-in fade-in duration-700">
             <div className="text-center space-y-3">
-              <div className="w-16 h-16 bg-teal/10 rounded-2xl flex items-center justify-center mx-auto text-teal mb-6">
-                <Compass size={30} />
+              <div className="w-16 h-16 bg-teal/10 rounded-2xl flex items-center justify-center mx-auto text-teal mb-4">
+                <Compass size={28} />
               </div>
-              <h2 className="text-3xl font-serif font-black text-earth dark:text-ivory tracking-tight">{curr.pathTitle}</h2>
-              <p className="text-sm font-medium text-earth-light/60 dark:text-lavender-muted/60 px-6">{curr.pathSub}</p>
+              <h2 className="text-2xl sm:text-3xl font-serif font-black text-earth dark:text-ivory tracking-tight">{curr.pathTitle}</h2>
+              <p className="text-xs sm:text-sm font-medium text-earth-light/60 dark:text-lavender-muted/60 px-6">{curr.pathSub}</p>
             </div>
-            <div className="grid grid-cols-1 gap-2 max-h-[40vh] overflow-y-auto px-1 custom-scrollbar">
+            <div className="grid grid-cols-1 gap-2.5 max-h-[40vh] overflow-y-auto px-2 custom-scrollbar">
               {PATHS.map(p => (
                 <button 
                   key={p.id}
                   onClick={() => setSelectedPathId(p.id)}
-                  className={`p-4 rounded-[20px] border-2 transition-all flex justify-between items-center ${selectedPathId === p.id ? 'border-teal bg-teal/[0.03] shadow-lg shadow-teal/5' : 'border-earth/10 dark:border-white/10 bg-white dark:bg-charcoal/50 hover:border-teal/30'}`}
+                  className={`p-4 rounded-[20px] border-2 transition-all flex justify-between items-center ${selectedPathId === p.id ? 'border-teal/60 bg-teal/5 shadow-sm' : 'border-earth/10 dark:border-white/10 bg-white dark:bg-charcoal/50 hover:border-teal/30'}`}
                 >
                   <span className="text-sm font-bold text-earth dark:text-ivory">{appLanguage === 'es' ? p.titleEs : p.title}</span>
-                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ml-3 ${selectedPathId === p.id ? 'bg-teal border-teal text-white' : 'border-earth/20 dark:border-white/20'}`}>
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ml-3 transition-all ${selectedPathId === p.id ? 'bg-teal border-teal text-white' : 'border-earth/20 dark:border-white/20'}`}>
                     {selectedPathId === p.id && <Check size={10} strokeWidth={4} />}
                   </div>
                 </button>
@@ -352,22 +351,22 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
         return (
           <div className="space-y-10 w-full animate-in fade-in duration-700">
             <div className="text-center space-y-3">
-              <div className="w-16 h-16 bg-teal/10 rounded-2xl flex items-center justify-center mx-auto text-teal mb-6">
-                <Activity size={30} />
+              <div className="w-16 h-16 bg-teal/10 rounded-2xl flex items-center justify-center mx-auto text-teal mb-4">
+                <Activity size={28} />
               </div>
-              <h2 className="text-3xl font-serif font-black text-earth dark:text-ivory tracking-tight">{curr.rhythmTitle}</h2>
-              <p className="text-sm font-medium text-earth-light/60 dark:text-lavender-muted/60 px-6">{curr.rhythmSub}</p>
+              <h2 className="text-2xl sm:text-3xl font-serif font-black text-earth dark:text-ivory tracking-tight">{curr.rhythmTitle}</h2>
+              <p className="text-xs sm:text-sm font-medium text-earth-light/60 dark:text-lavender-muted/60 px-6">{curr.rhythmSub}</p>
             </div>
-            <div className="grid grid-cols-1 gap-3">
+            <div className="grid grid-cols-1 gap-3 px-2">
               {curr.rhythmOptions.map(opt => (
                 <button 
                   key={opt.id}
                   onClick={() => setRhythm(opt.id as DailyRhythm)}
-                  className={`p-6 rounded-[24px] border-2 transition-all flex justify-between items-center ${rhythm === opt.id ? 'border-teal bg-teal/[0.03] shadow-[0_0_15px_rgba(20,184,166,0.2)]' : 'border-earth/10 dark:border-white/10 bg-white dark:bg-charcoal/50 hover:border-teal/30'}`}
+                  className={`p-5 rounded-[24px] border-2 transition-all flex justify-between items-center ${rhythm === opt.id ? 'border-teal/60 bg-teal/5 shadow-sm' : 'border-earth/10 dark:border-white/10 bg-white dark:bg-charcoal/50 hover:border-teal/30'}`}
                 >
-                  <span className="text-lg font-black text-earth dark:text-ivory">{opt.label}</span>
-                  <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${rhythm === opt.id ? 'bg-teal border-teal text-white' : 'border-earth/20 dark:border-white/20'}`}>
-                    {rhythm === opt.id && <Check size={14} strokeWidth={4} />}
+                  <span className="text-base sm:text-lg font-black text-earth dark:text-ivory">{opt.label}</span>
+                  <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${rhythm === opt.id ? 'bg-teal border-teal text-white' : 'border-earth/20 dark:border-white/20'}`}>
+                    {rhythm === opt.id && <Check size={12} strokeWidth={4} />}
                   </div>
                 </button>
               ))}
@@ -379,22 +378,22 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
         return (
           <div className="space-y-10 w-full animate-in fade-in duration-700">
             <div className="text-center space-y-3">
-              <div className="w-16 h-16 bg-teal/10 rounded-2xl flex items-center justify-center mx-auto text-teal mb-6">
-                <Anchor size={30} />
+              <div className="w-16 h-16 bg-teal/10 rounded-2xl flex items-center justify-center mx-auto text-teal mb-4">
+                <Anchor size={28} />
               </div>
-              <h2 className="text-3xl font-serif font-black text-earth dark:text-ivory tracking-tight">{curr.identityTitle}</h2>
-              <p className="text-sm font-medium text-earth-light/60 dark:text-lavender-muted/60 px-6">{curr.identitySub}</p>
+              <h2 className="text-2xl sm:text-3xl font-serif font-black text-earth dark:text-ivory tracking-tight">{curr.identityTitle}</h2>
+              <p className="text-xs sm:text-sm font-medium text-earth-light/60 dark:text-lavender-muted/60 px-6">{curr.identitySub}</p>
             </div>
-            <div className="grid grid-cols-1 gap-3">
+            <div className="grid grid-cols-1 gap-3 px-2">
               {curr.identityOptions.map(opt => (
                 <button 
                   key={opt.id}
                   onClick={() => setIdentity(opt.id as IdentityAnchor)}
-                  className={`p-6 rounded-[24px] border-2 transition-all flex justify-between items-center text-left ${identity === opt.id ? 'border-teal bg-teal/[0.03] shadow-[0_0_15px_rgba(20,184,166,0.2)]' : 'border-earth/10 dark:border-white/10 bg-white dark:bg-charcoal/50 hover:border-teal/30'}`}
+                  className={`p-5 rounded-[24px] border-2 transition-all flex justify-between items-center text-left ${identity === opt.id ? 'border-teal/60 bg-teal/5 shadow-sm' : 'border-earth/10 dark:border-white/10 bg-white dark:bg-charcoal/50 hover:border-teal/30'}`}
                 >
-                  <span className="text-base font-black text-earth dark:text-ivory leading-tight">{opt.label}</span>
-                  <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 ml-4 ${identity === opt.id ? 'bg-teal border-teal text-white' : 'border-earth/20 dark:border-white/20'}`}>
-                    {identity === opt.id && <Check size={14} strokeWidth={4} />}
+                  <span className="text-sm sm:text-base font-black text-earth dark:text-ivory leading-tight">{opt.label}</span>
+                  <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 ml-4 transition-all ${identity === opt.id ? 'bg-teal border-teal text-white' : 'border-earth/20 dark:border-white/20'}`}>
+                    {identity === opt.id && <Check size={12} strokeWidth={4} />}
                   </div>
                 </button>
               ))}
@@ -406,22 +405,22 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
         return (
           <div className="space-y-10 w-full animate-in fade-in duration-700">
             <div className="text-center space-y-3">
-              <div className="w-16 h-16 bg-coral/10 rounded-2xl flex items-center justify-center mx-auto text-coral mb-6">
-                <ShieldAlert size={30} />
+              <div className="w-16 h-16 bg-coral/10 rounded-2xl flex items-center justify-center mx-auto text-coral mb-4">
+                <ShieldAlert size={28} />
               </div>
-              <h2 className="text-3xl font-serif font-black text-earth dark:text-ivory tracking-tight">{curr.blockerTitle}</h2>
-              <p className="text-sm font-medium text-earth-light/60 dark:text-lavender-muted/60 px-6">{curr.blockerSub}</p>
+              <h2 className="text-2xl sm:text-3xl font-serif font-black text-earth dark:text-ivory tracking-tight">{curr.blockerTitle}</h2>
+              <p className="text-xs sm:text-sm font-medium text-earth-light/60 dark:text-lavender-muted/60 px-6">{curr.blockerSub}</p>
             </div>
-            <div className="grid grid-cols-2 gap-4 max-w-sm mx-auto">
+            <div className="grid grid-cols-2 gap-3 max-w-sm mx-auto px-2">
               {curr.blockerOptions.map(opt => (
                 <button 
                   key={opt.id}
                   onClick={() => setBlocker(opt.id as Blocker)}
-                  className={`p-4 h-32 rounded-[24px] border-2 transition-all flex flex-col justify-between items-start text-left ${blocker === opt.id ? 'border-coral bg-coral/[0.03] shadow-[0_0_15px_rgba(255,107,107,0.2)]' : 'border-earth/10 dark:border-white/10 bg-white dark:bg-charcoal/50 hover:border-coral/30'}`}
+                  className={`p-4 h-28 sm:h-32 rounded-[24px] border-2 transition-all flex flex-col justify-between items-start text-left ${blocker === opt.id ? 'border-coral/60 bg-coral/5 shadow-sm' : 'border-earth/10 dark:border-white/10 bg-white dark:bg-charcoal/50 hover:border-coral/30'}`}
                 >
-                  <span className="text-base font-black text-earth dark:text-ivory leading-tight">{opt.label}</span>
-                  <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${blocker === opt.id ? 'bg-coral border-coral text-white' : 'border-earth/20 dark:border-white/20'}`}>
-                    {blocker === opt.id && <Check size={14} strokeWidth={4} />}
+                  <span className="text-[13px] sm:text-base font-black text-earth dark:text-ivory leading-tight">{opt.label}</span>
+                  <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${blocker === opt.id ? 'bg-coral border-coral text-white' : 'border-earth/20 dark:border-white/20'}`}>
+                    {blocker === opt.id && <Check size={12} strokeWidth={4} />}
                   </div>
                 </button>
               ))}
@@ -458,24 +457,24 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
         return (
           <div className="space-y-10 w-full animate-in fade-in duration-700">
             <div className="text-center space-y-3">
-              <div className="w-16 h-16 bg-teal/10 rounded-2xl flex items-center justify-center mx-auto text-teal mb-6">
-                <Clock size={30} />
+              <div className="w-16 h-16 bg-teal/10 rounded-2xl flex items-center justify-center mx-auto text-teal mb-4">
+                <Clock size={28} />
               </div>
-              <h2 className="text-3xl font-serif font-black text-earth dark:text-ivory tracking-tight">{curr.reminderTitle}</h2>
+              <h2 className="text-2xl sm:text-3xl font-serif font-black text-earth dark:text-ivory tracking-tight">{curr.reminderTitle}</h2>
               {curr.reminderSubtitle && (
-                <p className="text-sm font-medium text-earth-light/60 dark:text-lavender-muted/60 px-6">{curr.reminderSubtitle}</p>
+                <p className="text-xs sm:text-sm font-medium text-earth-light/60 dark:text-lavender-muted/60 px-6">{curr.reminderSubtitle}</p>
               )}
             </div>
-            <div className="grid grid-cols-1 gap-3 px-4">
+            <div className="grid grid-cols-1 gap-3 px-2">
               {curr.reminderOptions.map(opt => (
                 <button 
                   key={opt.id}
                   onClick={() => setReminder(opt.id as ReminderPreference)}
-                  className={`p-6 rounded-[24px] border-2 transition-all flex justify-between items-center ${reminder === opt.id ? 'border-teal bg-teal/[0.03] shadow-[0_0_15px_rgba(20,184,166,0.2)]' : 'border-earth/10 dark:border-white/10 bg-white dark:bg-charcoal/50 hover:border-teal/30'}`}
+                  className={`p-5 rounded-[24px] border-2 transition-all flex justify-between items-center ${reminder === opt.id ? 'border-teal/60 bg-teal/5 shadow-sm' : 'border-earth/10 dark:border-white/10 bg-white dark:bg-charcoal/50 hover:border-teal/30'}`}
                 >
-                  <span className="text-lg font-black text-earth dark:text-ivory">{opt.label}</span>
-                  <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${reminder === opt.id ? 'bg-teal border-teal text-white' : 'border-earth/20 dark:border-white/20'}`}>
-                    {reminder === opt.id && <Check size={14} strokeWidth={4} />}
+                  <span className="text-base sm:text-lg font-black text-earth dark:text-ivory">{opt.label}</span>
+                  <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${reminder === opt.id ? 'bg-teal border-teal text-white' : 'border-earth/20 dark:border-white/20'}`}>
+                    {reminder === opt.id && <Check size={12} strokeWidth={4} />}
                   </div>
                 </button>
               ))}
@@ -615,12 +614,12 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
             <button 
               onClick={next}
               disabled={isNextDisabled()}
-              className={`w-full h-16 rounded-[24px] shadow-2xl flex items-center justify-center gap-3 transition-all ${isNextDisabled() ? 'bg-earth/10 text-earth/20 dark:bg-white/5 dark:text-white/10 cursor-not-allowed' : 'bg-playful-purple text-white shadow-playful-purple/20 hover:scale-[1.02] active:scale-95'}`}
+              className={`w-full h-14 sm:h-16 rounded-[24px] shadow-lg flex items-center justify-center gap-3 transition-all ${isNextDisabled() ? 'bg-earth/10 text-earth/20 dark:bg-white/5 dark:text-white/10 cursor-not-allowed' : 'bg-playful-purple text-white hover:brightness-110 active:scale-95'}`}
             >
-              <span className="font-black uppercase tracking-widest text-lg">
+              <span className="font-black uppercase tracking-widest text-base sm:text-lg">
                 {step === 1 ? (appLanguage === 'en' ? 'Continue' : 'Continuar') : curr.continue}
               </span>
-              <ChevronRight size={20} />
+              <ChevronRight size={18} />
             </button>
             {step > 1 && (
               <button 
@@ -638,7 +637,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
           <div className="w-full pt-8">
             <button 
               onClick={handleFinish}
-              className="w-full h-16 bg-playful-purple text-white rounded-[24px] shadow-2xl shadow-playful-purple/20 flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-95 transition-all"
+              className="w-full h-16 bg-playful-purple text-white rounded-[24px] shadow-lg flex items-center justify-center gap-3 hover:brightness-110 active:scale-95 transition-all"
             >
               <span className="font-black uppercase tracking-widest text-lg">{curr.readyBtn}</span>
               <ChevronRight size={20} />
