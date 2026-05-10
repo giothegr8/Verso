@@ -442,15 +442,44 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
                     <h3 className="text-xl font-serif font-black text-earth dark:text-ivory">
                       {isEs ? selectedPath.titleEs : selectedPath.title}
                     </h3>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-col gap-3">
                       <span className="text-[10px] font-black uppercase tracking-widest text-amber-500 dark:text-amber-400">
                         {isEs ? `Día ${state.pathProgress.currentDay} de ${selectedPath.duration}` : `Day ${state.pathProgress.currentDay} of ${selectedPath.duration}`}
                       </span>
-                      <div className="h-1 w-24 bg-earth/5 dark:bg-white/5 rounded-full overflow-hidden">
-                        <div 
-                          className="h-full bg-amber-500 dark:bg-amber-400" 
-                          style={{ width: `${(state.pathProgress.currentDay / selectedPath.duration) * 100}%` }}
-                        />
+                      
+                      {/* Path Snail Trail */}
+                      <div className="flex flex-wrap items-center gap-2 pb-1">
+                        {Array.from({ length: selectedPath.duration }).map((_, i) => {
+                          const dayNum = i + 1;
+                          const isCompleted = dayNum < state.pathProgress.currentDay;
+                          const isActive = dayNum === state.pathProgress.currentDay;
+                          
+                          return (
+                            <div key={i} className="relative flex items-center justify-center">
+                              <motion.div 
+                                initial={false}
+                                animate={{
+                                  scale: isActive ? 1.2 : 1,
+                                }}
+                                className={`w-2 h-2 rounded-full transition-all duration-500 ${
+                                  isCompleted 
+                                    ? "bg-amber-500/40" 
+                                    : isActive 
+                                      ? "bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.4)]" 
+                                      : "bg-earth/10 dark:bg-white/10"
+                                }`}
+                              />
+                              {isActive && (
+                                <motion.div 
+                                  className="absolute inset-0 rounded-full bg-amber-500/40"
+                                  initial={{ opacity: 0, scale: 1 }}
+                                  animate={{ opacity: [0, 0.5, 0], scale: [1, 2.5, 3.5] }}
+                                  transition={{ duration: 2.5, repeat: Infinity, ease: "easeOut" }}
+                                />
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   </div>

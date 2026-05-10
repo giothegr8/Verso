@@ -599,9 +599,9 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
 
   return (
     <div id="cards-content" className="flex-1 flex flex-col pt-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      {/* Page Header - Refined for Consistency and Left Aligned with Card */}
-      <div className="w-full max-w-xl mx-auto px-1 mb-8 sm:mb-10">
-        <div className="flex flex-col space-y-2 sm:space-y-3 pl-5 sm:pl-9">
+      <div className="w-full max-w-4xl mx-auto px-6">
+        {/* Page Header - Refined for Consistency and Left Aligned with Card */}
+        <div className="flex flex-col space-y-2 sm:space-y-3 mb-8 sm:mb-10">
           <div className="flex items-center gap-2">
             <div className="w-2.5 h-2.5 rounded-full bg-coral animate-pulse" />
             <span className="text-[12px] sm:text-[13px] font-black uppercase tracking-[0.3em] text-coral leading-none">
@@ -619,16 +619,14 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
               : 'Test your memory with the verse reference'}
           </p>
         </div>
-      </div>
 
-      {/* Card Container - Adjusted for Breathing Room */}
-      <div className="flex flex-col items-center px-6">
-        <div className="relative w-full max-w-xl h-[680px] sm:h-[760px] lg:h-[820px] perspective-1000 mb-10">
-        <motion.div
-          className="w-full h-full preserve-3d"
-          animate={{ rotateY: isFlipped ? 180 : 0 }}
-          transition={{ type: "spring", stiffness: 260, damping: 20 }}
-        >
+        {/* Card Container - Restored to wider width with balanced height */}
+        <div className="relative w-full h-[660px] sm:h-[720px] lg:h-[780px] perspective-1000 mb-10 mx-auto">
+          <motion.div
+            className="w-full h-full preserve-3d"
+            animate={{ rotateY: isFlipped ? 180 : 0 }}
+            transition={{ type: "spring", stiffness: 260, damping: 20 }}
+          >
           {/* Front Side - Reference Recall Challenge */}
           <div 
             className="absolute inset-0 backface-hidden"
@@ -654,12 +652,12 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
                     {/* Translation Labels - Refined Palette */}
                     <div className="flex justify-center gap-4">
                       {(state.memorizeMode === 'es' || state.memorizeMode === 'both') && (
-                        <span className="text-[9px] font-black uppercase tracking-[0.1em] text-teal bg-teal/5 dark:bg-teal/10 px-3 py-1 rounded-full border border-teal/20">
+                        <span className="text-xs font-black uppercase tracking-widest text-teal bg-teal/5 dark:bg-teal/10 px-4 py-1.5 rounded-full border border-teal/20">
                           {activePair.es}
                         </span>
                       )}
                       {(state.memorizeMode === 'en' || state.memorizeMode === 'both') && (
-                        <span className="text-[9px] font-black uppercase tracking-[0.1em] text-amber-600 bg-amber-500/5 dark:bg-amber-500/10 px-3 py-1 rounded-full border border-amber-500/20">
+                        <span className="text-xs font-black uppercase tracking-widest text-amber-600 bg-amber-500/5 dark:bg-amber-500/10 px-4 py-1.5 rounded-full border border-amber-500/20">
                           {activePair.en}
                         </span>
                       )}
@@ -667,15 +665,15 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
                   </div>
 
                   {/* Middle Section - Reference Placeholder Area */}
-                  <div className="flex-1 flex flex-col justify-center items-center space-y-8 sm:space-y-14">
+                  <div className="flex-1 flex flex-col justify-center items-center space-y-10 sm:space-y-16">
                     {(state.memorizeMode === 'es' || state.memorizeMode === 'both') && (
                       <div 
-                        className="space-y-5 sm:space-y-8 w-full cursor-text flex flex-col items-center"
+                        className="space-y-6 sm:space-y-10 w-full cursor-text flex flex-col items-center"
                         onClick={(e) => { e.stopPropagation(); if (!isCorrect && attemptsLeft > 0) inputRefEs.current?.focus(); }}
                       >
                         <div className="flex items-center gap-3 opacity-60 mb-2 mt-2">
                           <div className="h-px w-8 bg-earth/20 dark:bg-white/20" />
-                          <p className="text-[11px] sm:text-[12px] font-black uppercase tracking-[0.4em] text-earth-light dark:text-parchment text-center antialiased">
+                          <p className="text-[12px] sm:text-[14px] font-black uppercase tracking-[0.4em] text-earth-light dark:text-parchment text-center antialiased">
                             {state.primaryLanguage === 'es' ? 'Cita (ES)' : 'Citation (ES)'}
                           </p>
                           <div className="h-px w-8 bg-earth/20 dark:bg-white/20" />
@@ -749,12 +747,12 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
                     
                     {(state.memorizeMode === 'en' || state.memorizeMode === 'both') && (
                       <div 
-                        className="space-y-5 sm:space-y-8 w-full cursor-text flex flex-col items-center"
+                        className="space-y-6 sm:space-y-10 w-full cursor-text flex flex-col items-center"
                         onClick={(e) => { e.stopPropagation(); if (!isCorrect && attemptsLeft > 0) inputRefEn.current?.focus(); }}
                       >
                         <div className="flex items-center gap-3 opacity-60 mb-2 mt-2">
                           <div className="h-px w-8 bg-earth/20 dark:bg-white/20" />
-                          <p className="text-[11px] sm:text-[12px] font-black uppercase tracking-[0.4em] text-earth-light dark:text-parchment text-center antialiased">
+                          <p className="text-[12px] sm:text-[14px] font-black uppercase tracking-[0.4em] text-earth-light dark:text-parchment text-center antialiased">
                             {state.primaryLanguage === 'es' ? 'Cita (EN)' : 'Citation (EN)'}
                           </p>
                           <div className="h-px w-8 bg-earth/20 dark:bg-white/20" />
@@ -852,7 +850,7 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
                         </div>
                         <button
                           onClick={() => onMemorize(verse.id)}
-                          className="bg-coral/10 text-coral border border-coral/20 px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-coral/20 transition-all active:scale-95"
+                          className="bg-coral/10 text-coral border border-coral/20 px-6 py-2 rounded-xl text-[11px] sm:text-[12px] font-black uppercase tracking-widest hover:bg-coral/20 transition-all active:scale-95"
                         >
                           {state.primaryLanguage === 'es' ? 'repasar' : 'review'}
                         </button>
@@ -879,7 +877,7 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
                         <button
                           onClick={(e) => handleClue(e, state.memorizeMode as 'es' | 'en')}
                           disabled={clueCount[state.memorizeMode as 'es' | 'en'] >= 1}
-                          className={`flex items-center justify-center gap-2 px-8 py-2.5 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all ${
+                          className={`flex items-center justify-center gap-2 px-8 py-2.5 rounded-2xl font-black text-[11px] sm:text-[12px] uppercase tracking-widest transition-all ${
                             clueCount[state.memorizeMode as 'es' | 'en'] >= 1
                               ? 'text-earth/20 dark:text-white/20 cursor-not-allowed border border-earth/10 opacity-0 pointer-events-none'
                               : 'bg-teal/10 hover:bg-teal/20 text-teal dark:text-teal-400 border border-teal/20 shadow-sm active:scale-95'
@@ -891,7 +889,7 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
                       )}
                       
                       <div className="opacity-40">
-                        <p className="text-[9px] font-bold uppercase tracking-[0.3em] text-earth-light dark:text-lavender-muted">
+                        <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.3em] text-earth-light dark:text-lavender-muted">
                           {state.primaryLanguage === 'es' ? `Intentos: ${attemptsLeft}` : `Attempts: ${attemptsLeft}`}
                         </p>
                       </div>
@@ -1014,8 +1012,8 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
         </motion.div>
       </div>
 
-      {/* External Action Area */}
-      <div className="w-full max-w-md flex flex-col items-center gap-6 mt-4 mb-20">
+      {/* External Action Area - Centered same as card */}
+      <div className="w-full max-w-4xl mx-auto flex flex-col items-center gap-6 mt-4 mb-20 px-6">
         <AnimatePresence mode="wait">
           {isCorrect ? (
             <motion.div

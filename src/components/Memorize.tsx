@@ -1000,19 +1000,19 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
   return (
     <div id="memorize-content" className="flex-1 flex flex-col pt-4 pb-12">
       {/* Top Section - Premium Header (Refined Size) */}
-      <div className="px-6 sm:px-12 mb-6 sm:mb-10 flex-shrink-0">
+      <div className="px-6 sm:px-12 mb-8 sm:mb-10 flex-shrink-0">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="space-y-1.5 sm:space-y-2">
+          <div className="space-y-2 sm:space-y-3">
             <div className="flex flex-wrap items-center gap-3">
               <div className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-gold animate-pulse" />
-                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-gold">
+                <div className="w-2.5 h-2.5 rounded-full bg-gold animate-pulse" />
+                <span className="text-[12px] sm:text-[13px] font-black uppercase tracking-[0.3em] text-gold leading-none">
                   {state.primaryLanguage === 'es' ? 'MEMORIZA' : 'MEMORIZE'}
                 </span>
               </div>
               
               {state.memorizeMode === 'both' && (
-                <span className="bg-teal/10 dark:bg-teal/20 text-[9px] font-black uppercase tracking-[0.2em] px-2.5 py-0.5 rounded-full text-teal dark:text-teal-400 border border-teal/20">
+                <span className="bg-teal/10 dark:bg-teal/20 text-[10px] sm:text-[11px] font-black uppercase tracking-[0.2em] px-3 py-1 rounded-full text-teal dark:text-teal-400 border border-teal/20">
                   {activeLanguage === 'es' 
                     ? (state.primaryLanguage === 'es' ? 'Español' : 'Spanish')
                     : (state.primaryLanguage === 'es' ? 'Inglés' : 'English')}
@@ -1028,20 +1028,20 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
               key={`${stage}-${state.primaryLanguage}`}
               initial={{ opacity: 0, y: 5 }}
               animate={{ opacity: 1, y: 0 }}
-              className="text-[12px] sm:text-[13px] font-black uppercase tracking-[0.15em] text-coral/90 leading-tight inline-block antialiased"
+              className="text-sm sm:text-base text-earth-light/70 dark:text-lavender-muted/70 font-medium tracking-tight antialiased"
             >
               {state.primaryLanguage === 'es' 
                 ? (
                   stage === 1 ? 'Léelo en voz alta, todavía no tienes que escribir' :
                   stage === 2 ? 'Léelo en voz alta una vez más' :
-                  stage === 3 ? 'RESPIRA PROFUNDO. DI LAS PALABRAS EN VOZ ALTA' :
+                  stage === 3 ? 'Respira profundo. Di las palabras en voz alta' :
                   stage === 4 ? 'Una última lectura antes de escribir' :
                   'Ahora escribe lo que recuerdas'
                 )
                 : (
                   stage === 1 ? 'Read it out loud, no typing yet' :
                   stage === 2 ? 'Read it out loud once more' :
-                  stage === 3 ? 'TAKE A BREATH. SPEAK THE WORDS OUT LOUD' :
+                  stage === 3 ? 'Take a breath. Speak the words out loud' :
                   stage === 4 ? 'One last read before you type' :
                   'Now type what you remember'
                 )
@@ -1056,62 +1056,73 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                 {state.primaryLanguage === 'es' ? 'Paso' : 'Step'}
               </span>
               <div className="flex items-baseline gap-1">
-                <span className="text-3xl sm:text-4xl font-serif font-black text-orange-500 dark:text-orange-400 lining-nums">{stage}</span>
+                <span className="text-3xl sm:text-4xl font-serif font-black text-amber-100/90 dark:text-amber-200/90 lining-nums">{stage}</span>
                 <span className="text-sm text-earth/20 dark:text-ivory/20 font-black">/ 5</span>
               </div>
             </div>
           </div>
         </div>
         
-        {/* Dotted Progress Indicator - Seed Trail / Ant Trail */}
-        <div className="w-full flex justify-center items-center py-4">
-          <div className="flex items-center justify-center gap-5 sm:gap-8 h-10">
-            {[1, 2, 3, 4, 5].map((dotIdx) => {
-              const isActive = dotIdx === stage;
-              const isCompleted = dotIdx < stage;
+        {/* Dotted Progress Indicator - Organic Seed Trail */}
+        <div className="w-full flex justify-center items-center pt-10 pb-8 overflow-hidden">
+          <div className="relative flex items-center justify-center gap-2 sm:gap-3 px-4">
+            {Array.from({ length: 21 }).map((_, i) => {
+              // Every 5th dot is a main node (0, 5, 10, 15, 20)
+              const isMainNode = i % 5 === 0;
+              const mainNodeIdx = i / 5 + 1;
+              const isCompleted = isMainNode ? mainNodeIdx < stage : (i < (stage - 1) * 5);
+              const isActive = isMainNode && mainNodeIdx === stage;
+              
+              // Organic wave pattern
+              const yOffset = Math.sin(i * 0.8) * 8;
               
               return (
-                <div key={dotIdx} className="relative flex items-center justify-center">
+                <div key={i} className="relative flex items-center justify-center">
                   <motion.div
+                    initial={false}
                     animate={{
-                      y: dotIdx % 2 === 0 ? [0, -3, 0] : [0, 3, 0],
+                      y: yOffset,
+                      scale: isActive ? 1.25 : 1,
                     }}
                     transition={{
-                      duration: 3,
-                      repeat: Infinity,
-                      ease: "easeInOut",
-                      delay: dotIdx * 0.15
+                      type: "spring",
+                      stiffness: 300,
+                      damping: 20
                     }}
-                    className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full transition-all duration-700 ${
-                      isCompleted 
-                        ? "bg-orange-500/60 shadow-[0_0_8px_rgba(249,115,22,0.2)]" 
-                        : isActive 
-                          ? "bg-orange-500 scale-125 shadow-[0_0_12px_rgba(249,115,22,0.4)]" 
-                          : "bg-earth-light/20 dark:bg-white/10"
+                    className={`rounded-full transition-all duration-700 ${
+                      isMainNode 
+                        ? `w-2.5 h-2.5 sm:w-3 sm:h-3 ${
+                            isCompleted 
+                              ? "bg-amber-500/30 dark:bg-amber-200/10 shadow-[0_0_8px_rgba(251,191,36,0.1)]" 
+                              : isActive 
+                                ? "bg-amber-100/90 dark:bg-amber-200/90 shadow-[0_0_15px_rgba(251,191,36,0.4)]" 
+                                : "bg-earth/20 dark:bg-white/10"
+                          }`
+                        : `w-1 h-1 ${
+                            isCompleted 
+                              ? "bg-amber-500/10 dark:bg-amber-100/5" 
+                              : "bg-earth-light/10 dark:bg-white/5"
+                          }`
                     }`}
                   />
                   
-                  {/* Pulse effect for active step */}
+                  {/* Subtle active pulse for current main node */}
                   {isActive && (
                     <motion.div
-                      className="absolute inset-0 rounded-full bg-orange-500"
+                      className="absolute inset-0 rounded-full bg-amber-200/40"
                       initial={{ opacity: 0, scale: 1 }}
                       animate={{ opacity: [0, 0.4, 0], scale: [1, 2.5, 3] }}
-                      transition={{ duration: 2, repeat: Infinity }}
+                      transition={{ duration: 2.5, repeat: Infinity, ease: "easeOut" }}
                     />
                   )}
-                  
-                  {/* Seed trail connector - organic wavy feel */}
-                  {dotIdx < 5 && (
-                    <div className="absolute left-[1.3rem] sm:left-[1.75rem] w-3 sm:w-5 h-[1px] bg-earth-light/10 dark:bg-white/5 overflow-hidden">
-                      {isCompleted && (
-                        <motion.div 
-                          initial={{ x: "-100%" }}
-                          animate={{ x: "0%" }}
-                          className="h-full w-full bg-orange-500/20"
-                        />
-                      )}
-                    </div>
+
+                  {/* Seed glow for completed trail */}
+                  {isCompleted && !isMainNode && i % 2 === 0 && (
+                    <motion.div 
+                      className="absolute inset-0 rounded-full bg-amber-500/5 blur-[2px]"
+                      animate={{ opacity: [0.3, 0.6, 0.3] }}
+                      transition={{ duration: 3, repeat: Infinity, delay: i * 0.1 }}
+                    />
                   )}
                 </div>
               );
