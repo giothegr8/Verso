@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from "motion/react";
 import { AppState, TRANSLATION_PAIRS, TRANSLATION_DETAILS } from "../types";
-import { Bookmark, Share2, Trash2, BookOpen, Search, Languages, Star, Heart, AlertCircle, X, Sprout, Sparkles } from "lucide-react";
-import { MOCK_VERSES } from "../constants";
+import { Bookmark, Share2, Trash2, BookOpen, Search, Languages, Star, Heart, AlertCircle, X, Sprout, Sparkles, Compass } from "lucide-react";
+import { MOCK_VERSES, PATHS } from "../constants";
 import React, { useState } from "react";
 import { handleShare } from "../utils/shareUtils";
 import { getCurrentTranslationPair, getValidatedVerse, getLocalizedBookName } from "../utils/verseUtils";
@@ -216,6 +216,44 @@ export default function Saved({ state, setState, onStartMemorizing }: SavedProps
               growthColorClass = "bg-amber-500/10 text-amber-500 border-amber-500/20";
             }
 
+            const getSourceInfo = (verseId: string) => {
+              const isEs = state.primaryLanguage === 'es';
+              
+              const verse = MOCK_VERSES.find(v => v.id === verseId);
+              if (!verse) return { label: isEs ? 'versículo' : 'verse', icon: <Compass size={10} /> };
+
+              for (const path of PATHS) {
+                if (path.verses.includes(verseId)) {
+                  return { 
+                    label: isEs ? path.titleEs.toLowerCase() : path.title.toLowerCase(), 
+                    icon: <Compass size={10} className="text-sky-blue" /> 
+                  };
+                }
+                
+                const hasMatch = path.days.some(day => {
+                  const normRef = day.reference.toLowerCase();
+                  const bookParts = verse.book.toLowerCase().split("/");
+                  const matchBook = bookParts.some(p => normRef.includes(p.trim()));
+                  const matchNum = normRef.includes(`${verse.chapter}:${verse.verse}`);
+                  return matchBook && matchNum;
+                });
+                
+                if (hasMatch) {
+                  return { 
+                    label: isEs ? path.titleEs.toLowerCase() : path.title.toLowerCase(), 
+                    icon: <Compass size={10} className="text-sky-blue" /> 
+                  };
+                }
+              }
+
+              return { 
+                label: isEs ? 'versículo del día' : 'daily verse', 
+                icon: <Sparkles size={10} className="text-amber-500" /> 
+              };
+            };
+
+            const sourceInfo = getSourceInfo(verse.id);
+
             return (
               <motion.div 
                 key={verse.id}
@@ -228,10 +266,10 @@ export default function Saved({ state, setState, onStartMemorizing }: SavedProps
                 className="card p-6 space-y-4 border border-earth/10 dark:border-white/10 bg-white dark:bg-charcoal shadow-lg relative overflow-hidden group"
               >
                 <div className="absolute top-3 left-6">
-                  <div className={`${growthColorClass} px-2 py-1 rounded-lg flex items-center gap-1.5 border shadow-sm`}>
-                    {growthIcon}
-                    <span className="text-[8px] font-black uppercase tracking-widest">
-                      {growthLabel}
+                  <div className="bg-earth/5 dark:bg-white/5 px-2.5 py-1 rounded-full flex items-center gap-1.5 border border-earth/10 dark:border-white/10 shadow-sm transition-colors group-hover:bg-earth/10 dark:group-hover:bg-white/10">
+                    {sourceInfo.icon}
+                    <span className="text-[9px] font-black uppercase tracking-widest text-earth/60 dark:text-ivory/60">
+                      {sourceInfo.label}
                     </span>
                   </div>
                 </div>

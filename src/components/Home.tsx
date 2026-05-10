@@ -365,12 +365,10 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
                   disabled={!esText && !enText}
                   className={`relative overflow-hidden group flex items-center gap-2.5 py-3 px-10 bg-teal/10 hover:bg-teal/20 text-teal dark:text-teal-400 rounded-full font-bold border border-teal/20 transition-all shadow-sm active:scale-95 ${(!esText && !enText) ? 'opacity-50 grayscale cursor-not-allowed' : ''}`}
                 >
-                  <div className="flex items-center gap-2 relative z-10">
-                    <div className="w-1.5 h-1.5 rounded-full bg-amber-500 dark:bg-amber-400 shadow-[0_0_8px_rgba(245,158,11,0.5)]" />
-                    <span className="text-sm sm:text-base tracking-tight lowercase">
-                      {state.primaryLanguage === 'es' ? 'memorizar' : 'memorize'}
-                    </span>
-                  </div>
+                  <BookOpen size={16} />
+                  <span className="text-sm sm:text-base tracking-tight lowercase">
+                    {state.primaryLanguage === 'es' ? 'memorizar' : 'memorize'}
+                  </span>
                 </button>
             </div>
           </div>
@@ -531,14 +529,12 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
                     }}
                     className="flex-1 md:flex-none flex items-center justify-center gap-2.5 py-3 px-8 bg-teal/10 hover:bg-teal/20 text-teal dark:text-teal-400 rounded-full font-bold border border-teal/20 transition-all active:scale-95 text-sm tracking-tight shadow-sm"
                   >
-                    <div className="flex items-center gap-2">
-                       <div className="w-1.5 h-1.5 rounded-full bg-amber-500 dark:bg-amber-400 shadow-[0_0_8px_rgba(245,158,11,0.5)]" />
-                       <span className="lowercase">
-                        {currentVerse.id === activePathVerse?.id 
-                          ? (isEs ? "ver el versículo" : "view the verse")
-                          : (isEs ? "ir al versículo" : "go to verse")}
-                       </span>
-                    </div>
+                    <BookOpen size={16} />
+                    <span className="lowercase">
+                    {currentVerse.id === activePathVerse?.id 
+                      ? (isEs ? "ver el versículo" : "view the verse")
+                      : (isEs ? "ir al versículo" : "go to verse")}
+                    </span>
                   </button>
                 )}
                 

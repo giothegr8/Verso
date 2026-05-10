@@ -121,17 +121,12 @@ export default function PathSelection({ state, onSelectPath, onBack }: PathSelec
         <div className="pt-8 sticky bottom-0 bg-gradient-to-t from-parchment dark:from-espresso to-transparent pb-4">
           <button
             onClick={() => onSelectPath(selectedPath.id)}
-            className="w-full relative overflow-hidden group flex items-center justify-center gap-3 py-5 px-10 bg-teal/10 dark:bg-teal/10 hover:bg-teal/20 text-teal dark:text-teal-400 rounded-[28px] font-bold border-2 border-teal/30 dark:border-teal/40 transition-all shadow-[0_0_30px_rgba(45,212,191,0.15)] active:scale-95"
+            className="w-full py-4 rounded-full bg-teal/10 hover:bg-teal/20 text-teal dark:text-teal-400 font-bold text-sm tracking-tight flex items-center justify-center gap-2.5 transition-all shadow-sm border border-teal/20 lowercase active:scale-95"
           >
-            <div className="flex items-center gap-3 relative z-10">
-              <div className="w-2.5 h-2.5 rounded-full bg-amber-500 dark:bg-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.8)]" />
-              <span className="text-xl font-serif font-black tracking-tight group-hover:tracking-wide transition-all">
-                {state.pathProgress.selectedPathId === selectedPath.id ? (isEs ? "Continuar camino" : "Continue path") : (isEs ? selectedPath.ctaEs : selectedPath.cta)}
-              </span>
-              <ChevronRight size={22} className="group-hover:translate-x-1 transition-transform" />
-            </div>
-            {/* Subtle inner glow */}
-            <div className="absolute inset-0 bg-gradient-to-b from-white/10 to-transparent pointer-events-none" />
+            <Compass size={18} />
+            <span className="tracking-tight">
+              {state.pathProgress.selectedPathId === selectedPath.id ? (isEs ? "continuar camino" : "continue path") : (state.primaryLanguage === "es" ? selectedPath.ctaEs.toLowerCase() : selectedPath.cta.toLowerCase())}
+            </span>
           </button>
         </div>
       </motion.div>
