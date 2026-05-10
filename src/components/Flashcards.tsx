@@ -599,21 +599,21 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
 
   return (
     <div id="cards-content" className="flex-1 flex flex-col pt-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      {/* Page Header - Refined for Consistency and Left Aligned */}
-      <div className="w-full px-6 sm:px-12 mb-6 sm:mb-10">
-        <div className="flex flex-col space-y-1 sm:space-y-1.5">
+      {/* Page Header - Refined for Consistency and Left Aligned with Card */}
+      <div className="w-full max-w-xl mx-auto px-1 mb-8 sm:mb-10">
+        <div className="flex flex-col space-y-2 sm:space-y-3 pl-5 sm:pl-9">
           <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-coral animate-pulse" />
-            <span className="text-[11px] sm:text-[12px] font-black uppercase tracking-[0.3em] text-coral leading-none">
+            <div className="w-2.5 h-2.5 rounded-full bg-coral animate-pulse" />
+            <span className="text-[12px] sm:text-[13px] font-black uppercase tracking-[0.3em] text-coral leading-none">
               {state.primaryLanguage === 'es' ? 'CARDS' : 'CARDS'}
             </span>
           </div>
           
-          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-serif font-black text-earth dark:text-ivory tracking-tight leading-tight">
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-serif font-black text-earth dark:text-ivory tracking-tight leading-tight">
             {state.primaryLanguage === 'es' ? 'La Cita Bíblica' : 'The Reference'}
           </h2>
           
-          <p className="text-xs sm:text-sm text-earth-light/70 dark:text-lavender-muted/70 font-medium tracking-tight">
+          <p className="text-sm sm:text-base text-earth-light/70 dark:text-lavender-muted/70 font-medium tracking-tight">
             {state.primaryLanguage === 'es' 
               ? 'Pon a prueba tu memoria con la cita bíblica' 
               : 'Test your memory with the verse reference'}

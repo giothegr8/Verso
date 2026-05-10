@@ -1020,7 +1020,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
               )}
             </div>
             
-            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-serif font-black text-earth dark:text-ivory tracking-tight leading-tight">
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-serif font-black text-earth dark:text-ivory tracking-tight leading-tight">
               {getLocalizedBookName(verse.book, activeLanguage)} {verse.chapter}:{verse.verse}
             </h2>
             
@@ -1056,36 +1056,67 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                 {state.primaryLanguage === 'es' ? 'Paso' : 'Step'}
               </span>
               <div className="flex items-baseline gap-1">
-                <span className="text-3xl sm:text-4xl font-serif font-black text-amber-500 dark:text-amber-400 lining-nums">{stage}</span>
+                <span className="text-3xl sm:text-4xl font-serif font-black text-orange-500 dark:text-orange-400 lining-nums">{stage}</span>
                 <span className="text-sm text-earth/20 dark:text-ivory/20 font-black">/ 5</span>
               </div>
             </div>
           </div>
         </div>
         
-        {/* Progress Bar - Simplified & Premium */}
-        <div className="h-1.5 w-full bg-earth/10 dark:bg-white/10 rounded-full overflow-hidden relative mt-6">
-          <motion.div 
-            className="h-full bg-teal dark:bg-teal-400 rounded-full relative"
-            initial={{ width: 0 }}
-            animate={{ width: `${(stage / 5) * 100}%` }}
-            transition={{ type: "spring", damping: 30, stiffness: 100 }}
-          />
-          
-          {/* Subtle Progress Spark */}
-          <AnimatePresence>
-            <motion.div
-              key={stage}
-              initial={{ x: `${((stage - 1) / 5) * 100}%`, opacity: 0, scale: 0 }}
-              animate={{ 
-                x: `${(stage / 5) * 100}%`, 
-                opacity: [0, 1, 0],
-                scale: [0.5, 1.5, 0.5]
-              }}
-              className="absolute top-0 bottom-0 w-4 -ml-2 bg-amber-400/50 blur-sm rounded-full z-10"
-              transition={{ duration: 0.8, ease: "easeOut" }}
-            />
-          </AnimatePresence>
+        {/* Dotted Progress Indicator - Seed Trail / Ant Trail */}
+        <div className="w-full flex justify-center items-center py-4">
+          <div className="flex items-center justify-center gap-5 sm:gap-8 h-10">
+            {[1, 2, 3, 4, 5].map((dotIdx) => {
+              const isActive = dotIdx === stage;
+              const isCompleted = dotIdx < stage;
+              
+              return (
+                <div key={dotIdx} className="relative flex items-center justify-center">
+                  <motion.div
+                    animate={{
+                      y: dotIdx % 2 === 0 ? [0, -3, 0] : [0, 3, 0],
+                    }}
+                    transition={{
+                      duration: 3,
+                      repeat: Infinity,
+                      ease: "easeInOut",
+                      delay: dotIdx * 0.15
+                    }}
+                    className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full transition-all duration-700 ${
+                      isCompleted 
+                        ? "bg-orange-500/60 shadow-[0_0_8px_rgba(249,115,22,0.2)]" 
+                        : isActive 
+                          ? "bg-orange-500 scale-125 shadow-[0_0_12px_rgba(249,115,22,0.4)]" 
+                          : "bg-earth-light/20 dark:bg-white/10"
+                    }`}
+                  />
+                  
+                  {/* Pulse effect for active step */}
+                  {isActive && (
+                    <motion.div
+                      className="absolute inset-0 rounded-full bg-orange-500"
+                      initial={{ opacity: 0, scale: 1 }}
+                      animate={{ opacity: [0, 0.4, 0], scale: [1, 2.5, 3] }}
+                      transition={{ duration: 2, repeat: Infinity }}
+                    />
+                  )}
+                  
+                  {/* Seed trail connector - organic wavy feel */}
+                  {dotIdx < 5 && (
+                    <div className="absolute left-[1.3rem] sm:left-[1.75rem] w-3 sm:w-5 h-[1px] bg-earth-light/10 dark:bg-white/5 overflow-hidden">
+                      {isCompleted && (
+                        <motion.div 
+                          initial={{ x: "-100%" }}
+                          animate={{ x: "0%" }}
+                          className="h-full w-full bg-orange-500/20"
+                        />
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
 

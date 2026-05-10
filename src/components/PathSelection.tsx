@@ -142,19 +142,19 @@ export default function PathSelection({ state, onSelectPath, onBack }: PathSelec
     <div id="paths-content" className="flex flex-col pb-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
       {/* Page Header - Refined for Consistency and Left Aligned */}
       <div className="w-full mb-8 sm:mb-12">
-        <div className="flex flex-col space-y-1 sm:space-y-1.5">
+        <div className="flex flex-col space-y-2 sm:space-y-3">
           <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-sky-blue animate-pulse" />
-            <span className="text-[11px] sm:text-[12px] font-black uppercase tracking-[0.3em] text-sky-blue leading-none">
+            <div className="w-2.5 h-2.5 rounded-full bg-sky-blue animate-pulse" />
+            <span className="text-[12px] sm:text-[13px] font-black uppercase tracking-[0.3em] text-sky-blue leading-none">
               {isEs ? 'CAMINOS' : 'PATHS'}
             </span>
           </div>
           
-          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-serif font-black text-earth dark:text-ivory tracking-tight leading-tight">
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-serif font-black text-earth dark:text-ivory tracking-tight leading-tight">
             {isEs ? 'Tu Jardín Secreto' : 'Your Secret Garden'}
           </h2>
           
-          <p className="text-xs sm:text-sm text-earth-light/70 dark:text-lavender-muted/70 font-medium tracking-tight">
+          <p className="text-sm sm:text-base text-earth-light/70 dark:text-lavender-muted/70 font-medium tracking-tight">
             {isEs 
               ? 'Elige dónde quieres crecer en tu caminar espiritual' 
               : 'Choose where you want to grow in your spiritual journey'}
@@ -180,36 +180,38 @@ export default function PathSelection({ state, onSelectPath, onBack }: PathSelec
                   : "border-earth/10 dark:border-white/10 ring-sky-blue/5 shadow-sm hover:shadow-xl hover:border-sky-blue/30"
               } rounded-[32px]`}
             >
-              {/* Selected Indicator */}
-              {isActive && (
-                <div className="absolute top-0 right-0 pt-3 pr-3">
-                  <div className="flex items-center gap-1.5 px-3 py-1 bg-teal text-white rounded-full shadow-lg shadow-teal/20 border border-white/20">
-                    <CheckCircle2 size={10} />
-                    <span className="text-[9px] font-black uppercase tracking-widest">
-                      {isEs ? "Actual" : "Current"}
-                    </span>
-                  </div>
-                </div>
-              )}
-
-              {/* Background Accent */}
-              <div className="absolute -top-4 -right-4 p-8 opacity-[0.05] group-hover:opacity-[0.1] transition-opacity">
-                <Compass size={120} className="text-sky-blue transform rotate-12" />
+              {/* Background Accent - Repositioned to sit higher and further right for artistic cropping */}
+              <div className="absolute top-6 -right-16 p-8 opacity-[0.08] group-hover:opacity-[0.12] transition-opacity pointer-events-none">
+                <Compass size={140} className="text-sky-blue transform rotate-[-12deg]" />
               </div>
 
-              <div className="flex justify-between items-start w-full mb-6">
+              <div className="flex justify-between items-start w-full mb-4 relative z-10">
                 <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${
                   isActive ? "bg-teal text-white shadow-xl shadow-teal/20 scale-110" : "bg-teal/10 text-teal group-hover:scale-110"
                 }`}>
                   <Sprout size={24} />
                 </div>
-                {!isActive && (
-                  <div className="flex items-center gap-1.5 px-3 py-1.5 bg-teal/5 dark:bg-teal/10 rounded-full border border-teal/10 dark:border-teal/20">
-                    <Clock size={12} className="text-amber-500/80 dark:text-amber-400/80" />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">
-                      {path.duration} {isEs ? "días" : "days"}
+                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-teal/5 dark:bg-teal/10 rounded-full border border-teal/10 dark:border-teal/20">
+                  <Clock size={12} className="text-amber-500/80 dark:text-amber-400/80" />
+                  <span className="text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">
+                    {path.duration} {isEs ? "días" : "days"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Current Status Badge - Independent of duration pill */}
+              <div className="mb-4 min-h-[1.5rem] relative z-10">
+                {isActive && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="flex items-center gap-1.5 px-2.5 py-1 bg-teal/10 dark:bg-teal/20 rounded-lg border border-teal/20 dark:border-teal-400/20"
+                  >
+                    <div className="w-1.5 h-1.5 rounded-full bg-teal dark:bg-teal-400 animate-pulse" />
+                    <span className="text-[9px] font-black uppercase tracking-widest text-teal dark:text-teal-400">
+                      {isEs ? "Actual" : "Current"}
                     </span>
-                  </div>
+                  </motion.div>
                 )}
               </div>
 
