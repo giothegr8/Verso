@@ -1028,22 +1028,22 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
               key={`${stage}-${state.primaryLanguage}`}
               initial={{ opacity: 0, y: 5 }}
               animate={{ opacity: 1, y: 0 }}
-              className="text-lg sm:text-xl md:text-2xl font-script text-coral leading-tight tracking-normal inline-block"
+              className="text-[12px] sm:text-[13px] font-black uppercase tracking-[0.15em] text-coral/90 leading-tight inline-block antialiased"
             >
               {state.primaryLanguage === 'es' 
                 ? (
-                  stage === 1 ? 'Léelo en voz alta. Todavía no tienes que escribir.' :
-                  stage === 2 ? 'Léelo en voz alta una vez más.' :
-                  stage === 3 ? 'Respira hondo. Mientras lo dices, suéltalo despacio.' :
-                  stage === 4 ? 'Una última lectura antes de escribirlo de memoria.' :
-                  'Ahora escribe lo que recuerdas.'
+                  stage === 1 ? 'Léelo en voz alta, todavía no tienes que escribir' :
+                  stage === 2 ? 'Léelo en voz alta una vez más' :
+                  stage === 3 ? 'RESPIRA HONDO. DI LAS PALABRAS EN VOZ ALTA' :
+                  stage === 4 ? 'Una última lectura antes de escribir' :
+                  'Ahora escribe lo que recuerdas'
                 )
                 : (
-                  stage === 1 ? 'Read it out loud. No typing just yet.' :
-                  stage === 2 ? 'Read it out loud once more.' :
-                  stage === 3 ? 'Breathe in. As you say the words, breathe out.' :
-                  stage === 4 ? 'One last read before you type from memory.' :
-                  'Now type what you remember.'
+                  stage === 1 ? 'Read it out loud, no typing yet' :
+                  stage === 2 ? 'Read it out loud once more' :
+                  stage === 3 ? 'TAKE A BREATH. SPEAK THE WORDS OUT LOUD' :
+                  stage === 4 ? 'One last read before you type' :
+                  'Now type what you remember'
                 )
               }
             </motion.p>
@@ -1217,6 +1217,20 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
 
             {/* Verse Content - ALWAYS ONE LANGUAGE AT A TIME */}
             <div className="w-full flex-1 flex flex-col items-center justify-center py-2 sm:py-6">
+              {/* Translation Label - Minimal & Elegant */}
+              <motion.div 
+                key={`${activeLanguage}-${state.selectedTranslations.es}-${state.selectedTranslations.en}`}
+                initial={{ opacity: 0, y: -5 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mb-8 flex items-center gap-3 opacity-40"
+              >
+                <div className="h-px w-6 bg-earth/30 dark:bg-white/20" />
+                <span className="text-[10px] font-black uppercase tracking-[0.4em] text-earth-light dark:text-lavender-muted">
+                  {activeLanguage === 'es' ? (activePair?.es || 'RVR1960') : (activePair?.en || 'KJV')}
+                </span>
+                <div className="h-px w-6 bg-earth/30 dark:bg-white/20" />
+              </motion.div>
+
               <div className="w-full max-w-3xl">
                 {activeLanguage === 'es' 
                   ? renderVerseContent(esText, userInputEs, 'es', true)
@@ -1311,13 +1325,13 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                 exit={{ opacity: 0, x: 20, scale: 0.8 }}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-white dark:bg-charcoal text-gold border-2 border-gold/30 flex items-center justify-center hover:bg-gold/5 hover:border-gold transition-all shadow-sm group relative"
+                className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-white dark:bg-charcoal text-playful-purple dark:text-plum border-2 border-playful-purple/30 dark:border-plum/30 flex items-center justify-center hover:bg-playful-purple/5 hover:border-playful-purple transition-all shadow-sm group relative"
                 aria-label="Back"
               >
                 <ArrowLeft size={24} strokeWidth={2.5} className="group-hover:-translate-x-0.5 transition-transform" />
                 {/* Subtle back ring */}
                 <motion.div 
-                  className="absolute inset-0 rounded-full border border-gold/10"
+                  className="absolute inset-0 rounded-full border border-playful-purple/10"
                   animate={{ scale: [1, 1.1, 1], opacity: [0.3, 0.1, 0.3] }}
                   transition={{ duration: 3, repeat: Infinity }}
                 />

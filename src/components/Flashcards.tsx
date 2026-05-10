@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { AppState } from "../types";
 import { MOCK_VERSES, getVerseByDate } from "../constants";
-import { ChevronLeft, ChevronRight, RotateCcw, Sparkles, BookOpen, Brain, HelpCircle, Trophy, Star, Bookmark, CheckCircle2, ArrowRight, Flower2, Sprout, Compass } from "lucide-react";
+import { ChevronLeft, ChevronRight, RotateCcw, Sparkles, BookOpen, Brain, HelpCircle, Trophy, Star, Bookmark, CheckCircle2, ArrowRight, Flower2, Sprout, Compass, Layers } from "lucide-react";
 import { getValidatedVerse, getCurrentTranslationPair, getLocalizedBookName, getLocalDateString, getVerseLines, removeAccents, VERSE_LAYOUT } from "../utils/verseUtils";
 import confetti from "canvas-confetti";
 
@@ -334,7 +334,7 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
                   
                   if (isPunctuation) {
                     return (
-                      <span key={i} className="w-1.5 sm:w-2 h-7 sm:h-9 flex items-center justify-center text-lg sm:text-xl font-serif font-black text-earth/40 dark:text-ivory/40 border-b-2 border-transparent leading-none">
+                      <span key={i} className="w-2 sm:w-2.5 h-8 sm:h-10 flex items-center justify-center text-xl sm:text-2xl font-serif font-black text-earth/60 dark:text-ivory/60 border-b-2 border-transparent leading-none">
                         {char}
                       </span>
                     );
@@ -361,14 +361,14 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
                     <span 
                       key={i} 
                       onClick={(e) => { e.stopPropagation(); if (fillIdx !== -1) handleCharClick(lang, fillIdx); }}
-                      className={`w-5 sm:w-6 h-10 sm:h-12 flex items-center justify-center text-xl sm:text-2xl font-serif font-black border-b-[2.5px] transition-all duration-300 leading-none cursor-text relative ${
+                      className={`w-6 sm:w-7 h-12 sm:h-14 flex items-center justify-center text-2xl sm:text-3xl font-serif font-black border-b-[3px] transition-all duration-300 leading-none cursor-text relative ${
                         isRevealedByClue || (userChar && userChar !== " ")
                           ? isWrong 
                             ? 'border-coral text-coral bg-coral/5' 
                             : isCorrect || (hasSubmitted && !isWrong)
                               ? 'border-teal text-teal'
                               : 'border-playful-purple text-playful-purple' 
-                          : 'border-earth/10 dark:border-white/10 text-transparent hover:border-earth/30'
+                          : 'border-earth/20 dark:border-white/20 text-transparent hover:border-earth/40'
                       }`}
                     >
                       {isRevealedByClue ? char : (userChar === " " ? "" : userChar)}
@@ -395,7 +395,7 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
             
             if (isPunctuation) {
               return (
-                <span key={i} className="w-2 h-8 flex items-center justify-center text-xl font-serif font-black text-earth/40 dark:text-ivory/40 border-b-2 border-transparent leading-none">
+                <span key={i} className="w-2.5 h-10 flex items-center justify-center text-2xl font-serif font-black text-earth/60 dark:text-ivory/60 border-b-2 border-transparent leading-none">
                   {char}
                 </span>
               );
@@ -420,14 +420,14 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
               <span 
                 key={i} 
                 onClick={(e) => { e.stopPropagation(); if (fillIdx !== -1) handleCharClick(lang, fillIdx); }}
-                className={`w-5 sm:w-6 h-10 flex items-center justify-center text-xl sm:text-2xl font-serif font-black border-b-[2.5px] transition-all duration-300 leading-none cursor-text relative ${
+                className={`w-6 sm:w-7 h-12 flex items-center justify-center text-2xl sm:text-3xl font-serif font-black border-b-[3px] transition-all duration-300 leading-none cursor-text relative ${
                   isRevealedByClue || (userChar && userChar !== " ")
                     ? isWrong 
                       ? 'border-coral text-coral bg-coral/5' 
                       : isCorrect || (hasSubmitted && !isWrong)
                         ? 'border-teal text-teal'
                         : 'border-playful-purple text-playful-purple' 
-                    : 'border-earth/10 dark:border-white/10 text-transparent hover:border-earth/30'
+                    : 'border-earth/20 dark:border-white/20 text-transparent hover:border-earth/40'
                 }`}
               >
                 {isRevealedByClue ? char : (userChar === " " ? "" : userChar)}
@@ -609,25 +609,32 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
   }
 
   return (
-    <div id="cards-content" className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-700 flex flex-col items-center">
-      {/* Page Header */}
-      <div className="w-full max-w-2xl text-center mb-10 sm:mb-14 px-6">
-        <div className="flex items-center justify-center gap-2 mb-2">
-          <div className="w-1.5 h-1.5 rounded-full bg-sky-blue animate-pulse" />
-          <span className="text-[10px] font-black uppercase tracking-[0.3em] text-sky-blue dark:text-sky-300">
-            {state.primaryLanguage === 'es' ? 'TARJETAS' : 'CARDS'}
-          </span>
+    <div id="cards-content" className="flex-1 flex flex-col pt-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
+      {/* Page Header - Refined for Consistency and Left Aligned */}
+      <div className="w-full px-6 sm:px-12 mb-6 sm:mb-10">
+        <div className="flex flex-col space-y-1 sm:space-y-1.5">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-coral animate-pulse" />
+            <span className="text-[11px] sm:text-[12px] font-black uppercase tracking-[0.3em] text-coral leading-none">
+              {state.primaryLanguage === 'es' ? 'CARDS' : 'CARDS'}
+            </span>
+          </div>
+          
+          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-serif font-black text-earth dark:text-ivory tracking-tight leading-tight">
+            {state.primaryLanguage === 'es' ? 'La cita bíblica' : 'The reference'}
+          </h2>
+          
+          <p className="text-xs sm:text-sm text-earth-light/70 dark:text-lavender-muted/70 font-medium tracking-tight">
+            {state.primaryLanguage === 'es' 
+              ? 'Pon a prueba tu memoria con la cita bíblica' 
+              : 'Test your memory with the verse reference'}
+          </p>
         </div>
-        <h2 className="text-3xl sm:text-4xl lg:text-5xl font-serif font-black text-earth dark:text-ivory tracking-tight leading-tight">
-          {state.primaryLanguage === 'es' ? 'Memoriza la cita' : 'Memorize the reference'}
-        </h2>
-        <p className="text-xs sm:text-sm text-earth-light/50 dark:text-lavender-muted/50 font-medium mt-3">
-          {state.primaryLanguage === 'es' ? 'Pon a prueba tu memoria con la referencia del verso.' : 'Test your memory with the verse reference.'}
-        </p>
       </div>
 
-      {/* Card Container */}
-      <div className="relative w-full max-w-lg h-[600px] sm:h-[640px] lg:h-[700px] perspective-1000 mb-10">
+      {/* Card Container - Adjusted for Breathing Room */}
+      <div className="flex flex-col items-center px-6">
+        <div className="relative w-full max-w-xl h-[620px] sm:h-[660px] lg:h-[720px] perspective-1000 mb-10">
         <motion.div
           className="w-full h-full preserve-3d"
           animate={{ rotateY: isFlipped ? 180 : 0 }}
@@ -648,41 +655,41 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
                 <div className="flex-1 flex flex-col p-6 sm:p-10 justify-between h-full">
                   {/* Top Section */}
                   <div className="space-y-6 pt-2">
-                    {/* Top Icon/Badge */}
+                    {/* Top Icon/Badge - Using correct Layers icon */}
                     <div className="flex justify-center">
-                      <div className="w-10 h-10 sm:w-12 sm:h-12 bg-earth/5 dark:bg-white/5 rounded-2xl flex items-center justify-center text-earth-light/40 dark:text-ivory/30">
-                        <Compass size={20} className="sm:w-6 sm:h-6" />
+                      <div className="w-12 h-12 sm:w-14 sm:h-14 bg-earth/5 dark:bg-white/5 rounded-2xl flex items-center justify-center text-earth-light/60 dark:text-ivory/50">
+                        <Layers size={24} className="sm:w-7 sm:h-7" />
                       </div>
                     </div>
 
-                    {/* Translation Labels */}
+                    {/* Translation Labels - Refined Palette */}
                     <div className="flex justify-center gap-4">
                       {(state.memorizeMode === 'es' || state.memorizeMode === 'both') && (
-                        <span className="text-[10px] font-black uppercase tracking-tighter text-playful-purple bg-playful-purple/10 dark:bg-plum/20 px-2 py-0.5 rounded border border-playful-purple/20 dark:border-plum/30">
+                        <span className="text-[9px] font-black uppercase tracking-[0.1em] text-teal bg-teal/5 dark:bg-teal/10 px-3 py-1 rounded-full border border-teal/20">
                           {activePair.es}
                         </span>
                       )}
                       {(state.memorizeMode === 'en' || state.memorizeMode === 'both') && (
-                        <span className="text-[10px] font-black uppercase tracking-tighter text-golden bg-golden/10 dark:bg-gold/20 px-2 py-0.5 rounded border border-golden/20 dark:border-gold/30">
+                        <span className="text-[9px] font-black uppercase tracking-[0.1em] text-amber-600 bg-amber-500/5 dark:bg-amber-500/10 px-3 py-1 rounded-full border border-amber-500/20">
                           {activePair.en}
                         </span>
                       )}
                     </div>
                   </div>
 
-                  {/* Middle Section - Reference Placeholder Area */}
-                  <div className="flex-1 flex flex-col justify-center items-center space-y-8 sm:space-y-16">
+                    {/* Middle Section - Reference Placeholder Area */}
+                  <div className="flex-1 flex flex-col justify-center items-center space-y-10 sm:space-y-20">
                     {(state.memorizeMode === 'es' || state.memorizeMode === 'both') && (
                       <div 
-                        className="space-y-4 sm:space-y-6 w-full cursor-text flex flex-col items-center"
+                        className="space-y-5 sm:space-y-8 w-full cursor-text flex flex-col items-center"
                         onClick={(e) => { e.stopPropagation(); if (!isCorrect && attemptsLeft > 0) inputRefEs.current?.focus(); }}
                       >
-                        <div className="flex items-center gap-3 opacity-30 mb-2 mt-2">
-                          <div className="h-px w-6 bg-earth/50 dark:bg-white/50" />
-                          <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.3em] text-earth-light dark:text-lavender-muted text-center">
+                        <div className="flex items-center gap-3 opacity-60 mb-2 mt-2">
+                          <div className="h-px w-8 bg-earth/20 dark:bg-white/20" />
+                          <p className="text-[11px] sm:text-[12px] font-black uppercase tracking-[0.4em] text-earth-light dark:text-parchment text-center antialiased">
                             {state.primaryLanguage === 'es' ? 'Cita (ES)' : 'Citation (ES)'}
                           </p>
-                          <div className="h-px w-6 bg-earth/50 dark:bg-white/50" />
+                          <div className="h-px w-8 bg-earth/20 dark:bg-white/20" />
                           
                           {/* Language-specific clue button */}
                           {attemptsLeft > 0 && !isCorrect && (
@@ -753,15 +760,15 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
                     
                     {(state.memorizeMode === 'en' || state.memorizeMode === 'both') && (
                       <div 
-                        className="space-y-4 sm:space-y-5 w-full cursor-text flex flex-col items-center"
+                        className="space-y-5 sm:space-y-8 w-full cursor-text flex flex-col items-center"
                         onClick={(e) => { e.stopPropagation(); if (!isCorrect && attemptsLeft > 0) inputRefEn.current?.focus(); }}
                       >
-                        <div className="flex items-center gap-3 opacity-30 mb-2 mt-2">
-                          <div className="h-px w-6 bg-earth/50 dark:bg-white/50" />
-                          <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.3em] text-earth-light dark:text-lavender-muted text-center">
+                        <div className="flex items-center gap-3 opacity-60 mb-2 mt-2">
+                          <div className="h-px w-8 bg-earth/20 dark:bg-white/20" />
+                          <p className="text-[11px] sm:text-[12px] font-black uppercase tracking-[0.4em] text-earth-light dark:text-parchment text-center antialiased">
                             {state.primaryLanguage === 'es' ? 'Cita (EN)' : 'Citation (EN)'}
                           </p>
-                          <div className="h-px w-6 bg-earth/50 dark:bg-white/50" />
+                          <div className="h-px w-8 bg-earth/20 dark:bg-white/20" />
                           
                           {/* Language-specific clue button */}
                           {attemptsLeft > 0 && !isCorrect && (
@@ -876,9 +883,9 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
                   </div>
 
                   {/* Bottom Section - Integrated Controls */}
-                  <div className="flex flex-col items-center gap-4 pb-6 pt-4 border-t border-earth/5 dark:border-white/5 mt-auto">
+                  <div className="flex flex-col items-center gap-4 pb-10 pt-4 mt-auto">
                     {/* Compact Clue Button and Attempts */}
-                    <div className="flex flex-col items-center gap-4 w-full">
+                    <div className="flex flex-col items-center gap-6 w-full">
                       {attemptsLeft > 0 && !isCorrect && state.memorizeMode !== 'both' && (
                         <button
                           onClick={(e) => handleClue(e, state.memorizeMode as 'es' | 'en')}
@@ -894,12 +901,10 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
                         </button>
                       )}
                       
-                      <div className="flex items-center gap-3 opacity-60">
-                        <div className="h-px w-4 bg-earth/10 dark:bg-white/10" />
-                        <p className="text-[9px] font-black uppercase tracking-[0.2em] text-earth-light/60 dark:text-lavender-muted/50">
+                      <div className="opacity-40">
+                        <p className="text-[9px] font-bold uppercase tracking-[0.3em] text-earth-light dark:text-lavender-muted">
                           {state.primaryLanguage === 'es' ? `Intentos: ${attemptsLeft}` : `Attempts: ${attemptsLeft}`}
                         </p>
-                        <div className="h-px w-4 bg-earth/10 dark:bg-white/10" />
                       </div>
                     </div>
                   </div>
@@ -1081,5 +1086,6 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
         </AnimatePresence>
       </div>
     </div>
-  );
+  </div>
+);
 }
