@@ -1,22 +1,22 @@
 import React from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { X, Download, Share2, Sparkles, BookOpen } from "lucide-react";
-import { AppState, TRANSLATION_DETAILS } from "../types";
-import { getCurrentTranslationPair, getLocalizedBookName } from "../utils/verseUtils";
+import { AppState, TRANSLATION_DETAILS, Verse } from "../types";
+import { getCurrentTranslationPair, getLocalizedBookName, getValidatedVerse } from "../utils/verseUtils";
 import VersoLogo from "./VersoLogo";
 
 interface ShareModalProps {
   isOpen: boolean;
   onClose: () => void;
-  verse: any;
+  verse: Verse;
   state: AppState;
   onNativeShare: (elementId: string) => void;
 }
 
 export default function ShareModal({ isOpen, onClose, verse, state, onNativeShare }: ShareModalProps) {
-  const activePair = getCurrentTranslationPair(state);
-  const esDetail = TRANSLATION_DETAILS[activePair?.es || "RVR1960"] || TRANSLATION_DETAILS["RVR1960"];
-  const enDetail = TRANSLATION_DETAILS[activePair?.en || "KJV"] || TRANSLATION_DETAILS["KJV"];
+  const { esText, enText, esError, enError, activePair } = getValidatedVerse(verse, state);
+  const esDetail = TRANSLATION_DETAILS[activePair.es];
+  const enDetail = TRANSLATION_DETAILS[activePair.en];
 
   if (!verse) return null;
 
@@ -77,7 +77,7 @@ export default function ShareModal({ isOpen, onClose, verse, state, onNativeShar
                           {esDetail.name}
                         </span>
                         <p className="text-lg sm:text-2xl font-serif leading-relaxed text-ivory font-medium">
-                          {verse.textEs || verse.text}
+                          {esText || esError || (state.primaryLanguage === 'es' ? 'Texto no disponible' : 'Text unavailable')}
                         </p>
                       </div>
                     )}
@@ -92,7 +92,7 @@ export default function ShareModal({ isOpen, onClose, verse, state, onNativeShar
                           {enDetail.name}
                         </span>
                         <p className="text-lg sm:text-2xl font-serif leading-relaxed text-ivory font-medium">
-                          {verse.textEn || verse.text}
+                          {enText || enError || (state.primaryLanguage === 'en' ? 'Text unavailable' : 'Texto no disponible')}
                         </p>
                       </div>
                     )}

@@ -10,7 +10,16 @@ export function getCurrentTranslationPair(state: AppState): TranslationPair {
 /**
  * Validates if a verse has the required text for a specific translation.
  */
-export function validateVerseTranslation(verse: Verse, lang: "es" | "en", translation: Translation): { isValid: boolean; error?: string } {
+export function validateVerseTranslation(verse: Verse | null, lang: "es" | "en", translation: Translation): { isValid: boolean; error?: string } {
+  if (!verse || !verse.text || !verse.text[lang]) {
+    return { 
+      isValid: false, 
+      error: lang === "es" 
+        ? "Texto no disponible." 
+        : "Text unavailable." 
+    };
+  }
+  
   const text = verse.text[lang][translation];
   if (!text || text.trim() === "") {
     return { 
@@ -39,15 +48,38 @@ export function getSafeVerseText(verse: Verse, lang: "es" | "en", translation: T
  * Rebuilds a verse object or ensures it's fresh for the current translations.
  * (In this mock setup, it mostly serves as a validation layer)
  */
-export function getValidatedVerse(verse: Verse, state: AppState): { 
+export function getValidatedVerse(verse: Verse | null, state: AppState): { 
   esText: string | null; 
   enText: string | null; 
   esError?: string; 
   enError?: string;
   activePair: TranslationPair;
 } {
-  const activePair = getCurrentTranslationPair(state);
+  const baseActivePair = getCurrentTranslationPair(state);
   
+  if (!verse) {
+    return {
+      esText: null,
+      enText: null,
+      esError: state.primaryLanguage === 'es' ? 'Versículo no disponible' : 'Verse unavailable',
+      enError: state.primaryLanguage === 'en' ? 'Verse unavailable' : 'Versículo no disponible',
+      activePair: baseActivePair
+    };
+  }
+
+  // Handle translation override for custom verses (Part 8)
+  const activePair = { ...baseActivePair };
+  if (verse.source === "custom" && verse.preferredTranslation) {
+    const pref = verse.preferredTranslation;
+    // Check if preferred translation is Spanish or English set
+    const isEsTrans = ["RVR1960", "NVI", "NBLA"].includes(pref);
+    if (isEsTrans) {
+      activePair.es = pref;
+    } else {
+      activePair.en = pref;
+    }
+  }
+
   const esResult = (state.memorizeMode === 'es' || state.memorizeMode === 'both') 
     ? validateVerseTranslation(verse, "es", activePair.es)
     : { isValid: false };

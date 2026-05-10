@@ -70,7 +70,10 @@ const INITIAL_STATE: AppState = {
   onboarded: false,
   hasCompletedTour: false,
   savedVerses: [],
+  customVerses: [],
   selectedVerseId: null,
+  selectedCustomVerse: null,
+  activeSource: "daily",
   recentVerseIds: [],
   lastVotdDate: getLocalDateString(),
   progress: {
@@ -138,6 +141,9 @@ export default function App() {
 
         // Initialize new fields
         if (!merged.recentVerseIds) merged.recentVerseIds = [];
+        if (!merged.customVerses) merged.customVerses = [];
+        if (merged.activeSource === undefined) merged.activeSource = "daily";
+        if (merged.selectedCustomVerse === undefined) merged.selectedCustomVerse = null;
         if (!merged.onboardingProfile) merged.onboardingProfile = {};
         if (merged.hasCompletedTour === undefined) merged.hasCompletedTour = false;
         if (!merged.pathProgress) {
@@ -297,10 +303,11 @@ export default function App() {
     }));
   }, [state.selectedTranslations.es, state.selectedTranslations.en, state.memorizeMode]);
 
-  const startMemorizing = (verseId: string) => {
+  const startMemorizing = (verseId: string, source: "daily" | "path" | "custom" | "extra" | "saved" = "daily") => {
     setState(s => ({ 
       ...s, 
       selectedVerseId: verseId,
+      activeSource: source,
       progress: {
         ...s.progress,
         verseStages: {
@@ -415,7 +422,7 @@ export default function App() {
         <Home 
           state={state} 
           setState={setState} 
-          onStartMemorizing={startMemorizing} 
+          onStartMemorizing={(id) => startMemorizing(id, state.activeSource)} 
           onGetAnotherVerse={getAnotherVerse} 
           onGoToSaved={() => setActiveTab('saved')} 
           onGoToPaths={() => setActiveTab('paths')}
@@ -445,11 +452,11 @@ export default function App() {
         <Flashcards 
           state={state} 
           setState={setState} 
-          onMemorize={startMemorizing} 
+          onMemorize={(id) => startMemorizing(id, state.activeSource)} 
           onGoToSaved={() => setActiveTab("saved")}
         />
       );
-      case "saved": return <Saved state={state} setState={setState} onStartMemorizing={startMemorizing} />;
+      case "saved": return <Saved state={state} setState={setState} onStartMemorizing={(id, src) => startMemorizing(id, src || "saved")} />;
       default: return (
         <Home 
           state={state} 

@@ -1,14 +1,15 @@
 import { motion } from "motion/react";
-import { AppState, TRANSLATION_PAIRS, TRANSLATION_DETAILS } from "../types";
+import { AppState, TRANSLATION_PAIRS, TRANSLATION_DETAILS, Verse, Translation } from "../types";
 import { MOCK_VERSES, getVerseByDate } from "../constants";
 import { getVerseText, getFallbackMessage } from "../utils/verseProvider";
-import { Globe, Play, Flame, Trophy, Sparkles, Languages, BookOpen, History, AlertCircle, Share2, Star, X, Sprout, Compass, ChevronRight, CheckCircle2 } from "lucide-react";
+import { Globe, Play, Flame, Trophy, Sparkles, Languages, BookOpen, History, AlertCircle, Share2, Star, X, Sprout, Compass, ChevronRight, CheckCircle2, Search, Loader2 } from "lucide-react";
 import React, { useState } from "react";
 import { getCurrentTranslationPair, getValidatedVerse, getLocalizedBookName, getLocalDateString, VERSE_LAYOUT } from "../utils/verseUtils";
 import { handleShare } from "../utils/shareUtils";
 import { AnimatePresence } from "motion/react";
 import ShareModal from "./ShareModal";
 import { PATHS } from "../constants";
+import { searchVerse } from "../services/bibleService";
 
 interface HomeProps {
   state: AppState;
@@ -25,7 +26,86 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
   const [toastMessage, setToastMessage] = useState("");
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isQuickSwitchOpen, setIsQuickSwitchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResult, setSearchResult] = useState<Verse | null>(null);
+  const [isSearching, setIsSearching] = useState(false);
+  const [lookupError, setLookupError] = useState<string | null>(null);
+  const [searchTranslation, setSearchTranslation] = useState<Translation | "">("");
   const isEs = state.primaryLanguage === "es";
+
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) {
+      setLookupError(isEs ? "Escribe una cita bíblica primero." : "Enter a Bible reference first.");
+      setSearchResult(null);
+      return;
+    }
+    
+    setIsSearching(true);
+    setLookupError(null);
+    setSearchResult(null);
+    
+    try {
+      const translation = searchTranslation || (isEs ? state.selectedTranslations.es : state.selectedTranslations.en);
+      const result = await searchVerse(searchQuery, translation as Translation);
+      
+      if (result) {
+        setSearchResult(result);
+        setLookupError(null);
+      } else {
+        setLookupError(isEs ? "Versículo no encontrado. Prueba 'Juan 3:16'." : "Verse not found. Try 'John 3:16'.");
+        setSearchResult(null);
+      }
+    } catch (e) {
+      setLookupError(isEs ? "Error al buscar." : "Error searching.");
+      setSearchResult(null);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const onSelectCustomVerse = () => {
+    if (searchResult) {
+      const translation = searchTranslation || (isEs ? state.selectedTranslations.es : state.selectedTranslations.en);
+      
+      // Part 8: Check if it matches an existing mock verse by address for normalization
+      const matchingMock = MOCK_VERSES.find(v => {
+        const bookMatch = v.book.toLowerCase().includes(searchResult.book.toLowerCase()) || 
+                          searchResult.book.toLowerCase().includes(v.book.toLowerCase().split(' / ')[0].toLowerCase());
+        return bookMatch && v.chapter === searchResult.chapter && v.verse === searchResult.verse;
+      });
+
+      // Use a stable ID that includes translation for custom verses, 
+      // but prioritize the mock ID if it's a match for recognition
+      const baseId = matchingMock ? matchingMock.id : searchResult.id;
+      const stableId = baseId.includes('-') && !baseId.startsWith('custom-') 
+        ? `${baseId}-${translation}` 
+        : (baseId.startsWith('custom-') ? baseId : `custom-${baseId}-${translation}`);
+      
+      const verseWithMeta: Verse = {
+        ...(matchingMock || searchResult),
+        id: stableId,
+        source: "custom",
+        addedAt: new Date().toISOString(),
+        preferredTranslation: translation as Translation
+      };
+      
+      setState(s => ({ 
+        ...s, 
+        activeSource: "custom",
+        selectedCustomVerse: verseWithMeta,
+        // Also add to customVerses list for library/saved view if not exists
+        customVerses: s.customVerses.some(v => v.id === verseWithMeta.id) 
+          ? s.customVerses 
+          : [...s.customVerses, verseWithMeta]
+      }));
+      
+      setSearchResult(null);
+      setSearchQuery("");
+      
+      // Scroll to top to see the selected verse
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
 
   const activePair = getCurrentTranslationPair(state);
   
@@ -35,11 +115,25 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
   const today = getLocalDateString();
   const votd = getVerseByDate(today);
 
-  const currentVerse = state.selectedVerseId 
-    ? (MOCK_VERSES.find(v => v.id === state.selectedVerseId) || votd)
-    : votd;
+  // Unified Active Verse Logic (Part 5)
+  let currentVerse: Verse;
+  switch (state.activeSource) {
+    case "custom":
+      currentVerse = state.selectedCustomVerse || votd;
+      break;
+    case "path":
+    case "extra":
+    case "saved":
+      currentVerse = (state.selectedVerseId 
+        ? (MOCK_VERSES.find(v => v.id === state.selectedVerseId) || state.customVerses.find(v => v.id === state.selectedVerseId))
+        : null) || votd;
+      break;
+    default:
+      currentVerse = votd;
+  }
 
-  const isVotd = currentVerse.id === votd.id;
+  const isCustomMode = state.activeSource === "custom";
+  const isVotd = currentVerse.id === votd.id && !isCustomMode;
 
   const { esText, enText, esError, enError } = getValidatedVerse(currentVerse, state);
 
@@ -96,11 +190,7 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
       <ShareModal 
         isOpen={isShareModalOpen}
         onClose={() => setIsShareModalOpen(false)}
-        verse={{
-          ...currentVerse,
-          textEs: esText,
-          textEn: enText
-        }}
+        verse={currentVerse}
         state={state}
         onNativeShare={onNativeShare}
       />
@@ -258,11 +348,13 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
           <div className="flex items-center gap-2">
             <Sparkles size={16} className="text-amber-500 dark:text-amber-400" />
             <h2 className="text-xs font-black uppercase tracking-[0.2em] text-earth-light dark:text-lavender-muted">
-              {currentVerse.id === activePathVerse?.id 
-                ? (isEs ? "Versículo del camino" : "Today's Path Verse")
-                : (isVotd 
-                  ? (isEs ? "Versículo del día" : "Verse of the Day")
-                  : (isEs ? "Versículo extra" : "Extra Verse"))}
+              {isCustomMode
+                ? (isEs ? "Tu propio versículo" : "Custom Verse")
+                : (currentVerse.id === activePathVerse?.id 
+                  ? (isEs ? "Versículo del camino" : "Today's Path Verse")
+                  : (isVotd 
+                    ? (isEs ? "Versículo del día" : "Verse of the Day")
+                    : (isEs ? "Versículo extra" : "Extra Verse")))}
             </h2>
           </div>
           
@@ -271,12 +363,20 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
               {state.primaryLanguage === 'es' ? '1 versículo al día' : '1 verse a day'}
             </span>
             <button 
-              onClick={isVotd ? onGetAnotherVerse : () => setState(s => ({ ...s, selectedVerseId: null }))}
+              onClick={() => {
+                if (isCustomMode) {
+                  setState(s => ({ ...s, activeSource: "daily" }));
+                } else if (isVotd) {
+                  onGetAnotherVerse();
+                } else {
+                  setState(s => ({ ...s, selectedVerseId: null, activeSource: "daily" }));
+                }
+              }}
               className="text-[10px] font-black uppercase tracking-widest text-playful-purple hover:underline transition-all active:scale-95"
             >
-              {isVotd 
-                ? (state.primaryLanguage === 'es' ? 'OTRO VERSÍCULO' : 'ANOTHER VERSE') 
-                : (state.primaryLanguage === 'es' ? 'VOLVER AL DIARIO' : 'BACK TO DAILY')}
+              {isCustomMode || !isVotd
+                ? (state.primaryLanguage === 'es' ? 'VOLVER AL DIARIO' : 'BACK TO DAILY')
+                : (state.primaryLanguage === 'es' ? 'OTRO VERSÍCULO' : 'ANOTHER VERSE')}
             </button>
           </div>
         </div>
@@ -349,9 +449,11 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
                   {getLocalizedBookName(currentVerse.book, state.memorizeMode)} {currentVerse.chapter}:{currentVerse.verse}
                 </h3>
                 <p className="text-[10px] font-black uppercase tracking-widest text-earth-light/60 dark:text-lavender-muted/60">
-                  {isVotd 
-                    ? (state.primaryLanguage === 'es' ? 'Agregado hoy' : 'Added today')
-                    : (state.primaryLanguage === 'es' ? 'Versículo extra' : 'Extra verse')}
+                  {isCustomMode
+                    ? (state.primaryLanguage === 'es' ? 'Tu búsqueda' : 'Your search')
+                    : (isVotd 
+                      ? (state.primaryLanguage === 'es' ? 'Agregado hoy' : 'Added today')
+                      : (state.primaryLanguage === 'es' ? 'Versículo extra' : 'Extra verse'))}
                 </p>
               </div>
                 <button 
@@ -424,11 +526,11 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
             <div className="relative flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
               <div className="flex-1 space-y-4">
                   <div className="space-y-1">
-                    <h3 className="text-xl font-serif font-black text-earth dark:text-ivory">
+                    <h3 className="text-2xl font-serif font-black text-earth dark:text-ivory tracking-tight">
                       {isEs ? selectedPath.titleEs : selectedPath.title}
                     </h3>
                     <div className="flex flex-col gap-3">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-amber-500 dark:text-amber-400">
+                      <span className="text-[11px] font-black uppercase tracking-[0.1em] text-amber-500 dark:text-amber-400">
                         {isEs ? `Día ${state.pathProgress.currentDay} de ${selectedPath.duration}` : `Day ${state.pathProgress.currentDay} of ${selectedPath.duration}`}
                       </span>
                       
@@ -510,7 +612,7 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
                            el?.scrollIntoView({ behavior: 'smooth' });
                          } else {
                            // Set as active verse and scroll
-                           setState(s => ({ ...s, selectedVerseId: activePathVerse.id }));
+                           setState(s => ({ ...s, selectedVerseId: activePathVerse.id, activeSource: "path" }));
                          }
                       }
                     }}
@@ -540,6 +642,129 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
         )}
       </div>
 
+      {/* Custom Verse Selection */}
+      <div className="space-y-6 pt-4">
+        <div className="flex items-center gap-2 px-1">
+          <BookOpen size={16} className="text-playful-purple" />
+          <h2 className="text-xs font-black uppercase tracking-[0.2em] text-earth-light dark:text-lavender-muted">
+            {isEs ? "ELIGE TU PROPIO VERSÍCULO" : "CHOOSE YOUR OWN VERSE"}
+          </h2>
+        </div>
+
+        <motion.div 
+          whileHover={{ scale: 1.01 }}
+          className="card bg-white dark:bg-charcoal p-8 shadow-xl border border-earth/10 dark:border-white/10 relative overflow-hidden group"
+        >
+          {/* Subtle Accent Glow */}
+          <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-playful-purple/30 to-transparent" />
+          
+          <div className="relative space-y-6">
+            <div className="space-y-1">
+              <h3 className="text-2xl font-serif font-black text-earth dark:text-ivory tracking-tight">
+                {isEs ? "Memoriza tu propio versículo" : "Memorize your own verse"}
+              </h3>
+              <p className="text-sm font-medium text-earth-light/70 dark:text-lavender-muted/70">
+                {isEs ? "Busca un pasaje y memorízalo hoy." : "Search for a passage and memorize it today."}
+              </p>
+            </div>
+
+            <div className="space-y-5">
+              {/* Translation Selection Pills */}
+              <div className="flex flex-wrap gap-2">
+                {(isEs ? ['RVR1960', 'NVI', 'NBLA'] : ['KJV', 'NIV', 'NASB']).map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => setSearchTranslation(t as Translation)}
+                    className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border ${
+                      (searchTranslation === t || (!searchTranslation && (isEs ? state.selectedTranslations.es : state.selectedTranslations.en) === t))
+                        ? "bg-playful-purple text-white border-playful-purple"
+                        : "bg-earth/5 dark:bg-white/5 text-earth/40 dark:text-ivory/40 border-earth/10 dark:border-white/10 hover:border-playful-purple/30"
+                    }`}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+
+              <div className="relative">
+                <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-earth-light/40">
+                  <Search size={18} />
+                </div>
+                <input 
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    if (searchResult) setSearchResult(null);
+                  }}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                  placeholder={isEs ? "Juan 3:16" : "John 3:16"}
+                  className="w-full bg-earth/5 dark:bg-white/5 border border-earth/10 dark:border-white/10 rounded-2xl py-3.5 pl-12 pr-4 text-earth dark:text-ivory font-bold focus:outline-none focus:ring-2 focus:ring-playful-purple/20 transition-all placeholder:text-earth-light/20 dark:placeholder:text-lavender-muted/20"
+                />
+                {isSearching && (
+                  <div className="absolute inset-y-0 right-4 flex items-center">
+                    <Loader2 size={18} className="animate-spin text-playful-purple" />
+                  </div>
+                )}
+              </div>
+
+              {lookupError && (
+                <motion.div 
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="p-3 rounded-xl bg-coral/10 border border-coral/20 flex items-center gap-2 text-[11px] font-bold text-coral"
+                >
+                  <AlertCircle size={14} />
+                  <span>{lookupError}</span>
+                </motion.div>
+              )}
+
+              {searchResult && (
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="p-5 rounded-2xl bg-playful-purple/5 border border-playful-purple/10 space-y-3"
+                >
+                  <div className="flex justify-between items-start">
+                    <div className="space-y-1">
+                      <h4 className="text-lg font-serif font-black text-earth dark:text-ivory">
+                        {getLocalizedBookName(searchResult.book, state.memorizeMode)} {searchResult.chapter}:{searchResult.verse}
+                      </h4>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-playful-purple/60">
+                        {isEs ? "Versículo encontrado" : "Verse found"}
+                      </p>
+                    </div>
+                    <button 
+                      onClick={() => setSearchResult(null)}
+                      className="text-earth-light/40 hover:text-coral transition-colors"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                  
+                  <button 
+                    onClick={onSelectCustomVerse}
+                    className="w-full py-4 rounded-full bg-teal/10 hover:bg-teal/20 text-teal dark:text-teal-400 font-bold text-sm tracking-tight flex items-center justify-center gap-2.5 transition-all shadow-sm border border-teal/20 active:scale-95 lowercase"
+                  >
+                    <BookOpen size={16} className="text-teal" />
+                    <span>{isEs ? "seleccionar versículo" : "select verse"}</span>
+                  </button>
+                </motion.div>
+              )}
+
+              {!searchResult && !isSearching && (
+                 <button 
+                  onClick={handleSearch}
+                  disabled={!searchQuery.trim()}
+                  className="w-full py-4 rounded-full bg-earth/5 hover:bg-earth/10 dark:bg-white/5 dark:hover:bg-white/10 text-earth-light/60 dark:text-lavender-muted/60 font-bold text-sm tracking-tight transition-all border border-earth/10 dark:border-white/10 active:scale-95 disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed lowercase"
+                >
+                  {isEs ? "buscar versículo" : "search verse"}
+                </button>
+              )}
+            </div>
+          </div>
+        </motion.div>
+      </div>
 
     </motion.div>
   );

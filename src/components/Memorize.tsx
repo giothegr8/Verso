@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { AppState, TRANSLATION_PAIRS, TRANSLATION_DETAILS } from "../types";
+import { AppState, TRANSLATION_PAIRS, TRANSLATION_DETAILS, Verse } from "../types";
 import { MOCK_VERSES, getVerseByDate } from "../constants";
 import { CheckCircle2, RotateCcw, Eye, EyeOff, ArrowRight, ArrowLeft, Star, Trophy, Languages, Sparkles, AlertCircle, Bookmark, Layers, MessageCircle, BookOpen, Sprout } from "lucide-react";
 import React from "react";
@@ -27,9 +27,17 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
   const today = getLocalDateString();
   const votd = getVerseByDate(today);
   
-  const verse = state.selectedVerseId 
-    ? (MOCK_VERSES.find(v => v.id === state.selectedVerseId) || votd)
-    : votd;
+  // Unified Active Verse Logic
+  let verse: Verse;
+  if (state.activeSource === "custom" && state.selectedCustomVerse) {
+    verse = state.selectedCustomVerse;
+  } else if (state.selectedVerseId) {
+    verse = (MOCK_VERSES.find(v => v.id === state.selectedVerseId) || 
+             state.customVerses.find(v => v.id === state.selectedVerseId) || 
+             votd);
+  } else {
+    verse = votd;
+  }
 
   const [stage, setStage] = useState(() => state.progress.verseStages[verse.id] || 1);
   const [isRevealed, setIsRevealed] = useState(false);

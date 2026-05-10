@@ -39,6 +39,9 @@ export interface Verse {
     en: Record<Translation, string>;
     es: Record<Translation, string>;
   };
+  source?: "daily" | "path" | "custom";
+  addedAt?: string; // ISO date string
+  preferredTranslation?: Translation; // Used for custom verse overrides
 }
 
 export interface UserProgress {
@@ -105,6 +108,8 @@ export interface ReminderSettings {
   timezone: string;
 }
 
+export type ActiveVerseSource = "daily" | "extra" | "path" | "custom" | "saved";
+
 export interface AppState {
   primaryLanguage: "es" | "en";
   memorizeMode: LanguageMode;
@@ -113,7 +118,10 @@ export interface AppState {
   onboarded: boolean;
   hasCompletedTour: boolean;
   savedVerses: string[]; // IDs
+  customVerses: Verse[]; // User-added verses
   selectedVerseId: string | null;
+  selectedCustomVerse: Verse | null; // Currently active custom verse
+  activeSource: ActiveVerseSource;
   recentVerseIds: string[]; // History of verses seen recently
   lastVotdDate: string | null; // ISO date string (YYYY-MM-DD)
   progress: UserProgress;

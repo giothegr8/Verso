@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { AppState } from "../types";
+import { AppState, Verse } from "../types";
 import { MOCK_VERSES, getVerseByDate } from "../constants";
 import { ChevronLeft, ChevronRight, RotateCcw, Sparkles, BookOpen, Brain, HelpCircle, Trophy, Star, Bookmark, CheckCircle2, ArrowRight, Flower2, Sprout, Compass, Layers } from "lucide-react";
 import { getValidatedVerse, getCurrentTranslationPair, getLocalizedBookName, getLocalDateString, getVerseLines, removeAccents, VERSE_LAYOUT } from "../utils/verseUtils";
@@ -49,30 +49,29 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  const activePair = getCurrentTranslationPair(state);
   const today = getLocalDateString();
   const votd = getVerseByDate(today);
 
-  // TEMPORARY QA OVERRIDE: Set Song of Songs for testing
-  // To remove: delete these lines and the songOfSongs fallback
-  const songOfSongs: any = {
-    id: "qa-song-of-songs",
-    book: "Cantar de Cantares / Song of Songs",
-    chapter: 8,
-    verse: 7,
-    text: {
-      es: { RVR1960: "Las muchas aguas no podrán apagar el amor, ni lo ahogarán los ríos.", NVI: "", NBLA: "", KJV: "", NIV: "", NASB: "" },
-      en: { KJV: "Many waters cannot quench love, neither can the floods drown it.", NIV: "", NASB: "", RVR1960: "", NVI: "", NBLA: "" }
-    }
-  };
+  // Unified Active Verse Logic
+  let verse: Verse;
+  switch (state.activeSource) {
+    case "custom":
+      verse = state.selectedCustomVerse || votd;
+      break;
+    case "path":
+    case "extra":
+    case "saved":
+      verse = (state.selectedVerseId 
+        ? (MOCK_VERSES.find(v => v.id === state.selectedVerseId) || state.customVerses.find(v => v.id === state.selectedVerseId))
+        : null) || votd;
+      break;
+    default:
+      verse = votd;
+  }
 
-  const verse = state.selectedVerseId 
-    ? (MOCK_VERSES.find(v => v.id === state.selectedVerseId) || votd)
-    : songOfSongs; // Temporarily forced to Song of Songs for QA
-
-  const { esText, enText } = useMemo(() => 
+  const { esText, enText, activePair } = useMemo(() => 
     getValidatedVerse(verse, state),
-    [verse, state]
+    [verse, state, state.selectedTranslations.es, state.selectedTranslations.en]
   );
 
   // Reset state when verse or configuration changes

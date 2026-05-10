@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "motion/react";
-import { AppState, TRANSLATION_PAIRS, TRANSLATION_DETAILS } from "../types";
+import { AppState, TRANSLATION_PAIRS, TRANSLATION_DETAILS, ActiveVerseSource } from "../types";
 import { Bookmark, Share2, Trash2, BookOpen, Search, Languages, Star, Heart, AlertCircle, X, Sprout, Sparkles, Compass } from "lucide-react";
 import { MOCK_VERSES, PATHS } from "../constants";
 import React, { useState } from "react";
@@ -10,7 +10,7 @@ import ShareModal from "./ShareModal";
 interface SavedProps {
   state: AppState;
   setState: React.Dispatch<React.SetStateAction<AppState>>;
-  onStartMemorizing: (verseId: string) => void;
+  onStartMemorizing: (verseId: string, source?: ActiveVerseSource) => void;
 }
 
 export default function Saved({ state, setState, onStartMemorizing }: SavedProps) {
@@ -23,7 +23,7 @@ export default function Saved({ state, setState, onStartMemorizing }: SavedProps
   
   // For demo, we'll show some from MOCK_VERSES if savedVerses is empty
   const savedList = state.savedVerses.length > 0 
-    ? MOCK_VERSES.filter(v => state.savedVerses.includes(v.id))
+    ? [...MOCK_VERSES, ...state.customVerses].filter(v => state.savedVerses.includes(v.id))
     : MOCK_VERSES.slice(0, 2);
 
   const filteredList = savedList.filter(v => {
@@ -87,11 +87,7 @@ export default function Saved({ state, setState, onStartMemorizing }: SavedProps
       <ShareModal 
         isOpen={isShareModalOpen}
         onClose={() => setIsShareModalOpen(false)}
-        verse={selectedVerseForShare ? {
-          ...selectedVerseForShare,
-          textEs: getValidatedVerse(selectedVerseForShare, state).esText,
-          textEn: getValidatedVerse(selectedVerseForShare, state).enText
-        } : null}
+        verse={selectedVerseForShare}
         state={state}
         onNativeShare={onNativeShare}
       />
@@ -219,8 +215,8 @@ export default function Saved({ state, setState, onStartMemorizing }: SavedProps
             const getSourceInfo = (verseId: string) => {
               const isEs = state.primaryLanguage === 'es';
               
-              const verse = MOCK_VERSES.find(v => v.id === verseId);
-              if (!verse) return { label: isEs ? 'versículo' : 'verse', icon: <Compass size={10} /> };
+              const vObj = [...MOCK_VERSES, ...state.customVerses].find(v => v.id === verseId);
+              if (!vObj) return { label: isEs ? 'versículo' : 'verse', icon: <Compass size={10} /> };
 
               for (const path of PATHS) {
                 if (path.verses.includes(verseId)) {
@@ -232,9 +228,9 @@ export default function Saved({ state, setState, onStartMemorizing }: SavedProps
                 
                 const hasMatch = path.days.some(day => {
                   const normRef = day.reference.toLowerCase();
-                  const bookParts = verse.book.toLowerCase().split("/");
+                  const bookParts = vObj.book.toLowerCase().split("/");
                   const matchBook = bookParts.some(p => normRef.includes(p.trim()));
-                  const matchNum = normRef.includes(`${verse.chapter}:${verse.verse}`);
+                  const matchNum = normRef.includes(`${vObj.chapter}:${vObj.verse}`);
                   return matchBook && matchNum;
                 });
                 
@@ -244,6 +240,13 @@ export default function Saved({ state, setState, onStartMemorizing }: SavedProps
                     icon: <Compass size={10} className="text-sky-blue" /> 
                   };
                 }
+              }
+
+              if (vObj.source === "custom") {
+                return {
+                  label: isEs ? 'tu búsqueda' : 'your search',
+                  icon: <Search size={10} className="text-playful-purple" />
+                };
               }
 
               return { 
@@ -357,7 +360,7 @@ export default function Saved({ state, setState, onStartMemorizing }: SavedProps
                   whileTap={{ scale: 0.99 }}
                   onClick={() => {
                     if (esText || enText) {
-                      onStartMemorizing(verse.id);
+                      onStartMemorizing(verse.id, "saved");
                     }
                   }}
                   disabled={!esText && !enText}
