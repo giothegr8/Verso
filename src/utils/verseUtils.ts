@@ -93,11 +93,11 @@ export function getLocalDateString(): string {
  * Standard layout constants for the verse to ensure visual consistency.
  */
 export const VERSE_LAYOUT = {
-  MAX_CHARS_PER_LINE: 28, // Slightly more generous for natural flow
-  FONT_SIZE_CLASSES: "text-xl sm:text-2xl md:text-3xl",
-  LINE_HEIGHT: "leading-relaxed",
-  FONT_WEIGHT: "font-medium",
-  CHAR_HEIGHT: "h-8 sm:h-10", // Stable height for underlines
+  MAX_CHARS_PER_LINE: 26, // Slightly narrower for more elegant book-like feel
+  FONT_SIZE_CLASSES: "text-2xl sm:text-3xl md:text-4xl",
+  LINE_HEIGHT: "leading-[1.6]",
+  FONT_WEIGHT: "font-black",
+  CHAR_HEIGHT: "h-10 sm:h-12 md:h-14", // Stable height for underlines and consistent rhythm
 };
 
 /**

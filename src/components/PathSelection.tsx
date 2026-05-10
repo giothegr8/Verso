@@ -146,7 +146,7 @@ export default function PathSelection({ state, onSelectPath, onBack }: PathSelec
           <h2 className="text-4xl sm:text-6xl font-serif font-black text-earth dark:text-ivory tracking-tight leading-tight">
             {isEs ? "¿Qué estás viviendo en este momento?" : "What are you going through right now?"}
           </h2>
-          <p className="text-lg text-teal dark:text-teal-400 font-medium">
+          <p className="text-lg text-sky-blue font-medium">
             {isEs ? "Elige un camino en la Palabra." : "Choose a path in the Word."}
           </p>
         </div>
@@ -166,8 +166,8 @@ export default function PathSelection({ state, onSelectPath, onBack }: PathSelec
               onClick={() => setSelectedPath(path)}
               className={`group relative flex flex-col items-start p-6 bg-white dark:bg-charcoal border transition-all text-left overflow-hidden ring-1 ${
                 isActive 
-                  ? "border-teal/50 ring-teal/20 bg-teal/[0.02] shadow-lg" 
-                  : "border-earth/10 dark:border-white/10 ring-teal/5 shadow-sm hover:shadow-xl hover:border-teal/30"
+                  ? "border-sky-blue/50 ring-sky-blue/20 bg-teal/[0.02] shadow-lg" 
+                  : "border-earth/10 dark:border-white/10 ring-sky-blue/5 shadow-sm hover:shadow-xl hover:border-sky-blue/30"
               } rounded-[32px]`}
             >
               {/* Selected Indicator */}
@@ -184,7 +184,7 @@ export default function PathSelection({ state, onSelectPath, onBack }: PathSelec
 
               {/* Background Accent */}
               <div className="absolute -top-4 -right-4 p-8 opacity-[0.03] group-hover:opacity-[0.08] transition-opacity">
-                <Compass size={120} className="text-teal transform rotate-12" />
+                <Compass size={120} className="text-sky-blue transform rotate-12" />
               </div>
 
               <div className="flex justify-between items-start w-full mb-6">
@@ -204,9 +204,7 @@ export default function PathSelection({ state, onSelectPath, onBack }: PathSelec
               </div>
 
               <div className="space-y-3 relative z-10 w-full">
-                <h3 className={`text-2xl font-serif font-black transition-colors leading-tight ${
-                  isActive ? "text-teal" : "text-earth dark:text-ivory group-hover:text-teal"
-                }`}>
+                <h3 className="text-2xl font-serif font-black transition-colors leading-tight text-earth dark:text-ivory">
                   {isEs ? path.titleEs : path.title}
                 </h3>
                 <p className="text-sm text-earth-light/70 dark:text-lavender-muted/60 leading-relaxed line-clamp-2">
@@ -214,9 +212,7 @@ export default function PathSelection({ state, onSelectPath, onBack }: PathSelec
                 </p>
               </div>
 
-              <div className={`mt-8 flex items-center gap-2 font-black text-[10px] uppercase tracking-widest transition-colors ${
-                isActive ? "text-teal" : "text-earth-light/40 dark:text-ivory/30 group-hover:text-teal"
-              }`}>
+              <div className="mt-8 flex items-center gap-2 font-black text-[10px] uppercase tracking-widest transition-colors text-earth-light/40 dark:text-ivory/30 group-hover:text-earth-light/60">
                 <span>{isEs ? "Ver detalles" : "View details"}</span>
                 <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform" />
               </div>

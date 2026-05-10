@@ -16,8 +16,11 @@ interface FlashcardsProps {
 export default function Flashcards({ state, setState, onMemorize, onGoToSaved }: FlashcardsProps) {
   const [isFlipped, setIsFlipped] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
-  const [clueCount, setClueCount] = useState(0);
+  const [clueCount, setClueCount] = useState<{ es: number, en: number }>({ es: 0, en: 0 });
   const [revealedIndices, setRevealedIndices] = useState<{ es: number[], en: number[] }>({ es: [], en: [] });
+  const [activeLanguage, setActiveLanguage] = useState<'es' | 'en' | null>(null);
+  const [cursorPositionEs, setCursorPositionEs] = useState<number>(0);
+  const [cursorPositionEn, setCursorPositionEn] = useState<number>(0);
   const [isCorrect, setIsCorrect] = useState(false);
   const [showError, setShowError] = useState(false);
   const [hasSubmitted, setHasSubmitted] = useState(false);
@@ -76,8 +79,11 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
   useEffect(() => {
     setIsFlipped(false);
     setIsCompleted(false);
-    setClueCount(0);
+    setClueCount({ es: 0, en: 0 });
     setRevealedIndices({ es: [], en: [] });
+    setActiveLanguage(null);
+    setCursorPositionEs(0);
+    setCursorPositionEn(0);
     setUserInputEs("");
     setUserInputEn("");
     setIsCorrect(false);
@@ -179,8 +185,11 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
   const handleReset = (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     setIsFlipped(false);
-    setClueCount(0);
+    setClueCount({ es: 0, en: 0 });
     setRevealedIndices({ es: [], en: [] });
+    setActiveLanguage(null);
+    setCursorPositionEs(0);
+    setCursorPositionEn(0);
     setUserInputEs("");
     setUserInputEn("");
     setIsCorrect(false);
@@ -195,22 +204,24 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
       .trim();
   };
 
-  // Citation clue logic: 3 clues
-  const handleClue = (e: React.MouseEvent) => {
+  // Citation clue logic: 3 clues per language
+  const handleClue = (e: React.MouseEvent, lang: 'es' | 'en') => {
     e.stopPropagation();
-    if (clueCount >= 3) return;
+    const currentClueCount = clueCount[lang];
+    if (currentClueCount >= 3) return;
 
     const newRevealed = { ...revealedIndices };
+    const ref = lang === 'es' ? esRef : enRef;
     
-    const getClueIndex = (ref: string, current: number[], type: 'letter' | 'digit') => {
+    const getClueIndex = (citationRef: string, current: number[], type: 'letter' | 'digit') => {
       // Find book name vs numbers part
-      const parts = ref.split(' ');
+      const parts = citationRef.split(' ');
       const numbersPart = parts[parts.length - 1]; // e.g. "1:1" or "3:16"
-      const numberStartIdx = ref.lastIndexOf(numbersPart);
+      const numberStartIdx = citationRef.lastIndexOf(numbersPart);
 
-      for (let i = 0; i < ref.length; i++) {
+      for (let i = 0; i < citationRef.length; i++) {
         if (current.includes(i)) continue;
-        const char = ref[i];
+        const char = citationRef[i];
         const isDigit = /[\d]/.test(char);
         const isLetter = /[\p{L}]/u.test(char);
 
@@ -224,68 +235,43 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
       return null;
     };
 
-    const countDigits = (ref: string) => {
-      return (ref.match(/\d/g) || []).length;
+    const countDigits = (citationRef: string) => {
+      return (citationRef.match(/\d/g) || []).length;
     };
 
-    // Sequential Clue Logic
-    // Clue 1: Book name letter
-    // Clue 2: Digit
-    // Clue 3: Digit if total digits > 2, else Book letter
+    let newlyRevealed: number | null = null;
+    const type = currentClueCount === 0 ? 'letter' : 
+                 currentClueCount === 1 ? 'digit' : 
+                 (Math.max(countDigits(esRef), countDigits(enRef)) > 2 ? 'digit' : 'letter');
 
-    let newlyRevealedEs: number | null = null;
-    let newlyRevealedEn: number | null = null;
-
-    const revealPair = (type: 'letter' | 'digit') => {
-      if (state.memorizeMode === 'es' || state.memorizeMode === 'both') {
-        newlyRevealedEs = getClueIndex(esRef, newRevealed.es, type);
-        if (newlyRevealedEs !== null) {
-          newRevealed.es = [...newRevealed.es, newlyRevealedEs];
-        }
-      }
-      if (state.memorizeMode === 'en' || state.memorizeMode === 'both') {
-        newlyRevealedEn = getClueIndex(enRef, newRevealed.en, type);
-        if (newlyRevealedEn !== null) {
-          newRevealed.en = [...newRevealed.en, newlyRevealedEn];
-        }
-      }
-    };
-
-    if (clueCount === 0) {
-      revealPair('letter');
-    } else if (clueCount === 1) {
-      revealPair('digit');
-    } else if (clueCount === 2) {
-      const totalDigits = Math.max(countDigits(esRef), countDigits(enRef));
-      if (totalDigits > 2) {
-        revealPair('digit');
-      } else {
-        revealPair('letter');
-      }
-    }
-
-    // Adjust user input to account for the new revealed character
-    const adjustInput = (lang: 'es' | 'en', newlyRevealed: number | null) => {
-      if (newlyRevealed === null) return;
-      const ref = lang === 'es' ? esRef : enRef;
-      const currentRevealed = lang === 'es' ? revealedIndices.es : revealedIndices.en;
+    newlyRevealed = getClueIndex(ref, newRevealed[lang], type);
+    
+    if (newlyRevealed !== null) {
+      newRevealed[lang] = [...newRevealed[lang], newlyRevealed].sort((a, b) => a - b);
+      
+      // Adjust user input to account for the new revealed character
       const input = lang === 'es' ? userInputEs : userInputEn;
       const setInput = lang === 'es' ? setUserInputEs : setUserInputEn;
 
-      const oldFillable = getFillableIndices(ref, currentRevealed);
-      const removedFillIdx = oldFillable.indexOf(newlyRevealed);
+      const fillableIndices = getFillableIndices(ref, revealedIndices[lang]);
+      const removedFillIdx = fillableIndices.indexOf(newlyRevealed);
+      
       if (removedFillIdx !== -1) {
         let newUserInput = input.split('');
         newUserInput.splice(removedFillIdx, 1);
         setInput(newUserInput.join(''));
+        
+        // Update cursor position if it was after the removed index
+        const setCursor = lang === 'es' ? setCursorPositionEs : setCursorPositionEn;
+        const currentCursor = lang === 'es' ? cursorPositionEs : cursorPositionEn;
+        if (currentCursor > removedFillIdx) {
+          setCursor(currentCursor - 1);
+        }
       }
-    };
 
-    adjustInput('es', newlyRevealedEs);
-    adjustInput('en', newlyRevealedEn);
-
-    setRevealedIndices(newRevealed);
-    setClueCount(prev => prev + 1);
+      setRevealedIndices(newRevealed);
+      setClueCount(prev => ({ ...prev, [lang]: prev[lang] + 1 }));
+    }
   };
 
   const getFillableIndices = (ref: string, revealed: number[]) => {
@@ -302,6 +288,10 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
 
   const handleCharClick = (lang: 'es' | 'en', fillIdx: number) => {
     if (isCorrect || attemptsLeft === 0 || isFlipped) return;
+    
+    const setCursor = lang === 'es' ? setCursorPositionEs : setCursorPositionEn;
+    setCursor(fillIdx);
+    setActiveLanguage(lang);
     
     const inputRef = lang === 'es' ? inputRefEs : inputRefEn;
     if (inputRef.current) {
@@ -355,7 +345,8 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
                   let userChar = "";
                   let isWrong = false;
                   
-                  const isSlotActive = !isRevealedByClue && !isCorrect && fillIdx !== -1 && fillIdx === (lang === 'es' ? inputRefEs.current?.selectionStart : inputRefEn.current?.selectionStart);
+                  const isRefActive = activeLanguage === lang;
+                  const isSlotActive = isRefActive && !isRevealedByClue && !isCorrect && fillIdx !== -1 && fillIdx === (lang === 'es' ? cursorPositionEs : cursorPositionEn);
                   
                   if (!isRevealedByClue) {
                     if (fillIdx !== -1 && fillIdx < userInput.length) {
@@ -370,19 +361,19 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
                     <span 
                       key={i} 
                       onClick={(e) => { e.stopPropagation(); if (fillIdx !== -1) handleCharClick(lang, fillIdx); }}
-                      className={`w-4 sm:w-5 h-8 sm:h-10 flex items-center justify-center text-xl sm:text-2xl font-serif font-black border-b-2 transition-all duration-300 leading-none cursor-text relative ${
+                      className={`w-5 sm:w-6 h-10 sm:h-12 flex items-center justify-center text-xl sm:text-2xl font-serif font-black border-b-[2.5px] transition-all duration-300 leading-none cursor-text relative ${
                         isRevealedByClue || (userChar && userChar !== " ")
                           ? isWrong 
                             ? 'border-coral text-coral bg-coral/5' 
                             : isCorrect || (hasSubmitted && !isWrong)
                               ? 'border-teal text-teal'
                               : 'border-playful-purple text-playful-purple' 
-                          : 'border-earth/20 dark:border-white/20 text-transparent hover:border-playful-purple/40'
+                          : 'border-earth/10 dark:border-white/10 text-transparent hover:border-earth/30'
                       }`}
                     >
-                      {isRevealedByClue ? char : (userChar === " " ? "_" : userChar)}
+                      {isRevealedByClue ? char : (userChar === " " ? "" : userChar)}
                       {isSlotActive && !isRevealedByClue && !isCorrect && (
-                        <div className="absolute -bottom-[2px] left-0 right-0 h-[2px] bg-coral animate-cursor-blink" />
+                        <div className="absolute inset-x-0 -bottom-[2.5px] h-[2.5px] bg-coral animate-pulse shadow-[0_0_8px_rgba(255,111,97,0.5)]" />
                       )}
                     </span>
                   );
@@ -415,7 +406,8 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
             let userChar = "";
             let isWrong = false;
             
-            const isSlotActive = !isRevealedByClue && !isCorrect && fillIdx !== -1 && fillIdx === (lang === 'es' ? inputRefEs.current?.selectionStart : inputRefEn.current?.selectionStart);
+            const isRefActive = activeLanguage === lang;
+            const isSlotActive = isRefActive && !isRevealedByClue && !isCorrect && fillIdx !== -1 && fillIdx === (lang === 'es' ? cursorPositionEs : cursorPositionEn);
             
             if (!isRevealedByClue && fillIdx !== -1 && fillIdx < userInput.length) {
               userChar = userInput[fillIdx];
@@ -428,19 +420,19 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
               <span 
                 key={i} 
                 onClick={(e) => { e.stopPropagation(); if (fillIdx !== -1) handleCharClick(lang, fillIdx); }}
-                className={`w-4.5 h-10 flex items-center justify-center text-xl sm:text-2xl font-serif font-black border-b-2 transition-all duration-300 leading-none cursor-text relative ${
+                className={`w-5 sm:w-6 h-10 flex items-center justify-center text-xl sm:text-2xl font-serif font-black border-b-[2.5px] transition-all duration-300 leading-none cursor-text relative ${
                   isRevealedByClue || (userChar && userChar !== " ")
                     ? isWrong 
                       ? 'border-coral text-coral bg-coral/5' 
                       : isCorrect || (hasSubmitted && !isWrong)
                         ? 'border-teal text-teal'
                         : 'border-playful-purple text-playful-purple' 
-                    : 'border-earth/30 dark:border-white/30 text-transparent hover:border-playful-purple/40'
+                    : 'border-earth/10 dark:border-white/10 text-transparent hover:border-earth/30'
                 }`}
               >
-                {isRevealedByClue ? char : (userChar === " " ? "_" : userChar)}
+                {isRevealedByClue ? char : (userChar === " " ? "" : userChar)}
                 {isSlotActive && !isRevealedByClue && !isCorrect && (
-                  <div className="absolute -bottom-[2px] left-0 right-0 h-[2px] bg-coral animate-cursor-blink" />
+                  <div className="absolute inset-x-0 -bottom-[2.5px] h-[2.5px] bg-coral animate-pulse shadow-[0_0_8px_rgba(255,111,97,0.5)]" />
                 )}
               </span>
             );
@@ -558,7 +550,7 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.3 }}
-            className="text-5xl font-serif font-black text-earth dark:text-ivory"
+            className="text-6xl sm:text-8xl font-serif font-black text-earth dark:text-ivory tracking-tighter"
           >
             {state.primaryLanguage === 'es' ? '¡Increíble!' : 'Incredible!'}
           </motion.h2>
@@ -588,8 +580,11 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
               onClick={() => {
                 setIsFlipped(false);
                 setIsCompleted(false);
-                setClueCount(0);
+                setClueCount({ es: 0, en: 0 });
                 setRevealedIndices({ es: [], en: [] });
+                setActiveLanguage(null);
+                setCursorPositionEs(0);
+                setCursorPositionEn(0);
               }} 
               className="btn-primary w-full flex items-center justify-center gap-3 py-5 shadow-playful-purple/20"
             >
@@ -616,21 +611,23 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
   return (
     <div id="cards-content" className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-700 flex flex-col items-center">
       {/* Page Header */}
-      <div className="w-full max-w-md space-y-1 text-center mb-6">
-        <h2 className="text-2xl font-serif font-black text-earth dark:text-ivory">
-          {state.primaryLanguage === 'es' ? 'Tarjetas' : 'Flashcards'}
-        </h2>
-        <div className="flex items-center justify-center gap-2">
-          <div className="h-px w-4 bg-earth/10 dark:bg-white/10" />
-          <p className="text-[10px] font-black text-earth-light/60 dark:text-lavender-muted uppercase tracking-[0.2em]">
-            {state.primaryLanguage === 'es' ? 'Memoriza la cita' : 'Memorize the reference'}
-          </p>
-          <div className="h-px w-4 bg-earth/10 dark:bg-white/10" />
+      <div className="w-full max-w-2xl text-center mb-10 sm:mb-14 px-6">
+        <div className="flex items-center justify-center gap-2 mb-2">
+          <div className="w-1.5 h-1.5 rounded-full bg-sky-blue animate-pulse" />
+          <span className="text-[10px] font-black uppercase tracking-[0.3em] text-sky-blue dark:text-sky-300">
+            {state.primaryLanguage === 'es' ? 'TARJETAS' : 'CARDS'}
+          </span>
         </div>
+        <h2 className="text-3xl sm:text-4xl lg:text-5xl font-serif font-black text-earth dark:text-ivory tracking-tight leading-tight">
+          {state.primaryLanguage === 'es' ? 'Memoriza la cita' : 'Memorize the reference'}
+        </h2>
+        <p className="text-xs sm:text-sm text-earth-light/50 dark:text-lavender-muted/50 font-medium mt-3">
+          {state.primaryLanguage === 'es' ? 'Pon a prueba tu memoria con la referencia del verso.' : 'Test your memory with the verse reference.'}
+        </p>
       </div>
 
       {/* Card Container */}
-      <div className="relative w-full max-w-lg h-[600px] sm:h-[640px] lg:h-[680px] perspective-1000 mb-10">
+      <div className="relative w-full max-w-lg h-[600px] sm:h-[640px] lg:h-[700px] perspective-1000 mb-10">
         <motion.div
           className="w-full h-full preserve-3d"
           animate={{ rotateY: isFlipped ? 180 : 0 }}
@@ -646,8 +643,8 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
               }
             }}
           >
-            <div className="shimmer-border w-full h-full rounded-[32px]">
-              <div className="w-full h-full card flex flex-col bg-white dark:bg-charcoal shadow-2xl overflow-hidden rounded-[32px] border-none">
+            <div className="shimmer-border w-full h-full rounded-[40px]">
+              <div className="w-full h-full card flex flex-col bg-white dark:bg-charcoal shadow-2xl overflow-hidden rounded-[40px] border-none ring-1 ring-earth/5 dark:ring-white/5">
                 <div className="flex-1 flex flex-col p-6 sm:p-10 justify-between h-full">
                   {/* Top Section */}
                   <div className="space-y-6 pt-2">
@@ -680,14 +677,37 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
                         className="space-y-4 sm:space-y-6 w-full cursor-text flex flex-col items-center"
                         onClick={(e) => { e.stopPropagation(); if (!isCorrect && attemptsLeft > 0) inputRefEs.current?.focus(); }}
                       >
-                        <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-earth-light/40 dark:text-lavender-muted/40 text-center">
-                          {state.primaryLanguage === 'es' ? 'Cita (ES)' : 'Citation (ES)'}
-                        </p>
+                        <div className="flex items-center gap-3 opacity-30 mb-2 mt-2">
+                          <div className="h-px w-6 bg-earth/50 dark:bg-white/50" />
+                          <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.3em] text-earth-light dark:text-lavender-muted text-center">
+                            {state.primaryLanguage === 'es' ? 'Cita (ES)' : 'Citation (ES)'}
+                          </p>
+                          <div className="h-px w-6 bg-earth/50 dark:bg-white/50" />
+                          
+                          {/* Language-specific clue button */}
+                          {attemptsLeft > 0 && !isCorrect && (
+                            <motion.button
+                              initial={{ opacity: 0, scale: 0.8 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              onClick={(e) => handleClue(e, 'es')}
+                              disabled={clueCount.es >= 3}
+                              className={`ml-2 p-1.5 rounded-lg transition-all ${
+                                clueCount.es >= 3
+                                  ? 'text-earth/10 dark:text-white/10'
+                                  : 'text-amber-500 hover:bg-amber-500/10 active:scale-95'
+                              }`}
+                              title={state.primaryLanguage === 'es' ? `Pista (${3 - clueCount.es})` : `Clue (${3 - clueCount.es})`}
+                            >
+                              <Sparkles size={14} className={clueCount.es >= 3 ? '' : 'animate-pulse'} />
+                            </motion.button>
+                          )}
+                        </div>
                         <input 
                           ref={inputRefEs}
                           type="text"
                           value={userInputEs}
                           disabled={isCorrect || attemptsLeft === 0}
+                          onFocus={() => setActiveLanguage('es')}
                           onKeyDown={(e) => {
                             if (e.key === 'Backspace' && inputRefEs.current) {
                               const start = inputRefEs.current.selectionStart;
@@ -700,27 +720,22 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
                                   newVal[i] = ' ';
                                 }
                                 setUserInputEs(newVal.join(''));
+                                setCursorPositionEs(newStart);
                                 setTimeout(() => inputRefEs.current?.setSelectionRange(newStart, newStart), 0);
                               }
                             }
                           }}
                           onChange={(e) => {
                             const val = e.target.value.replace(/[^\p{L}\p{N}]/gu, "");
-                            const fillable = getFillableIndices(esRef, revealedIndices.es);
-                            const max = fillable.length;
+                            const selectionStart = e.target.selectionStart;
                             
-                            // Get the index where change happened
-                            const nativeInput = e.target;
-                            const selectionStart = nativeInput.selectionStart;
-                            
-                            // Construct the new string by placing the typed char into the buffer
                             if (selectionStart !== null) {
                               const typedChar = val.charAt(selectionStart - 1);
                               if (typedChar) {
                                 const newVal = userInputEs.split('');
                                 newVal[selectionStart - 1] = typedChar;
                                 setUserInputEs(newVal.join(''));
-                                // Keep selection at the next char
+                                setCursorPositionEs(selectionStart);
                                 setTimeout(() => inputRefEs.current?.setSelectionRange(selectionStart, selectionStart), 0);
                               }
                             }
@@ -741,14 +756,37 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
                         className="space-y-4 sm:space-y-5 w-full cursor-text flex flex-col items-center"
                         onClick={(e) => { e.stopPropagation(); if (!isCorrect && attemptsLeft > 0) inputRefEn.current?.focus(); }}
                       >
-                        <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-earth-light/40 dark:text-lavender-muted/40 text-center">
-                          {state.primaryLanguage === 'es' ? 'Cita (EN)' : 'Citation (EN)'}
-                        </p>
+                        <div className="flex items-center gap-3 opacity-30 mb-2 mt-2">
+                          <div className="h-px w-6 bg-earth/50 dark:bg-white/50" />
+                          <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.3em] text-earth-light dark:text-lavender-muted text-center">
+                            {state.primaryLanguage === 'es' ? 'Cita (EN)' : 'Citation (EN)'}
+                          </p>
+                          <div className="h-px w-6 bg-earth/50 dark:bg-white/50" />
+                          
+                          {/* Language-specific clue button */}
+                          {attemptsLeft > 0 && !isCorrect && (
+                            <motion.button
+                              initial={{ opacity: 0, scale: 0.8 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              onClick={(e) => handleClue(e, 'en')}
+                              disabled={clueCount.en >= 3}
+                              className={`ml-2 p-1.5 rounded-lg transition-all ${
+                                clueCount.en >= 3
+                                  ? 'text-earth/10 dark:text-white/10'
+                                  : 'text-amber-500 hover:bg-amber-500/10 active:scale-95'
+                              }`}
+                              title={state.primaryLanguage === 'es' ? `Pista (${3 - clueCount.en})` : `Clue (${3 - clueCount.en})`}
+                            >
+                              <Sparkles size={14} className={clueCount.en >= 3 ? '' : 'animate-pulse'} />
+                            </motion.button>
+                          )}
+                        </div>
                         <input 
                           ref={inputRefEn}
                           type="text"
                           value={userInputEn}
                           disabled={isCorrect || attemptsLeft === 0}
+                          onFocus={() => setActiveLanguage('en')}
                           onKeyDown={(e) => {
                             if (e.key === 'Backspace' && inputRefEn.current) {
                               const start = inputRefEn.current.selectionStart;
@@ -761,6 +799,7 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
                                   newVal[i] = ' ';
                                 }
                                 setUserInputEn(newVal.join(''));
+                                setCursorPositionEn(newStart);
                                 setTimeout(() => inputRefEn.current?.setSelectionRange(newStart, newStart), 0);
                               }
                             }
@@ -775,6 +814,7 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
                                 const newVal = userInputEn.split('');
                                 newVal[selectionStart - 1] = typedChar;
                                 setUserInputEn(newVal.join(''));
+                                setCursorPositionEn(selectionStart);
                                 setTimeout(() => inputRefEn.current?.setSelectionRange(selectionStart, selectionStart), 0);
                               }
                             }
@@ -839,18 +879,18 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
                   <div className="flex flex-col items-center gap-4 pb-6 pt-4 border-t border-earth/5 dark:border-white/5 mt-auto">
                     {/* Compact Clue Button and Attempts */}
                     <div className="flex flex-col items-center gap-4 w-full">
-                      {attemptsLeft > 0 && !isCorrect && (
+                      {attemptsLeft > 0 && !isCorrect && state.memorizeMode !== 'both' && (
                         <button
-                          onClick={(e) => handleClue(e)}
-                          disabled={clueCount >= 3}
+                          onClick={(e) => handleClue(e, state.memorizeMode as 'es' | 'en')}
+                          disabled={clueCount[state.memorizeMode as 'es' | 'en'] >= 3}
                           className={`flex items-center justify-center gap-2 px-8 py-2.5 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all ${
-                            clueCount >= 3
+                            clueCount[state.memorizeMode as 'es' | 'en'] >= 3
                               ? 'text-earth/20 dark:text-white/20 cursor-not-allowed border border-earth/10'
                               : 'bg-teal/10 hover:bg-teal/20 text-teal dark:text-teal-400 border border-teal/20 shadow-sm active:scale-95'
                           }`}
                         >
-                          <Sparkles size={14} className={clueCount >= 3 ? '' : 'animate-pulse text-amber-500 dark:text-amber-400'} />
-                          <span>{state.primaryLanguage === 'es' ? 'pista' : 'clue'} ({3 - clueCount})</span>
+                          <Sparkles size={14} className={clueCount[state.memorizeMode as 'es' | 'en'] >= 3 ? '' : 'animate-pulse text-amber-500 dark:text-amber-400'} />
+                          <span>{state.primaryLanguage === 'es' ? 'pista' : 'clue'} ({3 - clueCount[state.memorizeMode as 'es' | 'en']})</span>
                         </button>
                       )}
                       
@@ -894,8 +934,8 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
 
           {/* Back Side */}
           <div className="absolute inset-0 backface-hidden rotate-y-180">
-            <div className="shimmer-border w-full h-full rounded-[32px]">
-              <div className="w-full h-full card flex flex-col bg-sky-blue/5 dark:bg-sky-blue/10 border-none shadow-2xl overflow-hidden rounded-[32px]">
+            <div className="shimmer-border w-full h-full rounded-[40px]">
+              <div className="w-full h-full card flex flex-col bg-sky-blue/5 dark:bg-sky-blue/10 border-none shadow-2xl overflow-hidden rounded-[40px] ring-1 ring-sky-blue/10">
                 <div className="flex-1 flex flex-col p-6 sm:p-10 justify-between h-full">
                   <div className="flex-1 flex flex-col">
                     {/* Top Section */}

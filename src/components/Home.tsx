@@ -252,152 +252,6 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
         </div>
       </div>
 
-      {/* Paths Section */}
-      <div className="space-y-6">
-        <div className="flex items-center justify-between px-1">
-          <div className="flex items-center gap-2">
-            <Compass size={16} className="text-amber-500 dark:text-amber-400" />
-            <h2 className="text-xs font-black uppercase tracking-[0.2em] text-earth-light dark:text-lavender-muted">
-              {isEs ? "Tu camino" : "Your Path"}
-            </h2>
-          </div>
-          {selectedPath && (
-            <button 
-              onClick={onGoToPaths}
-              className="text-[10px] font-black uppercase tracking-widest text-teal hover:underline"
-            >
-              {isEs ? "Ver todos" : "View all"}
-            </button>
-          )}
-        </div>
-
-        {!selectedPath ? (
-          <motion.button
-            whileHover={{ scale: 1.01 }}
-            whileTap={{ scale: 0.99 }}
-            onClick={onGoToPaths}
-            className="w-full card bg-white dark:bg-charcoal p-8 shadow-xl border-earth/10 dark:border-white/10 relative overflow-hidden group cursor-pointer text-left"
-          >
-            <div className="absolute top-4 right-4 opacity-5 group-hover:opacity-10 transition-opacity pointer-events-none">
-              <Compass size={100} className="text-teal transform rotate-12" />
-            </div>
-            
-            <div className="relative space-y-4">
-              <div className="space-y-1">
-                <h3 className="text-2xl font-serif font-black text-earth dark:text-ivory">
-                  {isEs ? "Elige un camino" : "Choose a path"}
-                </h3>
-                <p className="text-sm font-medium text-earth-light/70 dark:text-lavender-muted/70">
-                  {isEs ? "Empieza un recorrido en la Palabra para este momento." : "Start a Scripture journey for this season."}
-                </p>
-              </div>
-              <div className="flex items-center gap-2 text-teal font-black text-xs uppercase tracking-widest group-hover:gap-3 transition-all">
-                <span>{isEs ? "Elegir un camino" : "Choose a path"}</span>
-                <ChevronRight size={14} />
-              </div>
-            </div>
-          </motion.button>
-        ) : (
-          <motion.div
-            whileHover={{ scale: 1.01 }}
-            className="card bg-white dark:bg-charcoal p-8 shadow-xl border-earth/10 dark:border-white/10 relative overflow-hidden group"
-          >
-            <div className="absolute top-4 right-4 opacity-5 pointer-events-none">
-              <Compass size={80} className="text-amber-500 dark:text-amber-400 transform rotate-12" />
-            </div>
-
-            <div className="relative flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-              <div className="flex-1 space-y-4">
-                  <div className="space-y-1">
-                    <h3 className="text-xl font-serif font-black text-earth dark:text-ivory">
-                      {isEs ? selectedPath.titleEs : selectedPath.title}
-                    </h3>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-amber-500 dark:text-amber-400">
-                        {isEs ? `Día ${state.pathProgress.currentDay} de ${selectedPath.duration}` : `Day ${state.pathProgress.currentDay} of ${selectedPath.duration}`}
-                      </span>
-                      <div className="h-1 w-24 bg-earth/5 dark:bg-white/5 rounded-full overflow-hidden">
-                        <div 
-                          className="h-full bg-amber-500 dark:bg-amber-400" 
-                          style={{ width: `${(state.pathProgress.currentDay / selectedPath.duration) * 100}%` }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                {isPathDayComplete ? (
-                  <div className="space-y-2">
-                    <h4 className="text-lg font-serif font-black text-teal dark:text-teal-400">
-                      {isEs ? "Lo hiciste bien hoy." : "You’ve done well today."}
-                    </h4>
-                    {nextPathDay && (
-                      <p className="text-sm text-earth-light/60 dark:text-lavender-muted/60">
-                        {isEs ? `Vuelve mañana para ${nextPathDay.reference}.` : `Come back tomorrow for ${nextPathDay.reference}.`}
-                      </p>
-                    )}
-                  </div>
-                ) : (
-                  activePathVerse && (
-                    <div className="space-y-1">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-earth-light/50 dark:text-lavender-muted/50">
-                        {isEs ? "Versículo de hoy:" : "Today's verse:"}
-                      </p>
-                      <p className="text-lg font-serif italic text-earth dark:text-ivory">
-                        {getLocalizedBookName(activePathVerse.book, state.memorizeMode)} {activePathVerse.chapter}:{activePathVerse.verse}
-                      </p>
-                    </div>
-                  )
-                )}
-              </div>
-
-              <div className="flex items-center gap-3 w-full md:w-auto">
-                {isPathDayComplete ? (
-                  <div className="flex items-center gap-2 px-6 py-3 bg-teal/10 text-teal rounded-full font-bold text-sm border border-teal/20 shadow-sm">
-                    <CheckCircle2 size={16} />
-                    <span className="lowercase">{isEs ? "hoy completado" : "today done"}</span>
-                  </div>
-                ) : (
-                  <button 
-                    onClick={() => {
-                      if (activePathVerse) {
-                         if (currentVerse.id === activePathVerse.id) {
-                           // Already viewing, just scroll to it
-                           const el = document.getElementById('votd-card');
-                           el?.scrollIntoView({ behavior: 'smooth' });
-                         } else {
-                           // Set as active verse and scroll
-                           setState(s => ({ ...s, selectedVerseId: activePathVerse.id }));
-                         }
-                      }
-                    }}
-                    className="flex-1 md:flex-none flex items-center justify-center gap-2.5 py-3 px-8 bg-teal/10 hover:bg-teal/20 text-teal dark:text-teal-400 rounded-full font-bold border border-teal/20 transition-all active:scale-95 text-sm tracking-tight shadow-sm"
-                  >
-                    <div className="flex items-center gap-2">
-                       <div className="w-1.5 h-1.5 rounded-full bg-amber-500 dark:bg-amber-400 shadow-[0_0_8px_rgba(245,158,11,0.5)]" />
-                       <span className="lowercase">
-                        {currentVerse.id === activePathVerse?.id 
-                          ? (isEs ? "ver el versículo" : "view the verse")
-                          : (isEs ? "ir al versículo" : "go to verse")}
-                       </span>
-                    </div>
-                  </button>
-                )}
-                
-                {!isPathDayComplete && (
-                   <button 
-                    onClick={onCompletePathDay}
-                    className="p-3 rounded-full border border-earth/10 dark:border-white/10 text-earth/40 hover:text-teal hover:border-teal/30 hover:bg-teal/5 transition-all shadow-sm"
-                    title={isEs ? "marcar como hecho" : "mark as complete"}
-                  >
-                    <CheckCircle2 size={20} />
-                  </button>
-                )}
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </div>
-
       {/* Verse of the Day Card */}
       <div className="space-y-6">
         <div className="flex items-center justify-between px-1">
@@ -535,6 +389,146 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
           </span>
         </button>
       </div>
+
+      {/* Paths Section */}
+      <div className="space-y-6">
+        <div className="flex items-center justify-between px-1">
+          <div className="flex items-center gap-2">
+            <Compass size={16} className="text-sky-blue" />
+            <h2 className="text-xs font-black uppercase tracking-[0.2em] text-earth-light dark:text-lavender-muted">
+              {isEs ? "Tu camino" : "Your Path"}
+            </h2>
+          </div>
+          {selectedPath && (
+            <button 
+              onClick={onGoToPaths}
+              className="text-[10px] font-black uppercase tracking-widest text-teal hover:underline"
+            >
+              {isEs ? "Ver todos" : "View all"}
+            </button>
+          )}
+        </div>
+
+        {!selectedPath ? (
+          <motion.button
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.99 }}
+            onClick={onGoToPaths}
+            className="w-full card bg-white dark:bg-charcoal p-8 shadow-xl border-earth/10 dark:border-white/10 relative overflow-hidden group cursor-pointer text-left"
+          >
+            <div className="relative space-y-4">
+              <div className="space-y-1">
+                <h3 className="text-2xl font-serif font-black text-earth dark:text-ivory">
+                  {isEs ? "Elige un camino" : "Choose a path"}
+                </h3>
+                <p className="text-sm font-medium text-earth-light/70 dark:text-lavender-muted/70">
+                  {isEs ? "Empieza un recorrido en la Palabra para este momento." : "Start a Scripture journey for this season."}
+                </p>
+              </div>
+              <div className="flex items-center gap-2 text-teal font-black text-xs uppercase tracking-widest group-hover:gap-3 transition-all">
+                <span>{isEs ? "Elegir un camino" : "Choose a path"}</span>
+                <ChevronRight size={14} />
+              </div>
+            </div>
+          </motion.button>
+        ) : (
+          <motion.div
+            whileHover={{ scale: 1.01 }}
+            className="card bg-white dark:bg-charcoal p-8 shadow-xl border-earth/10 dark:border-white/10 relative overflow-hidden group"
+          >
+            <div className="relative flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+              <div className="flex-1 space-y-4">
+                  <div className="space-y-1">
+                    <h3 className="text-xl font-serif font-black text-earth dark:text-ivory">
+                      {isEs ? selectedPath.titleEs : selectedPath.title}
+                    </h3>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-amber-500 dark:text-amber-400">
+                        {isEs ? `Día ${state.pathProgress.currentDay} de ${selectedPath.duration}` : `Day ${state.pathProgress.currentDay} of ${selectedPath.duration}`}
+                      </span>
+                      <div className="h-1 w-24 bg-earth/5 dark:bg-white/5 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-amber-500 dark:bg-amber-400" 
+                          style={{ width: `${(state.pathProgress.currentDay / selectedPath.duration) * 100}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                {isPathDayComplete ? (
+                  <div className="space-y-2">
+                    <h4 className="text-lg font-serif font-black text-teal dark:text-teal-400">
+                      {isEs ? "Lo hiciste bien hoy." : "You’ve done well today."}
+                    </h4>
+                    {nextPathDay && (
+                      <p className="text-sm text-earth-light/60 dark:text-lavender-muted/60">
+                        {isEs ? `Vuelve mañana para ${nextPathDay.reference}.` : `Come back tomorrow for ${nextPathDay.reference}.`}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  activePathVerse && (
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-earth-light/50 dark:text-lavender-muted/50">
+                        {isEs ? "Versículo de hoy:" : "Today's verse:"}
+                      </p>
+                      <p className="text-lg font-serif italic text-earth dark:text-ivory">
+                        {getLocalizedBookName(activePathVerse.book, state.memorizeMode)} {activePathVerse.chapter}:{activePathVerse.verse}
+                      </p>
+                    </div>
+                  )
+                )}
+              </div>
+
+              <div className="flex items-center gap-3 w-full md:w-auto">
+                {isPathDayComplete ? (
+                  <div className="flex items-center gap-2 px-6 py-3 bg-teal/10 text-teal rounded-full font-bold text-sm border border-teal/20 shadow-sm">
+                    <CheckCircle2 size={16} />
+                    <span className="lowercase">{isEs ? "hoy completado" : "today done"}</span>
+                  </div>
+                ) : (
+                  <button 
+                    onClick={() => {
+                      if (activePathVerse) {
+                         if (currentVerse.id === activePathVerse.id) {
+                           // Already viewing, just scroll to it
+                           const el = document.getElementById('votd-card');
+                           el?.scrollIntoView({ behavior: 'smooth' });
+                         } else {
+                           // Set as active verse and scroll
+                           setState(s => ({ ...s, selectedVerseId: activePathVerse.id }));
+                         }
+                      }
+                    }}
+                    className="flex-1 md:flex-none flex items-center justify-center gap-2.5 py-3 px-8 bg-teal/10 hover:bg-teal/20 text-teal dark:text-teal-400 rounded-full font-bold border border-teal/20 transition-all active:scale-95 text-sm tracking-tight shadow-sm"
+                  >
+                    <div className="flex items-center gap-2">
+                       <div className="w-1.5 h-1.5 rounded-full bg-amber-500 dark:bg-amber-400 shadow-[0_0_8px_rgba(245,158,11,0.5)]" />
+                       <span className="lowercase">
+                        {currentVerse.id === activePathVerse?.id 
+                          ? (isEs ? "ver el versículo" : "view the verse")
+                          : (isEs ? "ir al versículo" : "go to verse")}
+                       </span>
+                    </div>
+                  </button>
+                )}
+                
+                {!isPathDayComplete && (
+                   <button 
+                    onClick={onCompletePathDay}
+                    className="p-3 rounded-full border border-earth/10 dark:border-white/10 text-earth/40 hover:text-teal hover:border-teal/30 hover:bg-teal/5 transition-all shadow-sm"
+                    title={isEs ? "marcar como hecho" : "mark as complete"}
+                  >
+                    <CheckCircle2 size={20} />
+                  </button>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </div>
+
+
     </motion.div>
   );
 }
