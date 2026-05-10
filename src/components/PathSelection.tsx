@@ -139,15 +139,25 @@ export default function PathSelection({ state, onSelectPath, onBack }: PathSelec
   }
 
   return (
-    <div id="paths-content" className="flex flex-col space-y-8 pb-12">
-      {/* Header */}
-      <div className="space-y-4">
-        <div className="space-y-2">
-          <h2 className="text-4xl sm:text-6xl font-serif font-black text-earth dark:text-ivory tracking-tight leading-tight">
-            {isEs ? "¿Qué estás viviendo en este momento?" : "What are you going through right now?"}
+    <div id="paths-content" className="flex flex-col pb-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
+      {/* Page Header - Refined for Consistency and Left Aligned */}
+      <div className="w-full mb-8 sm:mb-12">
+        <div className="flex flex-col space-y-1 sm:space-y-1.5">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-sky-blue animate-pulse" />
+            <span className="text-[11px] sm:text-[12px] font-black uppercase tracking-[0.3em] text-sky-blue leading-none">
+              {isEs ? 'CAMINOS' : 'PATHS'}
+            </span>
+          </div>
+          
+          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-serif font-black text-earth dark:text-ivory tracking-tight leading-tight">
+            {isEs ? 'Tu Jardín Secreto' : 'Your Secret Garden'}
           </h2>
-          <p className="text-lg text-sky-blue font-medium">
-            {isEs ? "Elige un camino en la Palabra." : "Choose a path in the Word."}
+          
+          <p className="text-xs sm:text-sm text-earth-light/70 dark:text-lavender-muted/70 font-medium tracking-tight">
+            {isEs 
+              ? 'Elige dónde quieres crecer en tu caminar espiritual' 
+              : 'Choose where you want to grow in your spiritual journey'}
           </p>
         </div>
       </div>
@@ -183,7 +193,7 @@ export default function PathSelection({ state, onSelectPath, onBack }: PathSelec
               )}
 
               {/* Background Accent */}
-              <div className="absolute -top-4 -right-4 p-8 opacity-[0.03] group-hover:opacity-[0.08] transition-opacity">
+              <div className="absolute -top-4 -right-4 p-8 opacity-[0.05] group-hover:opacity-[0.1] transition-opacity">
                 <Compass size={120} className="text-sky-blue transform rotate-12" />
               </div>
 
@@ -195,24 +205,24 @@ export default function PathSelection({ state, onSelectPath, onBack }: PathSelec
                 </div>
                 {!isActive && (
                   <div className="flex items-center gap-1.5 px-3 py-1.5 bg-teal/5 dark:bg-teal/10 rounded-full border border-teal/10 dark:border-teal/20">
-                    <Clock size={12} className="text-teal/40" />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-teal/60 dark:text-teal-400/60">
+                    <Clock size={12} className="text-amber-500/80 dark:text-amber-400/80" />
+                    <span className="text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">
                       {path.duration} {isEs ? "días" : "days"}
                     </span>
                   </div>
                 )}
               </div>
 
-              <div className="space-y-3 relative z-10 w-full">
-                <h3 className="text-2xl font-serif font-black transition-colors leading-tight text-earth dark:text-ivory">
+              <div className="flex-1 space-y-3 relative z-10 w-full mb-6">
+                <h3 className="text-2xl font-serif font-black transition-colors leading-tight text-earth dark:text-ivory min-h-[4rem] line-clamp-2">
                   {isEs ? path.titleEs : path.title}
                 </h3>
-                <p className="text-sm text-earth-light/70 dark:text-lavender-muted/60 leading-relaxed line-clamp-2">
+                <p className="text-sm text-earth-light/70 dark:text-lavender-muted/60 leading-relaxed line-clamp-2 min-h-[2.5rem]">
                   {isEs ? path.descriptionEs : path.description}
                 </p>
               </div>
 
-              <div className="mt-8 flex items-center gap-2 font-black text-[10px] uppercase tracking-widest transition-colors text-earth-light/40 dark:text-ivory/30 group-hover:text-earth-light/60">
+              <div className="mt-auto flex items-center gap-2 font-black text-[10px] uppercase tracking-widest transition-colors text-earth-light/40 dark:text-ivory/30 group-hover:text-earth-light/60">
                 <span>{isEs ? "Ver detalles" : "View details"}</span>
                 <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform" />
               </div>

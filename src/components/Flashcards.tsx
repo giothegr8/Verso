@@ -204,74 +204,63 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
       .trim();
   };
 
-  // Citation clue logic: 3 clues per language
+  // Citation clue logic: exactly 1 random useful clue per language
   const handleClue = (e: React.MouseEvent, lang: 'es' | 'en') => {
     e.stopPropagation();
-    const currentClueCount = clueCount[lang];
-    if (currentClueCount >= 3) return;
+    if (clueCount[lang] >= 1) return;
+
+    const ref = lang === 'es' ? esRef : enRef;
+    const userInput = lang === 'es' ? userInputEs : userInputEn;
+    const fillableIndices = getFillableIndices(ref, revealedIndices[lang]);
+    
+    // Find book name vs numbers part for prioritization
+    const parts = ref.split(' ');
+    const numbersPart = parts[parts.length - 1]; 
+    const numberStartIdx = ref.lastIndexOf(numbersPart);
+
+    // Eligible indices are those that are fillable AND NOT correctly typed by user
+    const eligibleIndices = fillableIndices.filter(idx => {
+      const char = ref[idx];
+      const fillIdx = fillableIndices.indexOf(idx);
+      const userChar = userInput[fillIdx];
+      // Eligible if slot is empty OR user typed it incorrectly
+      return !userChar || userChar === " " || normalize(userChar) !== normalize(char);
+    });
+
+    if (eligibleIndices.length === 0) return;
+
+    // Prioritize letters (book name) over digits (chapter/verse)
+    const letterIndices = eligibleIndices.filter(idx => idx < numberStartIdx && /[\p{L}]/u.test(ref[idx]));
+    const digitIndices = eligibleIndices.filter(idx => idx >= numberStartIdx && /[\p{N}]/u.test(ref[idx]));
+
+    let chosenIdx: number;
+    if (letterIndices.length > 0) {
+      chosenIdx = letterIndices[Math.floor(Math.random() * letterIndices.length)];
+    } else {
+      chosenIdx = digitIndices[Math.floor(Math.random() * digitIndices.length)];
+    }
 
     const newRevealed = { ...revealedIndices };
-    const ref = lang === 'es' ? esRef : enRef;
+    newRevealed[lang] = [...newRevealed[lang], chosenIdx].sort((a, b) => a - b);
     
-    const getClueIndex = (citationRef: string, current: number[], type: 'letter' | 'digit') => {
-      // Find book name vs numbers part
-      const parts = citationRef.split(' ');
-      const numbersPart = parts[parts.length - 1]; // e.g. "1:1" or "3:16"
-      const numberStartIdx = citationRef.lastIndexOf(numbersPart);
-
-      for (let i = 0; i < citationRef.length; i++) {
-        if (current.includes(i)) continue;
-        const char = citationRef[i];
-        const isDigit = /[\d]/.test(char);
-        const isLetter = /[\p{L}]/u.test(char);
-
-        if (type === 'letter' && isLetter && i < numberStartIdx) {
-          return i;
-        }
-        if (type === 'digit' && isDigit && i >= numberStartIdx) {
-          return i;
-        }
-      }
-      return null;
-    };
-
-    const countDigits = (citationRef: string) => {
-      return (citationRef.match(/\d/g) || []).length;
-    };
-
-    let newlyRevealed: number | null = null;
-    const type = currentClueCount === 0 ? 'letter' : 
-                 currentClueCount === 1 ? 'digit' : 
-                 (Math.max(countDigits(esRef), countDigits(enRef)) > 2 ? 'digit' : 'letter');
-
-    newlyRevealed = getClueIndex(ref, newRevealed[lang], type);
+    // Adjust user input to account for the new revealed character
+    const setInput = lang === 'es' ? setUserInputEs : setUserInputEn;
+    const removedFillIdx = fillableIndices.indexOf(chosenIdx);
     
-    if (newlyRevealed !== null) {
-      newRevealed[lang] = [...newRevealed[lang], newlyRevealed].sort((a, b) => a - b);
+    if (removedFillIdx !== -1) {
+      let newUserInput = userInput.split('');
+      newUserInput.splice(removedFillIdx, 1);
+      setInput(newUserInput.join(''));
       
-      // Adjust user input to account for the new revealed character
-      const input = lang === 'es' ? userInputEs : userInputEn;
-      const setInput = lang === 'es' ? setUserInputEs : setUserInputEn;
-
-      const fillableIndices = getFillableIndices(ref, revealedIndices[lang]);
-      const removedFillIdx = fillableIndices.indexOf(newlyRevealed);
-      
-      if (removedFillIdx !== -1) {
-        let newUserInput = input.split('');
-        newUserInput.splice(removedFillIdx, 1);
-        setInput(newUserInput.join(''));
-        
-        // Update cursor position if it was after the removed index
-        const setCursor = lang === 'es' ? setCursorPositionEs : setCursorPositionEn;
-        const currentCursor = lang === 'es' ? cursorPositionEs : cursorPositionEn;
-        if (currentCursor > removedFillIdx) {
-          setCursor(currentCursor - 1);
-        }
+      const setCursor = lang === 'es' ? setCursorPositionEs : setCursorPositionEn;
+      const currentCursor = lang === 'es' ? cursorPositionEs : cursorPositionEn;
+      if (currentCursor > removedFillIdx) {
+        setCursor(currentCursor - 1);
       }
-
-      setRevealedIndices(newRevealed);
-      setClueCount(prev => ({ ...prev, [lang]: prev[lang] + 1 }));
     }
+
+    setRevealedIndices(newRevealed);
+    setClueCount(prev => ({ ...prev, [lang]: prev[lang] + 1 }));
   };
 
   const getFillableIndices = (ref: string, revealed: number[]) => {
@@ -621,7 +610,7 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
           </div>
           
           <h2 className="text-2xl sm:text-3xl lg:text-4xl font-serif font-black text-earth dark:text-ivory tracking-tight leading-tight">
-            {state.primaryLanguage === 'es' ? 'La cita bíblica' : 'The reference'}
+            {state.primaryLanguage === 'es' ? 'La Cita Bíblica' : 'The Reference'}
           </h2>
           
           <p className="text-xs sm:text-sm text-earth-light/70 dark:text-lavender-muted/70 font-medium tracking-tight">
@@ -634,7 +623,7 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
 
       {/* Card Container - Adjusted for Breathing Room */}
       <div className="flex flex-col items-center px-6">
-        <div className="relative w-full max-w-xl h-[620px] sm:h-[660px] lg:h-[720px] perspective-1000 mb-10">
+        <div className="relative w-full max-w-xl h-[680px] sm:h-[760px] lg:h-[820px] perspective-1000 mb-10">
         <motion.div
           className="w-full h-full preserve-3d"
           animate={{ rotateY: isFlipped ? 180 : 0 }}
@@ -677,8 +666,8 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
                     </div>
                   </div>
 
-                    {/* Middle Section - Reference Placeholder Area */}
-                  <div className="flex-1 flex flex-col justify-center items-center space-y-10 sm:space-y-20">
+                  {/* Middle Section - Reference Placeholder Area */}
+                  <div className="flex-1 flex flex-col justify-center items-center space-y-8 sm:space-y-14">
                     {(state.memorizeMode === 'es' || state.memorizeMode === 'both') && (
                       <div 
                         className="space-y-5 sm:space-y-8 w-full cursor-text flex flex-col items-center"
@@ -697,15 +686,15 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
                               initial={{ opacity: 0, scale: 0.8 }}
                               animate={{ opacity: 1, scale: 1 }}
                               onClick={(e) => handleClue(e, 'es')}
-                              disabled={clueCount.es >= 3}
+                              disabled={clueCount.es >= 1}
                               className={`ml-2 p-1.5 rounded-lg transition-all ${
-                                clueCount.es >= 3
-                                  ? 'text-earth/10 dark:text-white/10'
+                                clueCount.es >= 1
+                                  ? 'text-earth/10 dark:text-white/10 opacity-0 pointer-events-none'
                                   : 'text-amber-500 hover:bg-amber-500/10 active:scale-95'
                               }`}
-                              title={state.primaryLanguage === 'es' ? `Pista (${3 - clueCount.es})` : `Clue (${3 - clueCount.es})`}
+                              title={state.primaryLanguage === 'es' ? `Pista (${1 - clueCount.es})` : `Clue (${1 - clueCount.es})`}
                             >
-                              <Sparkles size={14} className={clueCount.es >= 3 ? '' : 'animate-pulse'} />
+                              <Sparkles size={14} className={clueCount.es >= 1 ? '' : 'animate-pulse'} />
                             </motion.button>
                           )}
                         </div>
@@ -776,15 +765,15 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
                               initial={{ opacity: 0, scale: 0.8 }}
                               animate={{ opacity: 1, scale: 1 }}
                               onClick={(e) => handleClue(e, 'en')}
-                              disabled={clueCount.en >= 3}
+                              disabled={clueCount.en >= 1}
                               className={`ml-2 p-1.5 rounded-lg transition-all ${
-                                clueCount.en >= 3
-                                  ? 'text-earth/10 dark:text-white/10'
+                                clueCount.en >= 1
+                                  ? 'text-earth/10 dark:text-white/10 opacity-0 pointer-events-none'
                                   : 'text-amber-500 hover:bg-amber-500/10 active:scale-95'
                               }`}
-                              title={state.primaryLanguage === 'es' ? `Pista (${3 - clueCount.en})` : `Clue (${3 - clueCount.en})`}
+                              title={state.primaryLanguage === 'es' ? `Pista (${1 - clueCount.en})` : `Clue (${1 - clueCount.en})`}
                             >
-                              <Sparkles size={14} className={clueCount.en >= 3 ? '' : 'animate-pulse'} />
+                              <Sparkles size={14} className={clueCount.en >= 1 ? '' : 'animate-pulse'} />
                             </motion.button>
                           )}
                         </div>
@@ -883,21 +872,21 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
                   </div>
 
                   {/* Bottom Section - Integrated Controls */}
-                  <div className="flex flex-col items-center gap-4 pb-10 pt-4 mt-auto">
+                  <div className="flex flex-col items-center gap-4 pb-14 pt-4 mt-auto">
                     {/* Compact Clue Button and Attempts */}
                     <div className="flex flex-col items-center gap-6 w-full">
                       {attemptsLeft > 0 && !isCorrect && state.memorizeMode !== 'both' && (
                         <button
                           onClick={(e) => handleClue(e, state.memorizeMode as 'es' | 'en')}
-                          disabled={clueCount[state.memorizeMode as 'es' | 'en'] >= 3}
+                          disabled={clueCount[state.memorizeMode as 'es' | 'en'] >= 1}
                           className={`flex items-center justify-center gap-2 px-8 py-2.5 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all ${
-                            clueCount[state.memorizeMode as 'es' | 'en'] >= 3
-                              ? 'text-earth/20 dark:text-white/20 cursor-not-allowed border border-earth/10'
+                            clueCount[state.memorizeMode as 'es' | 'en'] >= 1
+                              ? 'text-earth/20 dark:text-white/20 cursor-not-allowed border border-earth/10 opacity-0 pointer-events-none'
                               : 'bg-teal/10 hover:bg-teal/20 text-teal dark:text-teal-400 border border-teal/20 shadow-sm active:scale-95'
                           }`}
                         >
-                          <Sparkles size={14} className={clueCount[state.memorizeMode as 'es' | 'en'] >= 3 ? '' : 'animate-pulse text-amber-500 dark:text-amber-400'} />
-                          <span>{state.primaryLanguage === 'es' ? 'pista' : 'clue'} ({3 - clueCount[state.memorizeMode as 'es' | 'en']})</span>
+                          <Sparkles size={14} className={clueCount[state.memorizeMode as 'es' | 'en'] >= 1 ? '' : 'animate-pulse text-amber-500 dark:text-amber-400'} />
+                          <span>{state.primaryLanguage === 'es' ? 'pista' : 'clue'} ({1 - clueCount[state.memorizeMode as 'es' | 'en']})</span>
                         </button>
                       )}
                       

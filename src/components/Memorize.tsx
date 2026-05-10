@@ -1034,7 +1034,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                 ? (
                   stage === 1 ? 'Léelo en voz alta, todavía no tienes que escribir' :
                   stage === 2 ? 'Léelo en voz alta una vez más' :
-                  stage === 3 ? 'RESPIRA HONDO. DI LAS PALABRAS EN VOZ ALTA' :
+                  stage === 3 ? 'RESPIRA PROFUNDO. DI LAS PALABRAS EN VOZ ALTA' :
                   stage === 4 ? 'Una última lectura antes de escribir' :
                   'Ahora escribe lo que recuerdas'
                 )
@@ -1056,21 +1056,36 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                 {state.primaryLanguage === 'es' ? 'Paso' : 'Step'}
               </span>
               <div className="flex items-baseline gap-1">
-                <span className="text-3xl sm:text-4xl font-serif font-black text-gold lining-nums">{stage}</span>
+                <span className="text-3xl sm:text-4xl font-serif font-black text-amber-500 dark:text-amber-400 lining-nums">{stage}</span>
                 <span className="text-sm text-earth/20 dark:text-ivory/20 font-black">/ 5</span>
               </div>
             </div>
           </div>
         </div>
         
-        {/* Progress Bar - More Premium Gradient & Height */}
-        <div className="h-1.5 w-full bg-earth/5 dark:bg-white/5 rounded-full overflow-hidden relative mt-6">
+        {/* Progress Bar - Simplified & Premium */}
+        <div className="h-1.5 w-full bg-earth/10 dark:bg-white/10 rounded-full overflow-hidden relative mt-6">
           <motion.div 
-            className="h-full bg-gradient-to-r from-playful-purple via-sky-blue to-teal rounded-full relative shadow-[0_0_20px_rgba(109,40,217,0.3)]"
+            className="h-full bg-teal dark:bg-teal-400 rounded-full relative"
             initial={{ width: 0 }}
             animate={{ width: `${(stage / 5) * 100}%` }}
             transition={{ type: "spring", damping: 30, stiffness: 100 }}
           />
+          
+          {/* Subtle Progress Spark */}
+          <AnimatePresence>
+            <motion.div
+              key={stage}
+              initial={{ x: `${((stage - 1) / 5) * 100}%`, opacity: 0, scale: 0 }}
+              animate={{ 
+                x: `${(stage / 5) * 100}%`, 
+                opacity: [0, 1, 0],
+                scale: [0.5, 1.5, 0.5]
+              }}
+              className="absolute top-0 bottom-0 w-4 -ml-2 bg-amber-400/50 blur-sm rounded-full z-10"
+              transition={{ duration: 0.8, ease: "easeOut" }}
+            />
+          </AnimatePresence>
         </div>
       </div>
 
