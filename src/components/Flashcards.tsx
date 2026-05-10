@@ -1013,7 +1013,7 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
       </div>
 
       {/* External Action Area - Centered same as card */}
-      <div className="w-full max-w-4xl mx-auto flex flex-col items-center gap-6 mt-4 mb-20 px-6">
+      <div className="w-full max-w-4xl mx-auto flex flex-col items-center gap-6 mt-12 mb-20 px-6">
         <AnimatePresence mode="wait">
           {isCorrect ? (
             <motion.div

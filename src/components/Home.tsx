@@ -463,13 +463,13 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
                                   isCompleted 
                                     ? "bg-amber-500/40" 
                                     : isActive 
-                                      ? "bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.4)]" 
+                                      ? "bg-amber-100 dark:bg-amber-200 shadow-[0_0_15px_rgba(251,191,36,0.4)]" 
                                       : "bg-earth/10 dark:bg-white/10"
                                 }`}
                               />
                               {isActive && (
                                 <motion.div 
-                                  className="absolute inset-0 rounded-full bg-amber-500/40"
+                                  className="absolute inset-0 rounded-full bg-amber-200/40"
                                   initial={{ opacity: 0, scale: 1 }}
                                   animate={{ opacity: [0, 0.5, 0], scale: [1, 2.5, 3.5] }}
                                   transition={{ duration: 2.5, repeat: Infinity, ease: "easeOut" }}
