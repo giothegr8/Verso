@@ -266,18 +266,18 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
             </h2>
           </div>
           
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <span className="text-[9px] font-black uppercase tracking-widest text-earth-light/40 dark:text-lavender-muted/40">
               {state.primaryLanguage === 'es' ? '1 versículo al día' : '1 verse a day'}
             </span>
-            {!isVotd && (
-              <button 
-                onClick={() => setState(s => ({ ...s, selectedVerseId: null }))}
-                className="text-[10px] font-black uppercase tracking-widest text-playful-purple hover:underline"
-              >
-                {state.primaryLanguage === 'es' ? 'Volver al diario' : 'Back to Daily'}
-              </button>
-            )}
+            <button 
+              onClick={isVotd ? onGetAnotherVerse : () => setState(s => ({ ...s, selectedVerseId: null }))}
+              className="text-[10px] font-black uppercase tracking-widest text-playful-purple hover:underline transition-all active:scale-95"
+            >
+              {isVotd 
+                ? (state.primaryLanguage === 'es' ? 'OTRO VERSÍCULO' : 'ANOTHER VERSE') 
+                : (state.primaryLanguage === 'es' ? 'VOLVER AL DIARIO' : 'BACK TO DAILY')}
+            </button>
           </div>
         </div>
         
@@ -365,7 +365,7 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
                   disabled={!esText && !enText}
                   className={`relative overflow-hidden group flex items-center gap-2.5 py-3 px-10 bg-teal/10 hover:bg-teal/20 text-teal dark:text-teal-400 rounded-full font-bold border border-teal/20 transition-all shadow-sm active:scale-95 ${(!esText && !enText) ? 'opacity-50 grayscale cursor-not-allowed' : ''}`}
                 >
-                  <BookOpen size={16} />
+                  <BookOpen size={16} className="text-teal" />
                   <span className="text-sm sm:text-base tracking-tight lowercase">
                     {state.primaryLanguage === 'es' ? 'memorizar' : 'memorize'}
                   </span>
@@ -373,19 +373,6 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
             </div>
           </div>
         </motion.div>
-      </div>
-
-      {/* Secondary Action - Another Verse */}
-      <div className="flex justify-center pt-4">
-        <button 
-          onClick={onGetAnotherVerse}
-          className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-white/50 dark:bg-charcoal/50 border border-earth/10 dark:border-white/10 hover:bg-white dark:hover:bg-charcoal transition-all group"
-        >
-          <History size={16} className="text-earth-light/60 dark:text-lavender-muted/60 group-hover:text-playful-purple transition-colors" />
-          <span className="text-xs font-black uppercase tracking-widest text-earth-light/60 dark:text-lavender-muted/60 group-hover:text-playful-purple transition-colors">
-            {state.primaryLanguage === 'es' ? 'Otro versículo' : 'Another verse'}
-          </span>
-        </button>
       </div>
 
       {/* Paths Section */}
@@ -529,7 +516,7 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
                     }}
                     className="flex-1 md:flex-none flex items-center justify-center gap-2.5 py-3 px-8 bg-teal/10 hover:bg-teal/20 text-teal dark:text-teal-400 rounded-full font-bold border border-teal/20 transition-all active:scale-95 text-sm tracking-tight shadow-sm"
                   >
-                    <BookOpen size={16} />
+                    <div className="w-1.5 h-1.5 rounded-full bg-amber-100 dark:bg-amber-200 shadow-[0_0_8px_rgba(251,191,36,0.4)]" />
                     <span className="lowercase">
                     {currentVerse.id === activePathVerse?.id 
                       ? (isEs ? "ver el versículo" : "view the verse")
