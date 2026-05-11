@@ -11,9 +11,10 @@ interface FlashcardsProps {
   setState: React.Dispatch<React.SetStateAction<AppState>>;
   onMemorize: (verseId: string) => void;
   onGoToSaved?: () => void;
+  onComplete?: () => void;
 }
 
-export default function Flashcards({ state, setState, onMemorize, onGoToSaved }: FlashcardsProps) {
+export default function Flashcards({ state, setState, onMemorize, onGoToSaved, onComplete }: FlashcardsProps) {
   const [isFlipped, setIsFlipped] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
   const [clueCount, setClueCount] = useState<{ es: number, en: number }>({ es: 0, en: 0 });
@@ -24,7 +25,8 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
   const [isCorrect, setIsCorrect] = useState(false);
   const [showError, setShowError] = useState(false);
   const [hasSubmitted, setHasSubmitted] = useState(false);
-  const [attemptsLeft, setAttemptsLeft] = useState(3);
+  const [hasReviewed, setHasReviewed] = useState(false);
+  const [attemptsLeft, setAttemptsLeft] = useState(2);
   
   const inputRefEs = React.useRef<HTMLInputElement>(null);
   const inputRefEn = React.useRef<HTMLInputElement>(null);
@@ -88,7 +90,8 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
     setIsCorrect(false);
     setShowError(false);
     setHasSubmitted(false);
-    setAttemptsLeft(3);
+    setHasReviewed(false);
+    setAttemptsLeft(2);
   }, [verse.id, state.selectedTranslations.es, state.selectedTranslations.en, state.memorizeMode]);
 
   useEffect(() => {
@@ -127,6 +130,9 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
   }, [isCompleted]);
 
   const onFlip = () => {
+    if (isFlipped && (isCorrect || attemptsLeft === 0)) {
+      setHasReviewed(true);
+    }
     setIsFlipped(!isFlipped);
   };
 
@@ -156,6 +162,9 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
         }
       };
     });
+
+    // Notify parent if completion handler exists
+    if (onComplete) onComplete();
   };
 
   const showBilingual = state.memorizeMode === 'both';
@@ -194,7 +203,8 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
     setIsCorrect(false);
     setShowError(false);
     setHasSubmitted(false);
-    setAttemptsLeft(3);
+    setHasReviewed(false);
+    setAttemptsLeft(2);
   };
 
   const normalize = (str: string) => {
@@ -841,18 +851,12 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
                       >
                         <div className="space-y-1">
                           <p className="text-sm font-black text-coral uppercase tracking-wider">
-                            {state.primaryLanguage === 'es' ? 'Esta vez no.' : 'Not this time.'}
+                            {state.primaryLanguage === 'es' ? 'Se agotaron los intentos.' : 'Attempts exhausted.'}
                           </p>
                           <p className="text-[11px] text-earth-light/60 dark:text-lavender-muted/60 font-medium">
-                            {state.primaryLanguage === 'es' ? 'Repasemos este versículo.' : 'Let’s review this verse again.'}
+                            {state.primaryLanguage === 'es' ? 'Voltea la tarjeta para ver la respuesta.' : 'Flip the card to review the citation.'}
                           </p>
                         </div>
-                        <button
-                          onClick={() => onMemorize(verse.id)}
-                          className="bg-coral/10 text-coral border border-coral/20 px-6 py-2 rounded-xl text-[11px] sm:text-[12px] font-black uppercase tracking-widest hover:bg-coral/20 transition-all active:scale-95"
-                        >
-                          {state.primaryLanguage === 'es' ? 'repasar' : 'review'}
-                        </button>
                       </motion.div>
                     )}
 
@@ -901,18 +905,24 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
             {/* Shared Overlapping Flip Button */}
             <div className="absolute -bottom-7 left-1/2 -translate-x-1/2 z-30">
               <motion.button
-                onClick={(e) => { e.stopPropagation(); onFlip(); }}
+                onClick={(e) => { 
+                  e.stopPropagation(); 
+                  if (isCorrect || attemptsLeft === 0) onFlip(); 
+                }}
+                disabled={!isCorrect && attemptsLeft > 0}
                 className={`w-14 h-14 rounded-full shadow-2xl flex items-center justify-center transition-all border-4 border-white dark:border-charcoal relative group ${
-                  isFlipped 
-                    ? 'bg-sky-blue text-white rotate-180' 
-                    : 'bg-playful-purple text-white rotate-0'
+                  (!isCorrect && attemptsLeft > 0)
+                    ? 'bg-earth/20 text-earth/20 dark:bg-white/5 dark:text-white/5 cursor-not-allowed border-earth/10'
+                    : isFlipped 
+                      ? 'bg-sky-blue text-white rotate-180' 
+                      : 'bg-playful-purple text-white rotate-0 shadow-lg shadow-playful-purple/30'
                 }`}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+                whileHover={(!isCorrect && attemptsLeft > 0) ? {} : { scale: 1.05 }}
+                whileTap={(!isCorrect && attemptsLeft > 0) ? {} : { scale: 0.95 }}
                 aria-label={state.primaryLanguage === 'es' ? 'voltear tarjeta' : 'flip card'}
               >
                 <RotateCcw size={24} />
-                {!isFlipped && (
+                {!isFlipped && (isCorrect || attemptsLeft === 0) && (
                   <motion.div 
                     className="absolute -inset-1 rounded-full border-2 border-playful-purple/30"
                     animate={{ scale: [1, 1.2, 1], opacity: [0.5, 0, 0.5] }}
@@ -1014,22 +1024,46 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved }:
       {/* External Action Area - Centered same as card */}
       <div className="w-full max-w-4xl mx-auto flex flex-col items-center gap-6 mt-12 mb-20 px-6">
         <AnimatePresence mode="wait">
-          {isCorrect ? (
+          {(isCorrect || (attemptsLeft === 0 && !isCorrect)) ? (
             <motion.div
-              key="success-action"
+              key="next-action"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9 }}
               className="w-full px-4"
             >
               <button
-                onClick={handleComplete}
-                className="w-full bg-teal text-white rounded-[24px] py-5 flex items-center justify-center gap-3 shadow-xl shadow-teal/20 hover:scale-[1.02] active:scale-95 transition-all"
+                onClick={() => {
+                  if (isCorrect) {
+                    handleComplete();
+                  } else {
+                    onMemorize(verse.id); // Default carry over for incorrect review
+                  }
+                }}
+                disabled={!hasReviewed || isFlipped}
+                className={`w-full rounded-[24px] py-5 flex items-center justify-center gap-3 transition-all ${
+                  hasReviewed && !isFlipped
+                    ? (isCorrect 
+                        ? 'bg-teal text-white shadow-xl shadow-teal/30 hover:scale-[1.02] active:scale-95' 
+                        : 'bg-coral text-white shadow-xl shadow-coral/30 hover:scale-[1.02] active:scale-95')
+                    : 'bg-earth/10 text-earth/20 dark:bg-white/5 dark:text-white/10 cursor-not-allowed grayscale'
+                }`}
               >
-                <CheckCircle2 size={24} />
+                {isCorrect ? <CheckCircle2 size={24} /> : <BookOpen size={24} />}
                 <span className="text-lg font-bold tracking-tight lowercase">
-                  {state.primaryLanguage === 'es' ? 'versículo memorizado' : 'verse memorized'}
+                  {isCorrect 
+                    ? (state.primaryLanguage === 'es' ? 'versículo memorizado' : 'verse memorized')
+                    : (state.primaryLanguage === 'es' ? 'repasar versículo' : 'review verse')}
                 </span>
+                {hasReviewed && !isFlipped && (
+                  <motion.div 
+                    className="absolute right-6"
+                    animate={{ x: [0, 5, 0] }}
+                    transition={{ repeat: Infinity, duration: 1.5 }}
+                  >
+                    <ArrowRight size={20} />
+                  </motion.div>
+                )}
               </button>
             </motion.div>
           ) : (

@@ -1,19 +1,50 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { AppState, Path } from "../types";
-import { PATHS } from "../constants";
-import { ArrowLeft, Compass, Clock, ChevronRight, Sprout, CheckCircle2, Lock, Flower2 } from "lucide-react";
+import { AppState, Path, Translation, TRANSLATION_DETAILS, Verse } from "../types";
+import { PATHS, MOCK_VERSES } from "../constants";
+import { ArrowLeft, Compass, Clock, ChevronRight, Sprout, CheckCircle2, Lock, Flower2, RotateCw, BookOpen, RotateCcw, X, Share2, Sparkles } from "lucide-react";
+import { getCurrentTranslationPair, getLocalizedBookName, getValidatedVerse } from "../utils/verseUtils";
+import { handleShare } from "../utils/shareUtils";
+import ShareModal from "./ShareModal";
 
 interface PathSelectionProps {
   state: AppState;
   onSelectPath: (pathId: string) => void;
   onBack: () => void;
+  onMemorize: (verseId: string, source?: "path" | "saved" | "extra") => void;
 }
 
-export default function PathSelection({ state, onSelectPath, onBack }: PathSelectionProps) {
+export default function PathSelection({ state, onSelectPath, onBack, onMemorize }: PathSelectionProps) {
   const isEs = state.primaryLanguage === "es";
   const [selectedPath, setSelectedPath] = useState<Path | null>(null);
+  const [flippedDay, setFlippedDay] = useState<number | null>(null);
+  const [reviewDay, setReviewDay] = useState<number | null>(null);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const selectedPathId = state.pathProgress.selectedPathId;
+
+  const getVerseByRef = (ref: string) => {
+    return MOCK_VERSES.find(v => {
+      const parts = v.book.split(' / ');
+      const esBook = parts[0];
+      const enBook = parts[1] || parts[0];
+      // Check for exact matches first
+      const vEsRef = `${esBook} ${v.chapter}:${v.verse}`;
+      const vEnRef = `${enBook} ${v.chapter}:${v.verse}`;
+      return ref === vEsRef || ref === vEnRef;
+    }) || MOCK_VERSES.find(v => {
+      // Fallback: look if reference contains both book name and numbers
+      const parts = v.book.split(' / ');
+      const esBook = parts[0];
+      const enBook = parts[1] || parts[0];
+      return (ref.includes(esBook) || ref.includes(enBook)) && ref.includes(`${v.chapter}:${v.verse}`);
+    });
+  };
+
+  const currentReviewVerse = useMemo(() => {
+    if (!selectedPath || reviewDay === null) return null;
+    const dayData = selectedPath.days?.find(d => d.day === reviewDay);
+    return dayData ? getVerseByRef(dayData.reference) : null;
+  }, [selectedPath, reviewDay]);
 
   // Sort paths to move currently selected path to the top
   const sortedPaths = [...PATHS].sort((a, b) => {
@@ -23,6 +54,11 @@ export default function PathSelection({ state, onSelectPath, onBack }: PathSelec
   });
 
   if (selectedPath) {
+    const reviewDayData = reviewDay !== null ? selectedPath.days?.find(d => d.day === reviewDay) : null;
+    const { esText, enText, esError, enError } = currentReviewVerse 
+      ? getValidatedVerse(currentReviewVerse, state) 
+      : { esText: null, enText: null, esError: null, enError: null };
+
     return (
       <motion.div 
         initial={{ opacity: 0, x: 20 }}
@@ -30,6 +66,124 @@ export default function PathSelection({ state, onSelectPath, onBack }: PathSelec
         exit={{ opacity: 0, x: -20 }}
         className="flex flex-col space-y-8 pb-12"
       >
+        {/* Share Modal integrated for review flow */}
+        {currentReviewVerse && (
+          <ShareModal 
+            isOpen={isShareModalOpen}
+            onClose={() => setIsShareModalOpen(false)}
+            verse={currentReviewVerse}
+            state={state}
+            onNativeShare={async (elementId) => {
+              const title = `Verso: ${currentReviewVerse.book} ${currentReviewVerse.chapter}:${currentReviewVerse.verse}`;
+              const text = `${currentReviewVerse.book} ${currentReviewVerse.chapter}:${currentReviewVerse.verse}\n\nShared via Verso`;
+              await handleShare(title, text, window.location.href, () => {}, elementId);
+              setIsShareModalOpen(false);
+            }}
+          />
+        )}
+
+        {/* Verse Review Modal */}
+        <AnimatePresence>
+          {reviewDay !== null && currentReviewVerse && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setReviewDay(null)}
+                className="absolute inset-0 bg-espresso/80 backdrop-blur-md"
+              />
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                className="relative w-full max-w-lg bg-charcoal rounded-[40px] shadow-2xl border border-white/10 overflow-hidden flex flex-col"
+              >
+                <div className="p-8 space-y-8">
+                  {/* Top Close */}
+                  <div className="flex justify-between items-start">
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-teal/80">
+                        {isEs ? "VERSÍCULO DEL CAMINO" : "PATH VERSE"}
+                      </span>
+                      <h4 className="text-xl font-serif font-black text-ivory/60">
+                        {isEs ? selectedPath.titleEs : selectedPath.title} — {isEs ? `Día ${reviewDay}` : `Day ${reviewDay}`}
+                      </h4>
+                    </div>
+                    <button 
+                      onClick={() => setReviewDay(null)}
+                      className="p-3 rounded-2xl bg-white/5 text-white/40 hover:text-white transition-colors border border-white/5"
+                    >
+                      <X size={20} />
+                    </button>
+                  </div>
+
+                  {/* Verse Content */}
+                  <div className="space-y-6">
+                    {(state.memorizeMode === 'es' || state.memorizeMode === 'both') && (
+                      <div className="space-y-3">
+                        <span className="text-[9px] font-black uppercase tracking-widest text-teal/40">
+                          {TRANSLATION_DETAILS[state.selectedTranslations.es].name}
+                        </span>
+                        <p className="text-2xl sm:text-3xl font-serif leading-relaxed text-ivory tracking-tight">
+                          {esText || esError || (isEs ? "Texto no disponible" : "Text unavailable")}
+                        </p>
+                      </div>
+                    )}
+
+                    {state.memorizeMode === 'both' && (
+                      <div className="w-12 h-px bg-white/10" />
+                    )}
+
+                    {(state.memorizeMode === 'en' || state.memorizeMode === 'both') && (
+                      <div className="space-y-3">
+                        <span className="text-[9px] font-black uppercase tracking-widest text-amber-500/60">
+                          {TRANSLATION_DETAILS[state.selectedTranslations.en].name}
+                        </span>
+                        <p className="text-2xl sm:text-3xl font-serif leading-relaxed text-ivory tracking-tight">
+                          {enText || enError || (!isEs ? "Text unavailable" : "Texto no disponible")}
+                        </p>
+                      </div>
+                    )}
+
+                    <div className="pt-4">
+                      <h5 className="text-lg font-serif font-black text-teal-400">
+                        {getLocalizedBookName(currentReviewVerse.book, state.memorizeMode)} {currentReviewVerse.chapter}:{currentReviewVerse.verse}
+                      </h5>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex flex-col gap-3 pt-4">
+                    <button 
+                      onClick={() => setIsShareModalOpen(true)}
+                      className="w-full btn-primary flex items-center justify-center gap-2 py-4 shadow-xl shadow-teal/20"
+                    >
+                      <Share2 size={20} />
+                      <span className="font-black uppercase tracking-widest text-sm">
+                        {isEs ? "Compartir" : "Share"}
+                      </span>
+                    </button>
+
+                    <button 
+                      onClick={() => {
+                        setReviewDay(null);
+                        onMemorize(currentReviewVerse.id, "extra");
+                      }}
+                      className="w-full py-4 rounded-[24px] bg-white/5 text-ivory font-black text-sm flex items-center justify-center gap-2 border border-white/10 hover:bg-white/10 transition-all active:scale-95"
+                    >
+                      <RotateCcw size={20} />
+                      <span className="font-black uppercase tracking-widest">
+                        {isEs ? "repasar de nuevo" : "review again"}
+                      </span>
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
         {/* Detail Header */}
         <div className="space-y-6">
           <button 
@@ -80,37 +234,85 @@ export default function PathSelection({ state, onSelectPath, onBack }: PathSelec
               const isCompleted = pathSaved?.completedDays.includes(dayNum) || 
                                 (state.pathProgress?.selectedPathId === selectedPath.id && (state.pathProgress?.currentDay || 1) > dayNum);
               const isActive = (selectedPathId === selectedPath.id) && (state.pathProgress?.currentDay === dayNum);
-              
+              const isFlipped = flippedDay === dayNum && isActive; // Only active day should flip
+
+              const verse = dayData ? getVerseByRef(dayData.reference) : null;
+              const previewText = verse ? (isEs ? verse.text.es[state.selectedTranslations.es] : verse.text.en[state.selectedTranslations.en]) : null;
+
               return (
-                <div 
-                  key={dayNum}
-                  className={`p-5 rounded-[24px] border transition-all flex items-start gap-4 ${
-                    isCompleted 
-                      ? "bg-teal/5 border-teal/20 shadow-sm" 
-                      : isActive
-                        ? "bg-teal/10 border-teal-400/30 dark:border-teal-400/40 shadow-lg shadow-teal/5 ring-1 ring-teal/20"
-                        : "bg-white/40 dark:bg-charcoal/40 border-earth/5 dark:border-white/5 group hover:border-teal/20"
-                  }`}
-                >
-                  <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 text-sm font-black ${
-                    isCompleted 
-                      ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20" 
-                      : isActive
-                        ? "bg-teal text-white shadow-[0_0_15px_rgba(45,212,191,0.4)]"
-                        : "bg-earth/5 dark:bg-white/5 text-earth/20 dark:text-ivory/20"
-                  }`}>
-                    {isCompleted ? <Flower2 size={20} className="text-amber-600 dark:text-amber-400" /> : dayNum}
-                  </div>
-                  <div className="flex flex-col gap-0.5">
-                    <span className={`text-[10px] font-black uppercase tracking-[0.2em] ${
-                      isCompleted ? "text-amber-600/60 dark:text-amber-400/60" : isActive ? "text-teal" : "text-earth-light/30"
-                    }`}>
-                      {isEs ? `Día ${dayNum}` : `Day ${dayNum}`}
-                    </span>
-                    <span className={`font-serif font-bold text-lg ${isActive ? "text-teal-900 dark:text-teal-50" : isCompleted ? "text-earth/60 dark:text-ivory/60" : "text-earth dark:text-ivory"}`}>
-                      {dayData?.reference || (isEs ? "Versículo" : "Verse")}
-                    </span>
-                  </div>
+                <div key={dayNum} className="relative h-[90px] perspective-1000">
+                  <motion.div 
+                    initial={false}
+                    animate={{ rotateY: isFlipped ? 180 : 0 }}
+                    transition={{ type: "spring", stiffness: 260, damping: 20 }}
+                    className="w-full h-full preserve-3d cursor-pointer"
+                    onClick={() => {
+                      if (isActive) {
+                        setFlippedDay(isFlipped ? null : dayNum);
+                      } else if (isCompleted) {
+                        setReviewDay(dayNum);
+                      }
+                    }}
+                  >
+                    {/* Front Side */}
+                    <div className="absolute inset-0 backface-hidden">
+                      <div className={`w-full h-full p-4 rounded-[20px] border transition-all flex items-center gap-4 ${
+                        isCompleted 
+                          ? "bg-teal/5 border-teal/20 shadow-sm" 
+                          : isActive
+                            ? "bg-teal/10 border-teal-400/30 dark:border-teal-400/40 shadow-lg shadow-teal/5 ring-1 ring-teal/20"
+                            : "bg-white/40 dark:bg-charcoal/40 border-earth/5 dark:border-white/5 opacity-60"
+                      }`}>
+                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 text-sm font-black transition-transform ${
+                          isCompleted 
+                            ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20" 
+                            : isActive
+                              ? "bg-teal text-white shadow-[0_0_15px_rgba(45,212,191,0.4)]"
+                              : "bg-earth/5 dark:bg-white/5 text-earth/20 dark:text-ivory/20"
+                        }`}>
+                          {isCompleted ? <Flower2 size={18} className="text-amber-600 dark:text-amber-400" /> : dayNum}
+                        </div>
+                        <div className="flex flex-col gap-0.5 overflow-hidden">
+                          <span className={`text-[9px] font-black uppercase tracking-[0.2em] ${
+                            isCompleted ? "text-amber-600/60 dark:text-amber-400/60" : isActive ? "text-teal" : "text-earth-light/30"
+                          }`}>
+                            {isEs ? `Día ${dayNum}` : `Day ${dayNum}`}
+                          </span>
+                          <span className={`font-serif font-bold text-base truncate ${isActive ? "text-teal-900 dark:text-teal-50" : isCompleted ? "text-earth/60 dark:text-ivory/60" : "text-earth dark:text-ivory"}`}>
+                            {dayData?.reference || (isEs ? "Versículo" : "Verse")}
+                          </span>
+                        </div>
+                        {isActive && (
+                          <div className="ml-auto opacity-20 group-hover:opacity-60 transition-opacity">
+                            <RotateCw size={14} className="text-earth/40 dark:text-ivory/40" />
+                          </div>
+                        )}
+                        {isCompleted && (
+                           <div className="ml-auto opacity-40 group-hover:opacity-100 transition-opacity">
+                              <BookOpen size={14} className="text-amber-500" />
+                           </div>
+                        )}
+                        {!isCompleted && !isActive && <Lock size={14} className="ml-auto text-earth/10 dark:text-white/10" />}
+                      </div>
+                    </div>
+
+                    {/* Back Side (Only for Active Day) */}
+                    <div className="absolute inset-0 backface-hidden rotate-y-180">
+                      <div className={`w-full h-full p-4 rounded-[20px] border border-teal-400/20 bg-teal/10 dark:bg-teal-950/20 flex flex-col justify-center`}>
+                        <div className="overflow-hidden">
+                          <div className="flex items-center justify-between mb-1">
+                            <p className="text-[8px] font-black uppercase tracking-widest text-teal/60">
+                              {dayData?.reference}
+                            </p>
+                            <RotateCw size={10} className="text-teal/40" />
+                          </div>
+                          <p className="text-[10px] sm:text-[11px] font-serif font-black text-earth/90 dark:text-ivory/90 line-clamp-2 leading-relaxed">
+                            {previewText || (isEs ? "Versículo del camino..." : "Verse of the path...")}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
                 </div>
               );
             })}

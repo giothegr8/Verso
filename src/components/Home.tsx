@@ -488,10 +488,10 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
               <div className="flex items-center gap-2">
                 <Sparkles size={16} className="text-amber-500 dark:text-amber-400" />
                 <h2 className="text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] text-earth-light dark:text-lavender-muted">
-                  {isCustomMode
-                    ? (isEs ? "Tu propio versículo" : "Custom Verse")
-                    : (currentVerse.id === activePathVerse?.id 
-                      ? (isEs ? "Versículo del camino" : "Today's Path Verse")
+                  {state.activeSource === 'path'
+                    ? (isEs ? "Versículo del camino" : "Today's Path Verse")
+                    : (isCustomMode
+                      ? (isEs ? "Tu propio versículo" : "Custom Verse")
                       : (isVotd 
                         ? (isEs ? "Versículo del día" : "Verse of the Day")
                         : (isEs ? "Versículo extra" : "Extra Verse")))}
@@ -625,11 +625,13 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
               <div className="flex items-center gap-2">
                 <Sparkles size={16} className="text-amber-500 dark:text-amber-400" />
                 <h2 className="text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] text-earth-light dark:text-lavender-muted">
-                  {isCustomMode
-                    ? (isEs ? "Tu propio versículo" : "Custom Verse")
-                    : (isVotd 
-                      ? (isEs ? "Versículo del día" : "Verse of the Day")
-                      : (isEs ? "Versículo extra" : "Extra Verse"))}
+                  {state.activeSource === 'path'
+                    ? (isEs ? "Versículo del camino" : "Today's Path Verse")
+                    : (isCustomMode
+                      ? (isEs ? "Tu propio versículo" : "Custom Verse")
+                      : (isVotd 
+                        ? (isEs ? "Versículo del día" : "Verse of the Day")
+                        : (isEs ? "Versículo extra" : "Extra Verse")))}
                 </h2>
               </div>
               

@@ -434,6 +434,7 @@ export default function App() {
           state={state} 
           onSelectPath={handleSelectPath} 
           onBack={() => setActiveTab("home")} 
+          onMemorize={(id, source) => startMemorizing(id, source || "path")}
         />
       );
       case "memorize": return (
@@ -454,6 +455,11 @@ export default function App() {
           setState={setState} 
           onMemorize={(id) => startMemorizing(id, state.activeSource)} 
           onGoToSaved={() => setActiveTab("saved")}
+          onComplete={() => {
+            if (state.activeSource === 'path') {
+              handleCompletePathDay();
+            }
+          }}
         />
       );
       case "saved": return <Saved state={state} setState={setState} onStartMemorizing={(id, src) => startMemorizing(id, src || "saved")} />;
