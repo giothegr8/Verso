@@ -96,7 +96,8 @@ export type ReminderPreference = "morning" | "midday" | "evening" | "bedtime" | 
 
 export interface OnboardingProfile {
   dailyRhythm?: DailyRhythm;
-  identityAnchorId?: IdentityAnchor;
+  growthGoalLabel?: string;
+  growthGoalSubline?: string;
   blocker?: Blocker;
   reminderPreference?: ReminderPreference;
 }
@@ -109,6 +110,14 @@ export interface ReminderSettings {
 }
 
 export type ActiveVerseSource = "daily" | "extra" | "path" | "custom" | "saved";
+
+export interface ReminderRotationState {
+  lastType: 'goal' | 'blocker';
+  goalIndices: number[]; // Shuffled indices 0-14
+  blockerIndices: number[]; // Shuffled indices 0-14
+  goalPointer: number;
+  blockerPointer: number;
+}
 
 export interface AppState {
   primaryLanguage: "es" | "en";
@@ -128,6 +137,7 @@ export interface AppState {
   pathProgress: UserPathProgress;
   reminders: ReminderSettings;
   onboardingProfile?: OnboardingProfile;
+  reminderRotation?: ReminderRotationState;
   trialStartDate: string | null; // ISO date string
   isSubscribed: boolean;
 }

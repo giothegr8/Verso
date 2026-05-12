@@ -15,6 +15,7 @@ import {
 import { AppState, LanguageMode, Translation, TRANSLATION_PAIRS } from "./types";
 import { MOCK_VERSES, getVerseByDate, PATHS } from "./constants";
 import { getLocalDateString } from "./utils/verseUtils";
+import { rotateReminder } from "./utils/reminderRotation";
 
 // Components
 import Home from "./components/Home";
@@ -178,6 +179,13 @@ export default function App() {
     }
     */
   }, [state.onboarded, state.hasCompletedTour]);
+
+  // Rotate reminder once per session (app load) - PAUSED
+  /*
+  useEffect(() => {
+    setState(prev => rotateReminder(prev));
+  }, []);
+  */
 
   useEffect(() => {
     try {
@@ -573,7 +581,7 @@ export default function App() {
             <NavButton id="nav-home" active={activeTab === 'home'} activeColor="text-playful-purple" onClick={() => setActiveTab('home')} icon={<HomeIcon size={22} />} label={state.primaryLanguage === 'es' ? 'Inicio' : 'Home'} />
             <NavButton id="nav-memorize" active={activeTab === 'memorize'} activeColor="text-gold" onClick={() => setActiveTab('memorize')} icon={<BookOpen size={22} />} label={state.primaryLanguage === 'es' ? 'Memorizar' : 'Memorize'} />
             <NavButton id="nav-flashcards" active={activeTab === 'flashcards'} activeColor="text-coral" onClick={() => setActiveTab('flashcards')} icon={<Layers size={22} />} label={state.primaryLanguage === 'es' ? 'Tarjetas' : 'Cards'} />
-            <NavButton id="nav-paths" active={activeTab === 'paths'} activeColor="text-sky-blue" onClick={() => setActiveTab('paths')} icon={<Compass size={22} />} label={state.primaryLanguage === 'es' ? 'Caminos' : 'Paths'} />
+            <NavButton id="nav-paths" active={activeTab === 'paths'} activeColor="text-sky-blue" onClick={() => setActiveTab('paths')} icon={<Compass size={22} />} label={state.primaryLanguage === 'es' ? 'Series' : 'Paths'} />
             <NavButton id="nav-saved" active={activeTab === 'saved'} activeColor="text-teal" onClick={() => setActiveTab('saved')} icon={<Sprout size={22} />} label={state.primaryLanguage === 'es' ? 'Guardados' : 'Saved'} />
           </nav>
         </div>

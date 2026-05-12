@@ -123,7 +123,7 @@ export default function Settings({ state, setState, onClose, onShowTour }: Setti
                 <button
                   key={lang.id}
                   onClick={() => setLocalState(s => ({ ...s, primaryLanguage: lang.id as 'es' | 'en' }))}
-                  className={`h-16 rounded-2xl font-black text-sm uppercase tracking-widest transition-all border-2 flex items-center justify-center gap-3 ${localState.primaryLanguage === lang.id ? 'bg-playful-purple text-white border-playful-purple shadow-lg shadow-playful-purple/20' : 'bg-earth/5 dark:bg-white/5 border-transparent text-earth/60 dark:text-lavender-muted hover:bg-earth/10 dark:hover:bg-white/10'}`}
+                  className={`h-16 rounded-2xl font-black text-sm uppercase tracking-widest transition-all border-2 flex items-center justify-center gap-3 ${localState.primaryLanguage === lang.id ? 'bg-playful-purple/10 text-playful-purple border-playful-purple shadow-[0_0_15px_rgba(109,40,217,0.1)]' : 'bg-earth/5 dark:bg-white/5 border-transparent text-earth/60 dark:text-lavender-muted hover:bg-earth/10 dark:hover:bg-white/10'}`}
                 >
                   {localState.primaryLanguage === lang.id && <Check size={18} />}
                   {lang.label}
@@ -154,7 +154,7 @@ export default function Settings({ state, setState, onClose, onShowTour }: Setti
                 <button
                   key={mode.id}
                   onClick={() => setLocalState(s => ({ ...s, memorizeMode: mode.id as any }))}
-                  className={`h-16 px-6 rounded-2xl font-black text-sm uppercase tracking-widest transition-all border-2 flex items-center justify-between ${localState.memorizeMode === mode.id ? 'bg-teal text-white border-teal shadow-lg shadow-teal/20' : 'bg-earth/5 dark:bg-white/5 border-transparent text-earth/60 dark:text-lavender-muted hover:bg-earth/10 dark:hover:bg-white/10'}`}
+                  className={`h-16 px-6 rounded-2xl font-black text-sm uppercase tracking-widest transition-all border-2 flex items-center justify-between ${localState.memorizeMode === mode.id ? 'bg-teal/10 text-teal border-teal shadow-[0_0_15px_rgba(13,148,136,0.1)]' : 'bg-earth/5 dark:bg-white/5 border-transparent text-earth/60 dark:text-lavender-muted hover:bg-earth/10 dark:hover:bg-white/10'}`}
                 >
                   <span>{mode.label}</span>
                   {localState.memorizeMode === mode.id && <Check size={18} />}
@@ -193,7 +193,7 @@ export default function Settings({ state, setState, onClose, onShowTour }: Setti
                       <button
                         key={trans.id}
                         onClick={() => handleSpanishTranslationChange(trans.id as Translation)}
-                        className={`h-16 px-6 rounded-2xl font-black text-sm uppercase tracking-widest transition-all border-2 flex items-center justify-between ${activePair.es === trans.id ? 'bg-sky-blue text-white border-sky-blue shadow-lg shadow-sky-blue/20' : 'bg-earth/5 dark:bg-white/5 border-transparent text-earth/60 dark:text-lavender-muted hover:bg-earth/10 dark:hover:bg-white/10'}`}
+                        className={`h-16 px-6 rounded-2xl font-black text-sm uppercase tracking-widest transition-all border-2 flex items-center justify-between ${activePair.es === trans.id ? 'bg-sky-blue/10 text-sky-blue border-sky-blue shadow-[0_0_15px_rgba(2,132,199,0.1)]' : 'bg-earth/5 dark:bg-white/5 border-transparent text-earth/60 dark:text-lavender-muted hover:bg-earth/10 dark:hover:bg-white/10'}`}
                       >
                         <span>{trans.label}</span>
                         {activePair.es === trans.id && <Check size={20} />}
@@ -218,7 +218,7 @@ export default function Settings({ state, setState, onClose, onShowTour }: Setti
                       <button
                         key={trans.id}
                         onClick={() => handleEnglishTranslationChange(trans.id as Translation)}
-                        className={`h-16 px-6 rounded-2xl font-black text-sm uppercase tracking-widest transition-all border-2 flex items-center justify-between ${activePair.en === trans.id ? 'bg-golden text-white border-golden shadow-lg shadow-golden/20' : 'bg-earth/5 dark:bg-white/5 border-transparent text-earth/60 dark:text-lavender-muted hover:bg-earth/10 dark:hover:bg-white/10'}`}
+                        className={`h-16 px-6 rounded-2xl font-black text-sm uppercase tracking-widest transition-all border-2 flex items-center justify-between ${activePair.en === trans.id ? 'bg-golden/10 text-golden border-golden shadow-[0_0_15px_rgba(217,119,6,0.1)]' : 'bg-earth/5 dark:bg-white/5 border-transparent text-earth/60 dark:text-lavender-muted hover:bg-earth/10 dark:hover:bg-white/10'}`}
                       >
                         <span>{trans.label}</span>
                         {activePair.en === trans.id && <Check size={20} />}
@@ -251,7 +251,7 @@ export default function Settings({ state, setState, onClose, onShowTour }: Setti
                     // Live preview of the theme change
                     setState(s => ({ ...s, theme: theme.id as any }));
                   }}
-                  className={`h-24 rounded-2xl flex flex-col items-center justify-center gap-2 transition-all border-2 ${localState.theme === theme.id ? 'bg-coral text-white border-coral shadow-lg shadow-coral/20' : 'bg-earth/5 dark:bg-white/5 border-transparent text-earth/60 dark:text-lavender-muted hover:bg-earth/10 dark:hover:bg-white/10'}`}
+                  className={`h-24 rounded-2xl flex flex-col items-center justify-center gap-2 transition-all border-2 ${localState.theme === theme.id ? 'bg-coral/10 text-coral border-coral shadow-[0_0_15px_rgba(225,29,72,0.1)]' : 'bg-earth/5 dark:bg-white/5 border-transparent text-earth/60 dark:text-lavender-muted hover:bg-earth/10 dark:hover:bg-white/10'}`}
                 >
                   {theme.icon}
                   <span className="text-[10px] font-black uppercase tracking-widest">{theme.label}</span>
@@ -343,7 +343,7 @@ export default function Settings({ state, setState, onClose, onShowTour }: Setti
         <div className="p-8 border-t border-earth/10 dark:border-white/10 bg-white dark:bg-charcoal flex gap-4">
           <button 
             onClick={handleSave}
-            className="btn-primary flex-1 shadow-xl shadow-playful-purple/20"
+            className="w-full h-16 rounded-[24px] bg-playful-purple/5 border-2 border-playful-purple/30 text-playful-purple font-black text-sm uppercase tracking-widest flex items-center justify-center gap-3 transition-all hover:bg-playful-purple/10 active:scale-95 shadow-[0_0_20px_rgba(109,40,217,0.1)] flex-1"
           >
             <Save size={20} />
             {localState.primaryLanguage === 'es' ? 'Guardar Cambios' : 'Save Changes'}

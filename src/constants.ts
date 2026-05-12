@@ -499,7 +499,7 @@ export const PATHS: Path[] = [
       { day: 5, reference: "Proverbs 3:5", status: "full-text", contextNote: "Trust in the Lord with all your heart." }
     ],
     cta: "Start this path",
-    ctaEs: "Empezar este camino"
+    ctaEs: "Empezar esta serie"
   },
   {
     id: "burnout",
@@ -623,7 +623,7 @@ export const PATHS: Path[] = [
       { day: 3, reference: "Proverbs 3:5", status: "full-text" }
     ],
     cta: "Start this path",
-    ctaEs: "Empezar este camino"
+    ctaEs: "Empezar esta serie"
   },
   {
     id: "parenting",
@@ -680,7 +680,7 @@ export const PATHS: Path[] = [
       { day: 4, reference: "Hebrews 11:1", status: "full-text" }
     ],
     cta: "Start this path",
-    ctaEs: "Empezar este camino"
+    ctaEs: "Empezar esta serie"
   },
   {
     id: "purpose",
@@ -725,7 +725,7 @@ export const PATHS: Path[] = [
       { day: 5, reference: "Philippians 4:6", status: "full-text" }
     ],
     cta: "Start this path",
-    ctaEs: "Empezar este camino"
+    ctaEs: "Empezar esta serie"
   },
   {
     id: "new-beginnings",

@@ -31,7 +31,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
   const [memMode, setMemMode] = useState<LanguageMode>("both");
   const [selectedPathId, setSelectedPathId] = useState<string | null>(null);
   const [rhythm, setRhythm] = useState<DailyRhythm | null>(null);
-  const [identity, setIdentity] = useState<IdentityAnchor | null>(null);
+  const [growthGoal, setGrowthGoal] = useState<{label: string, subline: string} | null>(null);
   const [blocker, setBlocker] = useState<Blocker | null>(null);
   const [reminder, setReminder] = useState<ReminderPreference | null>(null);
   const [isPreparing, setIsPreparing] = useState(false);
@@ -89,7 +89,8 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
       },
       onboardingProfile: {
         dailyRhythm: rhythm || "daily",
-        identityAnchorId: identity || "returner",
+        growthGoalLabel: growthGoal?.label,
+        growthGoalSubline: growthGoal?.subline,
         blocker: blocker || "other",
         reminderPreference: reminder || "morning"
       }
@@ -103,35 +104,44 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
       continue: "Continue",
       welcomeTitle: "Verso",
       welcomeHead: "Memorize one verse a day.",
-      welcomeSub: "Store His Word in your heart, one day at a time.",
+      welcomeSub: "Study Scripture in a way that stays with you.",
       welcomeBtn: "Begin",
       memTitle: "How do you want to memorize?",
       memSub: "Choose the language you want to practice in.",
+      memHelper: "You can change this later in Settings.",
       memOptions: [
         { id: "en", label: "English only" },
         { id: "es", label: "Spanish only" },
         { id: "both", label: "Both languages" }
       ],
-      pathTitle: "Where do you want to begin?",
-      pathSub: "Choose your first path in the Word.",
+      pathTitle: "Where do you need guidance today?",
+      pathSub: "Choose a path to follow with your daily verse.",
+      pathHelper: "Each path is a guided set of verses for a specific season, struggle, or truth.",
       rhythmTitle: "What habit feels realistic?",
-      rhythmSub: "Start small. Let it grow.",
+      rhythmSub: "Start small. Stay steady",
       rhythmOptions: [
         { id: "daily", label: "One verse a day" },
         { id: "weekly", label: "A few days a week" },
-        { id: "path-based", label: "One path at a time" },
         { id: "loose", label: "I just want to begin" }
       ],
-      identityTitle: "Who are you becoming?",
-      identitySub: "Choose the reminder you want Verso to reflect back to you.",
+      identityTitle: "What are you here to grow?",
+      identitySub: "Choose a reminder Verso can reflect back to you.",
       identityOptions: [
-        { id: "returner", label: "I am someone who returns to the Word." },
-        { id: "finisher", label: "I am someone who finishes what I start." },
-        { id: "carrier", label: "I am someone who carries Scripture with me." },
-        { id: "room-maker", label: "I am someone who makes room for God daily." }
+        { id: "habit", label: "A steady habit", sub: "I want to keep showing up." },
+        { id: "faith", label: "A stronger faith", sub: "I want this to shape me spiritually." },
+        { id: "heart", label: "A calmer heart", sub: "I want Scripture to steady me." },
+        { id: "memory", label: "A lasting memory", sub: "I want to remember what I learn." }
       ],
       blockerTitle: "What usually gets in the way?",
       blockerSub: "We’ll help you keep the habit simple.",
+      blockerHelper: {
+        forgetful: "A gentle reminder can help you return tomorrow.",
+        busy: "Pick a time that already fits your day.",
+        inconsistent: "Choose a time that helps you keep going.",
+        clueless: "Choose a time, and Verso will help with the next step.",
+        distracted: "Pick a quiet moment you can return to.",
+        other: "Pick a time that works for you."
+      },
       blockerOptions: [
         { id: "busy", label: "Busy schedule" },
         { id: "forgetful", label: "I forget" },
@@ -140,10 +150,10 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
         { id: "distracted", label: "I get distracted" },
         { id: "other", label: "Other" }
       ],
-      encouragementHead: "Small roots grow deep.",
-      encouragementSub: "You’re not just opening an app. You’re forming a habit with the Word.",
-      encouragementFooter: "What you sow, you will reap.",
-      reminderTitle: "When do you want to make room for the Word?",
+      encouragementHead: "Growth starts small.",
+      encouragementSub: "You’re not just opening an app. You’re forming a habit that nourishes your soul.",
+      encouragementFooter: "WHAT YOU SOW, YOU WILL REAP",
+      reminderTitle: "When do you want to make room for Verso?",
       reminderSubtitle: "You can change this later.",
       reminderOptions: [
         { id: "morning", label: "Morning" },
@@ -168,35 +178,44 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
       continue: "Continuar",
       welcomeTitle: "Verso",
       welcomeHead: "Memoriza un versículo al día.",
-      welcomeSub: "Guarda Su Palabra en tu corazón, un día a la vez.",
+      welcomeSub: "Estudia la Biblia de una forma que siembre algo firme en ti.",
       welcomeBtn: "Empezar",
       memTitle: "¿Cómo quieres memorizar?",
       memSub: "Elige el idioma en el que quieres practicar.",
+      memHelper: "Puedes cambiar esto después en Configuración.",
       memOptions: [
         { id: "es", label: "Solo español" },
         { id: "en", label: "Solo inglés" },
         { id: "both", label: "Ambos idiomas" }
       ],
-      pathTitle: "¿Por dónde quieres empezar?",
-      pathSub: "Elige tu primer camino en la Palabra.",
+      pathTitle: "¿Qué quieres estudiar hoy?",
+      pathSub: "Elige una Serie de versículos para acompañar tu Versículo Diario.",
+      pathHelper: "Cada serie tiene versículos para lo que estás viviendo o necesitas hoy.",
       rhythmTitle: "¿Qué hábito se siente posible?",
-      rhythmSub: "Empieza pequeño. Deja que el hábito crezca.",
+      rhythmSub: "Empieza pequeño. Mantente constante.",
       rhythmOptions: [
         { id: "daily", label: "Un versículo al día" },
         { id: "weekly", label: "Algunos días a la semana" },
-        { id: "path-based", label: "Un camino a la vez" },
         { id: "loose", label: "Solo quiero empezar" }
       ],
-      identityTitle: "Haz un acuerdo contigo.",
-      identitySub: "Elige la persona que quieres seguir formando con la Palabra.",
+      identityTitle: "¿Qué quieres cultivar aquí?",
+      identitySub: "Elige un recordatorio que Verso pueda reflejar en ti.",
       identityOptions: [
-        { id: "returner", label: "Quiero ser alguien que vuelve a la Palabra." },
-        { id: "finisher", label: "Quiero ser alguien que termina lo que empieza." },
-        { id: "carrier", label: "Quiero ser alguien que guarda la Escritura en el corazón." },
-        { id: "room-maker", label: "Quiero ser alguien que hace espacio para Dios cada día." }
+        { id: "habit", label: "Un hábito constante", sub: "Quiero seguir presentándome." },
+        { id: "faith", label: "Una fe más fuerte", sub: "Quiero que esto me forme espiritualmente." },
+        { id: "heart", label: "Un corazón más tranquilo", sub: "Quiero que la Escritura me dé estabilidad." },
+        { id: "memory", label: "Una memoria duradera", sub: "Quiero recordar lo que aprendo." }
       ],
       blockerTitle: "¿Qué suele atravesarse?",
       blockerSub: "Te ayudaremos a mantener un hábito sencillo.",
+      blockerHelper: {
+        forgetful: "Un pequeño recordatorio puede ayudarte a volver mañana.",
+        busy: "Elige un momento que ya encaje en tu día.",
+        inconsistent: "Elige un momento que te ayude a seguir adelante.",
+        clueless: "Elige un momento y Verso te ayudará con el siguiente paso.",
+        distracted: "Elige un momento de quietud al que puedas volver.",
+        other: "Elige un momento que funcione para ti."
+      },
       blockerOptions: [
         { id: "busy", label: "Muchos compromisos" },
         { id: "forgetful", label: "Se me olvida" },
@@ -205,10 +224,10 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
         { id: "distracted", label: "Me distraigo" },
         { id: "other", label: "Otro" }
       ],
-      encouragementHead: "Las raíces pequeñas crecen profundo.",
-      encouragementSub: "No solo estás abriendo una app. Estás formando un hábito con la Palabra.",
-      encouragementFooter: "Lo que siembras, eso cosechas.",
-      reminderTitle: "¿En qué momento del día quieres apartar tiempo?",
+      encouragementHead: "El crecimiento empieza pequeño.",
+      encouragementSub: "No solo estás abriendo una app. Estás formando un hábito que nutre tu alma.",
+      encouragementFooter: "LO QUE SIEMBRAS, COSECHARÁS",
+      reminderTitle: "¿Cuándo quieres hacer espacio para Verso?",
       reminderSubtitle: "Puedes cambiarlo después.",
       reminderOptions: [
         { id: "morning", label: "En la mañana" },
@@ -219,12 +238,12 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
       ],
       preTitle: "Preparando tu primer plan...",
       preCheck: [
-        "Eligiendo tu primer camino",
+        "Eligiendo tu primera serie",
         "Configurando tu idioma de memorización",
         "Preparando el versículo de hoy",
         "Guardando tu recordatorio"
       ],
-      readyTitle: "Tu primer camino está listo.",
+      readyTitle: "Tu primera serie está lista.",
       readyBtn: "Empezar el versículo de hoy"
     }
   };
@@ -267,7 +286,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                   <button 
                     key={opt.id}
                     onClick={() => setAppLanguage(opt.id as "en" | "es")}
-                    className={`p-5 rounded-[24px] border-2 transition-all flex justify-between items-center ${appLanguage === opt.id ? 'border-teal/60 bg-teal/5 shadow-sm' : 'border-earth/10 dark:border-white/10 bg-white dark:bg-charcoal/50 hover:border-teal/30'}`}
+                    className={`p-5 rounded-[24px] border-2 transition-all flex justify-between items-center ${appLanguage === opt.id ? 'border-teal bg-teal/10 shadow-[0_0_15px_rgba(13,148,136,0.1)]' : 'border-earth/10 dark:border-white/10 bg-white dark:bg-charcoal/50 hover:border-teal/30'}`}
                   >
                     <div className="text-left">
                       <p className="text-lg font-black text-earth dark:text-ivory">{opt.label}</p>
@@ -301,14 +320,17 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 <BookOpen size={28} />
               </div>
               <h2 className="text-2xl sm:text-3xl font-serif font-black text-earth dark:text-ivory tracking-tight">{curr.memTitle}</h2>
-              <p className="text-xs sm:text-sm font-medium text-earth-light/60 dark:text-lavender-muted/60 px-6">{curr.memSub}</p>
+              <div className="space-y-1">
+                <p className="text-xs sm:text-sm font-medium text-earth-light/60 dark:text-lavender-muted/60 px-6">{curr.memSub}</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-earth-light/30 dark:text-ivory/20">{curr.memHelper}</p>
+              </div>
             </div>
             <div className="grid grid-cols-1 gap-3 px-2">
               {curr.memOptions.map(opt => (
                 <button 
                   key={opt.id}
                   onClick={() => setMemMode(opt.id as LanguageMode)}
-                  className={`p-5 rounded-[24px] border-2 transition-all flex justify-between items-center ${memMode === opt.id ? 'border-teal/60 bg-teal/5 shadow-sm' : 'border-earth/10 dark:border-white/10 bg-white dark:bg-charcoal/50 hover:border-teal/30'}`}
+                  className={`p-5 rounded-[24px] border-2 transition-all flex justify-between items-center ${memMode === opt.id ? 'border-teal bg-teal/10 shadow-[0_0_15px_rgba(13,148,136,0.1)]' : 'border-earth/10 dark:border-white/10 bg-white dark:bg-charcoal/50 hover:border-teal/30'}`}
                 >
                   <span className="text-base sm:text-lg font-black text-earth dark:text-ivory">{opt.label}</span>
                   <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${memMode === opt.id ? 'bg-teal border-teal text-white' : 'border-earth/20 dark:border-white/20'}`}>
@@ -327,18 +349,31 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               <div className="w-16 h-16 bg-teal/10 rounded-2xl flex items-center justify-center mx-auto text-teal mb-4">
                 <Compass size={28} />
               </div>
-              <h2 className="text-2xl sm:text-3xl font-serif font-black text-earth dark:text-ivory tracking-tight">{curr.pathTitle}</h2>
-              <p className="text-xs sm:text-sm font-medium text-earth-light/60 dark:text-lavender-muted/60 px-6">{curr.pathSub}</p>
+              <h2 className="text-2xl sm:text-3xl font-serif font-black text-earth dark:text-ivory tracking-tight max-w-[280px] sm:max-w-sm mx-auto leading-tight">{curr.pathTitle}</h2>
+              <p className="text-sm sm:text-base font-medium text-earth-light/60 dark:text-lavender-muted/60 px-6 max-w-sm mx-auto balance-text">
+                {appLanguage === 'es' ? (
+                  <>
+                    Elige una Serie de versículos<br />
+                    para acompañar tu Versículo Diario.
+                  </>
+                ) : curr.pathSub}
+              </p>
             </div>
-            <div className="grid grid-cols-1 gap-2.5 max-h-[40vh] overflow-y-auto px-2 custom-scrollbar">
-              {PATHS.map(p => (
+            <div className="grid grid-cols-2 gap-3 max-h-[45vh] overflow-y-auto px-2 custom-scrollbar">
+              {[...PATHS]
+                .sort((a, b) => {
+                  const titleA = appLanguage === 'es' ? (a.titleEs || a.title) : a.title;
+                  const titleB = appLanguage === 'es' ? (b.titleEs || b.title) : b.title;
+                  return titleA.localeCompare(titleB);
+                })
+                .map(p => (
                 <button 
                   key={p.id}
                   onClick={() => setSelectedPathId(p.id)}
-                  className={`p-4 rounded-[20px] border-2 transition-all flex justify-between items-center ${selectedPathId === p.id ? 'border-teal/60 bg-teal/5 shadow-sm' : 'border-earth/10 dark:border-white/10 bg-white dark:bg-charcoal/50 hover:border-teal/30'}`}
+                  className={`p-3.5 sm:p-4 rounded-[20px] border-2 transition-all flex flex-col justify-between items-start text-left gap-3 ${selectedPathId === p.id ? 'border-teal bg-teal/10 shadow-[0_0_10px_rgba(13,148,136,0.1)]' : 'border-earth/10 dark:border-white/10 bg-white dark:bg-charcoal/50 hover:border-teal/30'}`}
                 >
-                  <span className="text-sm font-bold text-earth dark:text-ivory">{appLanguage === 'es' ? p.titleEs : p.title}</span>
-                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ml-3 transition-all ${selectedPathId === p.id ? 'bg-teal border-teal text-white' : 'border-earth/20 dark:border-white/20'}`}>
+                  <span className="text-[13px] sm:text-sm font-black text-earth dark:text-ivory leading-tight">{appLanguage === 'es' ? p.titleEs : p.title}</span>
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${selectedPathId === p.id ? 'bg-teal border-teal text-white' : 'border-earth/20 dark:border-white/20'}`}>
                     {selectedPathId === p.id && <Check size={10} strokeWidth={4} />}
                   </div>
                 </button>
@@ -362,7 +397,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 <button 
                   key={opt.id}
                   onClick={() => setRhythm(opt.id as DailyRhythm)}
-                  className={`p-5 rounded-[24px] border-2 transition-all flex justify-between items-center ${rhythm === opt.id ? 'border-teal/60 bg-teal/5 shadow-sm' : 'border-earth/10 dark:border-white/10 bg-white dark:bg-charcoal/50 hover:border-teal/30'}`}
+                  className={`p-5 rounded-[24px] border-2 transition-all flex justify-between items-center ${rhythm === opt.id ? 'border-teal bg-teal/10 shadow-[0_0_15px_rgba(13,148,136,0.1)]' : 'border-earth/10 dark:border-white/10 bg-white dark:bg-charcoal/50 hover:border-teal/30'}`}
                 >
                   <span className="text-base sm:text-lg font-black text-earth dark:text-ivory">{opt.label}</span>
                   <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${rhythm === opt.id ? 'bg-teal border-teal text-white' : 'border-earth/20 dark:border-white/20'}`}>
@@ -388,12 +423,15 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               {curr.identityOptions.map(opt => (
                 <button 
                   key={opt.id}
-                  onClick={() => setIdentity(opt.id as IdentityAnchor)}
-                  className={`p-5 rounded-[24px] border-2 transition-all flex justify-between items-center text-left ${identity === opt.id ? 'border-teal/60 bg-teal/5 shadow-sm' : 'border-earth/10 dark:border-white/10 bg-white dark:bg-charcoal/50 hover:border-teal/30'}`}
+                  onClick={() => setGrowthGoal({ label: opt.label, subline: opt.sub })}
+                  className={`p-5 rounded-[24px] border-2 transition-all flex justify-between items-center text-left ${growthGoal?.label === opt.label ? 'border-teal bg-teal/10 shadow-[0_0_15px_rgba(13,148,136,0.1)]' : 'border-earth/10 dark:border-white/10 bg-white dark:bg-charcoal/50 hover:border-teal/30'}`}
                 >
-                  <span className="text-sm sm:text-base font-black text-earth dark:text-ivory leading-tight">{opt.label}</span>
-                  <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 ml-4 transition-all ${identity === opt.id ? 'bg-teal border-teal text-white' : 'border-earth/20 dark:border-white/20'}`}>
-                    {identity === opt.id && <Check size={12} strokeWidth={4} />}
+                  <div className="flex flex-col gap-1">
+                    <span className="text-base sm:text-lg font-black text-earth dark:text-ivory leading-tight">{opt.label}</span>
+                    <span className="text-xs text-earth-light/60 dark:text-lavender-muted/60 font-serif italic">{opt.sub}</span>
+                  </div>
+                  <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 ml-4 transition-all ${growthGoal?.label === opt.label ? 'bg-teal border-teal text-white' : 'border-earth/20 dark:border-white/20'}`}>
+                    {growthGoal?.label === opt.label && <Check size={12} strokeWidth={4} />}
                   </div>
                 </button>
               ))}
@@ -416,7 +454,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 <button 
                   key={opt.id}
                   onClick={() => setBlocker(opt.id as Blocker)}
-                  className={`p-4 h-28 sm:h-32 rounded-[24px] border-2 transition-all flex flex-col justify-between items-start text-left ${blocker === opt.id ? 'border-coral/60 bg-coral/5 shadow-sm' : 'border-earth/10 dark:border-white/10 bg-white dark:bg-charcoal/50 hover:border-coral/30'}`}
+                  className={`p-4 h-28 sm:h-32 rounded-[24px] border-2 transition-all flex flex-col justify-between items-start text-left ${blocker === opt.id ? 'border-coral bg-coral/10 shadow-[0_0_15px_rgba(225,29,72,0.1)]' : 'border-earth/10 dark:border-white/10 bg-white dark:bg-charcoal/50 hover:border-coral/30'}`}
                 >
                   <span className="text-[13px] sm:text-base font-black text-earth dark:text-ivory leading-tight">{opt.label}</span>
                   <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${blocker === opt.id ? 'bg-coral border-coral text-white' : 'border-earth/20 dark:border-white/20'}`}>
@@ -461,16 +499,21 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 <Clock size={28} />
               </div>
               <h2 className="text-2xl sm:text-3xl font-serif font-black text-earth dark:text-ivory tracking-tight">{curr.reminderTitle}</h2>
-              {curr.reminderSubtitle && (
+              <div className="space-y-1">
                 <p className="text-xs sm:text-sm font-medium text-earth-light/60 dark:text-lavender-muted/60 px-6">{curr.reminderSubtitle}</p>
-              )}
+                {blocker && (
+                  <p className="text-[10px] font-black uppercase tracking-widest text-teal transition-all animate-in fade-in duration-500">
+                    {curr.blockerHelper[blocker]}
+                  </p>
+                )}
+              </div>
             </div>
             <div className="grid grid-cols-1 gap-3 px-2">
               {curr.reminderOptions.map(opt => (
                 <button 
                   key={opt.id}
                   onClick={() => setReminder(opt.id as ReminderPreference)}
-                  className={`p-5 rounded-[24px] border-2 transition-all flex justify-between items-center ${reminder === opt.id ? 'border-teal/60 bg-teal/5 shadow-sm' : 'border-earth/10 dark:border-white/10 bg-white dark:bg-charcoal/50 hover:border-teal/30'}`}
+                  className={`p-5 rounded-[24px] border-2 transition-all flex justify-between items-center ${reminder === opt.id ? 'border-teal bg-teal/10 shadow-[0_0_15px_rgba(13,148,136,0.1)]' : 'border-earth/10 dark:border-white/10 bg-white dark:bg-charcoal/50 hover:border-teal/30'}`}
                 >
                   <span className="text-base sm:text-lg font-black text-earth dark:text-ivory">{opt.label}</span>
                   <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${reminder === opt.id ? 'bg-teal border-teal text-white' : 'border-earth/20 dark:border-white/20'}`}>
@@ -540,21 +583,26 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                   {selectedPathId && (
                     <div className="space-y-1">
                       <p className="text-[10px] font-black uppercase tracking-widest text-earth-light/40 dark:text-ivory/30">
-                        {appLanguage === 'es' ? 'Tu camino' : 'Your path'}
+                        {appLanguage === 'es' ? 'TU SERIE' : 'YOUR PATH'}
                       </p>
                       <p className="text-xl font-serif font-black text-playful-purple">
                         {appLanguage === 'es' ? PATHS.find(p => p.id === selectedPathId)?.titleEs : PATHS.find(p => p.id === selectedPathId)?.title}
                       </p>
                     </div>
                   )}
-                  {identity && (
-                    <div className="space-y-1">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-earth-light/40 dark:text-ivory/30">
-                        {appLanguage === 'es' ? 'Tu ancla' : 'Your anchor'}
+                  {growthGoal && (
+                    <div className="space-y-2">
+                       <p className="text-[10px] font-black uppercase tracking-widest text-earth-light/40 dark:text-ivory/30">
+                        {appLanguage === 'es' ? 'ESTÁS AQUÍ PARA CULTIVAR' : "YOU'RE HERE TO GROW"}
                       </p>
-                      <p className="text-sm font-serif italic text-earth-light/80 dark:text-lavender-muted">
-                        "{curr.identityOptions.find(o => o.id === identity)?.label}"
-                      </p>
+                      <div className="space-y-1">
+                        <p className="text-lg font-black text-earth dark:text-ivory leading-tight">
+                          {growthGoal.label}
+                        </p>
+                        <p className="text-sm font-serif italic text-earth-light/80 dark:text-lavender-muted">
+                          "{growthGoal.subline}"
+                        </p>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -570,7 +618,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
   const isNextDisabled = () => {
     if (step === 4) return !selectedPathId;
     if (step === 5) return !rhythm;
-    if (step === 6) return !identity;
+    if (step === 6) return !growthGoal;
     if (step === 7) return !blocker;
     if (step === 9) return !reminder;
     return false;
@@ -611,10 +659,19 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
         {/* Navigation Footer */}
         {!isPreparing && step < 10 && (
           <div className="w-full pt-8 flex flex-col gap-4">
+            {step === 4 && (
+              <motion.p 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-[10px] font-black uppercase tracking-widest text-teal text-center px-8 mb-1 leading-tight max-w-sm mx-auto"
+              >
+                {(curr as any).pathHelper}
+              </motion.p>
+            )}
             <button 
               onClick={next}
               disabled={isNextDisabled()}
-              className={`w-full h-14 sm:h-16 rounded-[24px] shadow-lg flex items-center justify-center gap-3 transition-all ${isNextDisabled() ? 'bg-earth/10 text-earth/20 dark:bg-white/5 dark:text-white/10 cursor-not-allowed' : 'bg-playful-purple text-white hover:brightness-110 active:scale-95'}`}
+              className={`w-full h-14 sm:h-16 rounded-[24px] shadow-lg flex items-center justify-center gap-3 transition-all ${isNextDisabled() ? 'bg-earth/10 text-earth/20 dark:bg-white/5 dark:text-white/10 cursor-not-allowed border-none' : 'bg-playful-purple/5 border-2 border-playful-purple/30 text-playful-purple hover:bg-playful-purple/10 shadow-[0_0_20px_rgba(109,40,217,0.1)] active:scale-95'}`}
             >
               <span className="font-black uppercase tracking-widest text-base sm:text-lg">
                 {step === 1 ? (appLanguage === 'en' ? 'Continue' : 'Continuar') : curr.continue}
@@ -637,7 +694,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
           <div className="w-full pt-8">
             <button 
               onClick={handleFinish}
-              className="w-full h-16 bg-playful-purple text-white rounded-[24px] shadow-lg flex items-center justify-center gap-3 hover:brightness-110 active:scale-95 transition-all"
+              className="w-full h-16 bg-playful-purple/5 border-2 border-playful-purple/30 text-playful-purple rounded-[24px] shadow-[0_0_20px_rgba(109,40,217,0.1)] flex items-center justify-center gap-3 hover:bg-playful-purple/10 active:scale-95 transition-all"
             >
               <span className="font-black uppercase tracking-widest text-lg">{curr.readyBtn}</span>
               <ChevronRight size={20} />

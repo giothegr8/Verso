@@ -222,12 +222,10 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
             className="flex items-center gap-2.5 bg-teal/10 px-4 py-2 rounded-full border border-teal/20 shadow-sm"
           >
             <Sprout size={16} className="text-teal" fill="currentColor" />
-            <span className="text-[11px] font-black uppercase tracking-widest">
-              <span className="text-teal">
-                {state.progress.currentStreak} {state.primaryLanguage === 'es' 
-                  ? (state.progress.currentStreak === 1 ? 'Día' : 'Días') 
-                  : (state.progress.currentStreak === 1 ? 'Day' : 'Day')}
-              </span>
+            <span className="text-[11px] font-black uppercase tracking-widest text-teal">
+              {state.progress.currentStreak} {state.primaryLanguage === 'es' 
+                ? (state.progress.currentStreak === 1 ? 'Día' : 'Días') 
+                : (state.progress.currentStreak === 1 ? 'Day' : 'Days')}
               <span className="text-amber-500 dark:text-amber-400 ml-1">
                 {state.primaryLanguage === 'es' ? 'seguidos' : 'streak'}
               </span>
@@ -351,14 +349,14 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
               <div className="flex items-center gap-2">
                 <Compass size={16} className="text-sky-blue" />
                 <h2 className="text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] text-earth-light dark:text-lavender-muted">
-                  {isEs ? "Tu camino" : "Your Path"}
+                  {isEs ? "Tu serie" : "Your Path"}
                 </h2>
               </div>
               <button 
                 onClick={onGoToPaths}
                 className="text-[10px] font-black uppercase tracking-widest text-teal hover:underline"
               >
-                {isEs ? "Ver todos" : "View all"}
+                {isEs ? "Ver series" : "View all"}
               </button>
             </div>
 
@@ -482,6 +480,8 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
             </motion.div>
           </div>
 
+          {/* Personalized reminders are paused on Home until contextual placement rules are finalized. */}
+
           {/* Verse of the Day Card - Second priority when path is active */}
           <div className="space-y-6">
             <div className="flex items-center justify-between px-1">
@@ -489,7 +489,7 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
                 <Sparkles size={16} className="text-amber-500 dark:text-amber-400" />
                 <h2 className="text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] text-earth-light dark:text-lavender-muted">
                   {state.activeSource === 'path'
-                    ? (isEs ? "Versículo del camino" : "Today's Path Verse")
+                    ? (isEs ? "Versículo de la serie" : "Today's Path Verse")
                     : (isCustomMode
                       ? (isEs ? "Tu propio versículo" : "Custom Verse")
                       : (isVotd 
@@ -618,15 +618,50 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
         </>
       ) : (
         <>
+          {/* Paths Selection Prompt - Consistently at the top */}
+          <div className="space-y-6">
+            <div className="flex items-center justify-between px-1">
+              <div className="flex items-center gap-2">
+                <Compass size={16} className="text-sky-blue" />
+                <h2 className="text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] text-earth-light dark:text-lavender-muted">
+                  {isEs ? "Tu serie" : "Your Path"}
+                </h2>
+              </div>
+            </div>
+
+            <motion.button
+              whileHover={{ scale: 1.01 }}
+              whileTap={{ scale: 0.99 }}
+              onClick={onGoToPaths}
+              className="w-full card bg-white dark:bg-charcoal p-8 shadow-xl border-earth/10 dark:border-white/10 relative overflow-hidden group cursor-pointer text-left"
+            >
+              <div className="relative space-y-4">
+                <div className="space-y-1">
+                  <h3 className="text-2xl font-serif font-black text-earth dark:text-ivory tracking-tight">
+                    {isEs ? "Elige una serie" : "Choose a path"}
+                  </h3>
+                  <p className="text-sm font-medium text-earth-light/70 dark:text-lavender-muted/70">
+                    {isEs ? "Empieza un recorrido en la Palabra para este momento." : "Start a Scripture journey for this season."}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 text-teal font-black text-xs uppercase tracking-widest group-hover:gap-3 transition-all">
+                  <span>{isEs ? "Elegir una serie" : "Choose a path"}</span>
+                  <ChevronRight size={14} />
+                </div>
+              </div>
+            </motion.button>
+          </div>
+
+          {/* Personalized reminders are paused on Home until contextual placement rules are finalized. */}
+
           {/* Verse of the Day Card - Primary when NO path is active */}
           <div className="space-y-6">
-            {/* Same Votd Card code as above */}
             <div className="flex items-center justify-between px-1">
               <div className="flex items-center gap-2">
                 <Sparkles size={16} className="text-amber-500 dark:text-amber-400" />
                 <h2 className="text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] text-earth-light dark:text-lavender-muted">
                   {state.activeSource === 'path'
-                    ? (isEs ? "Versículo del camino" : "Today's Path Verse")
+                    ? (isEs ? "Versículo de la serie" : "Today's Path Verse")
                     : (isCustomMode
                       ? (isEs ? "Tu propio versículo" : "Custom Verse")
                       : (isVotd 
@@ -751,40 +786,6 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
                 </div>
               </div>
             </motion.div>
-          </div>
-
-          {/* Paths Selection Prompt - Below Votd when NO active path */}
-          <div className="space-y-6">
-            <div className="flex items-center justify-between px-1">
-              <div className="flex items-center gap-2">
-                <Compass size={16} className="text-sky-blue" />
-                <h2 className="text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] text-earth-light dark:text-lavender-muted">
-                  {isEs ? "Tu camino" : "Your Path"}
-                </h2>
-              </div>
-            </div>
-
-            <motion.button
-              whileHover={{ scale: 1.01 }}
-              whileTap={{ scale: 0.99 }}
-              onClick={onGoToPaths}
-              className="w-full card bg-white dark:bg-charcoal p-8 shadow-xl border-earth/10 dark:border-white/10 relative overflow-hidden group cursor-pointer text-left"
-            >
-              <div className="relative space-y-4">
-                <div className="space-y-1">
-                  <h3 className="text-2xl font-serif font-black text-earth dark:text-ivory tracking-tight">
-                    {isEs ? "Elige un camino" : "Choose a path"}
-                  </h3>
-                  <p className="text-sm font-medium text-earth-light/70 dark:text-lavender-muted/70">
-                    {isEs ? "Empieza un recorrido en la Palabra para este momento." : "Start a Scripture journey for this season."}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2 text-teal font-black text-xs uppercase tracking-widest group-hover:gap-3 transition-all">
-                  <span>{isEs ? "Elegir un camino" : "Choose a path"}</span>
-                  <ChevronRight size={14} />
-                </div>
-              </div>
-            </motion.button>
           </div>
         </>
       )}

@@ -46,11 +46,13 @@ export default function PathSelection({ state, onSelectPath, onBack, onMemorize 
     return dayData ? getVerseByRef(dayData.reference) : null;
   }, [selectedPath, reviewDay]);
 
-  // Sort paths to move currently selected path to the top
+  // Sort paths to move currently selected path to the top, then alphabetize the rest
   const sortedPaths = [...PATHS].sort((a, b) => {
     if (a.id === selectedPathId) return -1;
     if (b.id === selectedPathId) return 1;
-    return 0; // Maintain original curated order
+    const titleA = isEs ? (a.titleEs || a.title) : a.title;
+    const titleB = isEs ? (b.titleEs || b.title) : b.title;
+    return titleA.localeCompare(titleB);
   });
 
   if (selectedPath) {
@@ -104,7 +106,7 @@ export default function PathSelection({ state, onSelectPath, onBack, onMemorize 
                   <div className="flex justify-between items-start">
                     <div className="space-y-1">
                       <span className="text-[10px] font-black uppercase tracking-[0.2em] text-teal/80">
-                        {isEs ? "VERSÍCULO DEL CAMINO" : "PATH VERSE"}
+                        {isEs ? "VERSÍCULO DE LA SERIE" : "PATH VERSE"}
                       </span>
                       <h4 className="text-xl font-serif font-black text-ivory/60">
                         {isEs ? selectedPath.titleEs : selectedPath.title} — {isEs ? `Día ${reviewDay}` : `Day ${reviewDay}`}
@@ -157,7 +159,7 @@ export default function PathSelection({ state, onSelectPath, onBack, onMemorize 
                   <div className="flex flex-col gap-3 pt-4">
                     <button 
                       onClick={() => setIsShareModalOpen(true)}
-                      className="w-full btn-primary flex items-center justify-center gap-2 py-4 shadow-xl shadow-teal/20"
+                      className="w-full h-16 rounded-[24px] bg-playful-purple/5 border-2 border-playful-purple/30 text-playful-purple flex items-center justify-center gap-3 transition-all hover:bg-playful-purple/10 active:scale-95 shadow-[0_0_20px_rgba(109,40,217,0.1)]"
                     >
                       <Share2 size={20} />
                       <span className="font-black uppercase tracking-widest text-sm">
@@ -170,7 +172,7 @@ export default function PathSelection({ state, onSelectPath, onBack, onMemorize 
                         setReviewDay(null);
                         onMemorize(currentReviewVerse.id, "extra");
                       }}
-                      className="w-full py-4 rounded-[24px] bg-white/5 text-ivory font-black text-sm flex items-center justify-center gap-2 border border-white/10 hover:bg-white/10 transition-all active:scale-95"
+                      className="w-full h-16 rounded-[24px] bg-white/5 text-ivory/60 hover:text-ivory font-black text-sm flex items-center justify-center gap-3 border-2 border-white/10 hover:bg-white/10 transition-all active:scale-95 transition-all"
                     >
                       <RotateCcw size={20} />
                       <span className="font-black uppercase tracking-widest">
@@ -192,7 +194,7 @@ export default function PathSelection({ state, onSelectPath, onBack, onMemorize 
           >
             <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
             <span className="text-sm font-black uppercase tracking-widest">
-              {isEs ? "Todos los caminos" : "All Paths"}
+              {isEs ? "Todas las series" : "All Paths"}
             </span>
           </button>
 
@@ -307,7 +309,7 @@ export default function PathSelection({ state, onSelectPath, onBack, onMemorize 
                             <RotateCw size={10} className="text-teal/40" />
                           </div>
                           <p className="text-[10px] sm:text-[11px] font-serif font-black text-earth/90 dark:text-ivory/90 line-clamp-2 leading-relaxed">
-                            {previewText || (isEs ? "Versículo del camino..." : "Verse of the path...")}
+                            {previewText || (isEs ? "Versículo de la serie..." : "Verse of the path...")}
                           </p>
                         </div>
                       </div>
@@ -327,7 +329,7 @@ export default function PathSelection({ state, onSelectPath, onBack, onMemorize 
           >
             <Compass size={18} />
             <span className="tracking-tight">
-              {state.pathProgress.selectedPathId === selectedPath.id ? (isEs ? "continuar camino" : "continue path") : (state.primaryLanguage === "es" ? selectedPath.ctaEs.toLowerCase() : selectedPath.cta.toLowerCase())}
+              {state.pathProgress.selectedPathId === selectedPath.id ? (isEs ? "continuar serie" : "continue path") : (state.primaryLanguage === "es" ? selectedPath.ctaEs.toLowerCase() : selectedPath.cta.toLowerCase())}
             </span>
           </button>
         </div>
@@ -343,12 +345,12 @@ export default function PathSelection({ state, onSelectPath, onBack, onMemorize 
           <div className="flex items-center gap-2">
             <div className="w-2.5 h-2.5 rounded-full bg-sky-blue animate-pulse" />
             <span className="text-[12px] sm:text-[13px] font-black uppercase tracking-[0.3em] text-sky-blue leading-none">
-              {isEs ? 'CAMINOS' : 'PATHS'}
+              {isEs ? 'SERIES' : 'PATHS'}
             </span>
           </div>
           
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-serif font-black text-earth dark:text-ivory tracking-tight leading-tight">
-            {isEs ? 'Tu Jardín Secreto' : 'Your Secret Garden'}
+            {isEs ? 'Tu jardín sagrado' : 'Your Sacred Garden'}
           </h2>
           
           <p className="text-sm sm:text-base text-earth-light/70 dark:text-lavender-muted/70 font-medium tracking-tight">

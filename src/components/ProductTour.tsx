@@ -18,7 +18,7 @@ const TOUR_STEPS: TourStep[] = [
     title: { en: "Home", es: "Inicio" },
     description: { 
       en: "Start each day with your verse, streak, and current path.", 
-      es: "Empieza cada día con tu versículo, tus días seguidos y tu camino actual." 
+      es: "Empieza cada día con tu versículo, tus días seguidos y tu serie actual." 
     },
     targetId: "home-summary",
     icon: <Home className="text-playful-purple" size={24} />,
@@ -39,7 +39,7 @@ const TOUR_STEPS: TourStep[] = [
   },
   {
     id: "nav-paths",
-    title: { en: "Paths", es: "Caminos" },
+    title: { en: "Paths", es: "Series" },
     description: { 
       en: "Choose a Scripture journey for what you’re walking through.", 
       es: "Elige un recorrido en la Palabra para lo que estás viviendo." 
