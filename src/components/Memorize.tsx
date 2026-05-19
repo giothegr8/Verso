@@ -44,8 +44,29 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
   const [isAlmostDone, setIsAlmostDone] = useState(false);
   const [showSparkles, setShowSparkles] = useState(false);
   const [coachType, setCoachType] = useState<'encouragement' | 'suggestion' | 'tip'>('encouragement');
-  const [attemptsEs, setAttemptsEs] = useState(0);
-  const [attemptsEn, setAttemptsEn] = useState(0);
+  const activePair = getCurrentTranslationPair(state);
+
+  const attemptsKeyEs = `memorize_attempts_${verse.id}_es_${activePair?.es || 'RVR1960'}`;
+  const attemptsKeyEn = `memorize_attempts_${verse.id}_en_${activePair?.en || 'KJV'}`;
+
+  const [attemptsEs, setAttemptsEs] = useState(() => {
+    const stored = localStorage.getItem(attemptsKeyEs);
+    return stored ? parseInt(stored) : 0;
+  });
+  const [attemptsEn, setAttemptsEn] = useState(() => {
+    const stored = localStorage.getItem(attemptsKeyEn);
+    return stored ? parseInt(stored) : 0;
+  });
+
+  // Persist attempts to localStorage
+  useEffect(() => {
+    localStorage.setItem(attemptsKeyEs, attemptsEs.toString());
+  }, [attemptsEs, attemptsKeyEs]);
+
+  useEffect(() => {
+    localStorage.setItem(attemptsKeyEn, attemptsEn.toString());
+  }, [attemptsEn, attemptsKeyEn]);
+
   const [userInputEs, setUserInputEs] = useState<string[]>([]);
   const [userInputEn, setUserInputEn] = useState<string[]>([]);
   const [cursorIndexEs, setCursorIndexEs] = useState(0);
@@ -93,19 +114,20 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
   const [cardHeight, setCardHeight] = useState<number | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
 
-  // Measure card height on mount or verse change to LOCK IT
+  // Measure card height on mount, stage change, or verse change to ensure stability
   useEffect(() => {
-    if (cardRef.current && stage === 1) {
-      // Small timeout to allow content to settle
+    if (cardRef.current && (stage === 1 || stage === 4)) {
+      // Small timeout to allow content to settle and fonts to render
       const timer = setTimeout(() => {
         const rect = cardRef.current?.getBoundingClientRect();
         if (rect && rect.height > 0) {
-          setCardHeight(rect.height);
+          // We take the max of what we've seen to ensure it never jumps down, only accommodates
+          setCardHeight(prev => Math.max(prev || 0, rect.height));
         }
-      }, 100);
+      }, 150);
       return () => clearTimeout(timer);
     }
-  }, [verse.id, state.memorizeMode, stage]);
+  }, [verse.id, state.memorizeMode, stage, activeLanguage, state.selectedTranslations.es, state.selectedTranslations.en]);
 
   useEffect(() => {
     // Reset height if verse changes
@@ -125,8 +147,6 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
 
   const inputRef = useRef<HTMLInputElement>(null);
   
-  const activePair = getCurrentTranslationPair(state);
-
   const esDetail = TRANSLATION_DETAILS[activePair?.es || "RVR1960"] || TRANSLATION_DETAILS["RVR1960"];
   const enDetail = TRANSLATION_DETAILS[activePair?.en || "KJV"] || TRANSLATION_DETAILS["KJV"];
 
@@ -182,8 +202,15 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
       setIsRevealed(false);
       setDidFailFlowEs(false);
       setDidFailFlowEn(false);
-      setAttemptsEs(0);
-      setAttemptsEn(0);
+      
+      // Preserve attempts if it's the same verse and translations
+      if (lastConfigRef.current.verseId !== verse.id || 
+          lastConfigRef.current.selectedTranslationsEs !== state.selectedTranslations.es ||
+          lastConfigRef.current.selectedTranslationsEn !== state.selectedTranslations.en) {
+        setAttemptsEs(0);
+        setAttemptsEn(0);
+      }
+      
       setUserInputEs([]);
       setUserInputEn([]);
       setClueCountEs(0);
@@ -246,6 +273,18 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
       inputRef.current.setSelectionRange(1, 1);
     }
   }, [cursorIndexEs, cursorIndexEn, activeLanguage, stage, isRevealed, isAlmostDone]);
+
+  // Initialize stage-specific content
+  useEffect(() => {
+    if (stage === 5) {
+      if (esText && userInputEs.length === 0) {
+        setUserInputEs(new Array(getCleanLetters(esText).length).fill(""));
+      }
+      if (enText && userInputEn.length === 0) {
+        setUserInputEn(new Array(getCleanLetters(enText).length).fill(""));
+      }
+    }
+  }, [stage, esText, enText, userInputEs.length, userInputEn.length]);
 
   // Focus management for Stage 5 typing
   useEffect(() => {
@@ -375,10 +414,17 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
     } else {
       // Logic for moving past Stage 5
       if (state.memorizeMode === 'both' && bilingualPass === 1) {
+        // Clear attempts for the language JUST finished
+        if (activeLanguage === 'es') localStorage.removeItem(attemptsKeyEs);
+        else localStorage.removeItem(attemptsKeyEn);
         setShowHalfwayTransition(true);
       } else {
         // Success Persistence Fix: Save verse when successfully completed
         if (!isAnyPartFailed) {
+          // Clear attempts on success
+          localStorage.removeItem(attemptsKeyEs);
+          localStorage.removeItem(attemptsKeyEn);
+          
           setState(s => ({
             ...s,
             savedVerses: s.savedVerses.includes(verse.id) ? s.savedVerses : [...s.savedVerses, verse.id],
@@ -423,7 +469,8 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
   };
 
   const prevStage = () => {
-    if (stage > 1) {
+    // Anti-cheat: Disable going back on Stage 5
+    if (stage > 1 && stage !== 5) {
       const newStage = stage - 1;
       setStage(newStage);
       setIsRevealed(false);
@@ -431,8 +478,10 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
       setShowHalfwayTransition(false);
       setDidFailFlowEs(false);
       setDidFailFlowEn(false);
-      setAttemptsEs(0);
-      setAttemptsEn(0);
+      // We don't reset attempts when going back/forward within the session
+      // but standard transitions might expect it. 
+      // Actually, we want persistence, so we only reset on truly new verse/reset()
+      
       setUserInputEs([]);
       setUserInputEn([]);
       setCursorIndexEs(0);
@@ -462,6 +511,10 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
   };
 
   const reset = () => {
+    // Clear attempts on intentional reset
+    localStorage.removeItem(attemptsKeyEs);
+    localStorage.removeItem(attemptsKeyEn);
+    
     setStage(1);
     setIsRevealed(false);
     setIsAlmostDone(false);
@@ -1148,8 +1201,8 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
           {/* Card Body - DYNAMIC BUT STABLE HEIGHT */}
           <div 
             ref={cardRef}
-            style={cardHeight ? { height: `${cardHeight}px` } : { height: 'auto', minHeight: isMobile ? '340px' : '500px' }}
-            className="w-full flex flex-col items-center justify-between p-6 sm:p-12 relative bg-white dark:bg-charcoal border-none rounded-[40px] overflow-visible transition-[height] duration-300"
+            style={cardHeight ? { height: `${cardHeight}px`, minHeight: isMobile ? '360px' : '520px' } : { height: 'auto', minHeight: isMobile ? '360px' : '520px' }}
+            className="w-full flex flex-col items-center relative bg-white dark:bg-charcoal border-none rounded-[40px] overflow-visible transition-[height] duration-500 ease-in-out"
           >
             {/* Input Overlay for Stage 5 */}
             {stage === 5 && !isRevealed && !isCorrect && !didFailFlow && (
@@ -1280,14 +1333,13 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
               />
             )}
 
-            {/* Verse Content - ALWAYS ONE LANGUAGE AT A TIME */}
-            <div className="w-full flex-1 flex flex-col items-center justify-center py-2 sm:py-6">
-              {/* Translation Label - Minimal & Elegant */}
+            {/* Header Area - Translation Label (Absolute Anchored) */}
+            <div className="absolute top-8 sm:top-12 left-0 right-0 flex justify-center z-30">
               <motion.div 
                 key={`${activeLanguage}-${state.selectedTranslations.es}-${state.selectedTranslations.en}`}
                 initial={{ opacity: 0, y: -5 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="mb-8 flex items-center gap-3 opacity-40"
+                className="flex items-center gap-3 opacity-30"
               >
                 <div className="h-px w-6 bg-earth/30 dark:bg-white/20" />
                 <span className="text-[10px] font-black uppercase tracking-[0.4em] text-earth-light dark:text-lavender-muted">
@@ -1295,8 +1347,11 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                 </span>
                 <div className="h-px w-6 bg-earth/30 dark:bg-white/20" />
               </motion.div>
+            </div>
 
-              <div className="w-full max-w-3xl">
+            {/* Body Area - Verse Content (Centered with Padding for Fixed HUD) */}
+            <div className="w-full flex-1 flex flex-col items-center justify-center pt-16 pb-32 sm:pt-24 sm:pb-44 px-6 sm:px-12 overflow-visible relative">
+              <div className="w-full max-w-4xl relative">
                 {activeLanguage === 'es' 
                   ? renderVerseContent(esText, userInputEs, 'es', true)
                   : renderVerseContent(enText, userInputEn, 'en', true)
@@ -1304,44 +1359,49 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
               </div>
             </div>
 
-            {/* Utility Controls (Clue/Eye) - RESERVED BOTTOM ROW */}
-            <div className="w-full h-14 sm:h-16 flex items-center justify-center gap-8 mt-2 sm:mt-6 flex-shrink-0 relative z-30">
-              <div className="flex-1 flex justify-end">
-                <AnimatePresence>
-                  {stage === 5 && !isRevealed && !hasSubmitted && (
-                    <motion.button 
-                      initial={{ opacity: 0, scale: 0.9 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.9 }}
+            {/* Footer Area - Utility Controls (Absolute Anchored Inside Card) */}
+            <div className="absolute bottom-8 sm:bottom-12 left-0 right-0 flex justify-center z-30 pointer-events-none">
+              <div className="flex items-center justify-center gap-6 sm:gap-10 bg-earth/[0.04] dark:bg-white/[0.04] px-7 sm:px-12 py-3 sm:py-4 rounded-full border border-earth/5 dark:border-white/5 backdrop-blur-xl pointer-events-auto">
+                
+                {/* Pista/Clue Slot - Stable width for symmetry */}
+                <div className="min-w-[85px] sm:min-w-[115px] flex justify-end">
+                  <div className={`transition-all duration-500 transform ${
+                    (stage === 5 && !isRevealed && !hasSubmitted) 
+                      ? 'opacity-100 translate-y-0 scale-100' 
+                      : 'opacity-0 translate-y-1 scale-95 pointer-events-none'
+                  }`}>
+                    <button 
                       onClick={(e) => { e.stopPropagation(); handleClue(activeLanguage); }}
                       disabled={(activeLanguage === 'es' ? clueCountEs : clueCountEn) >= 1}
-                      className="flex items-center gap-2 px-5 py-2 rounded-2xl bg-teal/10 dark:bg-teal-900/20 border border-teal/20 text-[10px] font-black uppercase tracking-widest text-teal dark:text-teal-400 shadow-sm hover:bg-teal/20 transition-all active:scale-95 disabled:opacity-10"
+                      className="flex items-center gap-2.5 px-4 py-2 rounded-xl bg-teal/10 dark:bg-teal-400/10 border border-teal/20 text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-teal dark:text-teal-400 shadow-sm hover:bg-teal/20 transition-all active:scale-95 disabled:opacity-20 disabled:grayscale"
                     >
-                      <Sparkles size={16} className={(activeLanguage === 'es' ? clueCountEs : clueCountEn) >= 1 ? '' : 'text-amber-500/80 dark:text-amber-400/80 animate-pulse'} />
-                      <span>{state.primaryLanguage === 'es' ? 'Pista' : 'Clue'}</span>
-                    </motion.button>
-                  )}
-                </AnimatePresence>
-              </div>
+                      <Sparkles size={14} className={(activeLanguage === 'es' ? clueCountEs : clueCountEn) >= 1 ? '' : 'text-amber-500/80 animate-pulse'} />
+                      <span className="whitespace-nowrap">{state.primaryLanguage === 'es' ? 'Pista' : 'Clue'}</span>
+                    </button>
+                  </div>
+                </div>
 
-              <div className="w-px h-6 bg-earth/5 dark:bg-white/5" />
+                {/* Stable Vertical Divider */}
+                <div className="w-px h-6 bg-earth/10 dark:bg-white/10" />
 
-              <div className="flex-1 flex justify-start">
-                <button
-                  disabled={stage === 5}
-                  onPointerDown={() => setIsRevealed(true)}
-                  onPointerUp={() => setIsRevealed(false)}
-                  onPointerLeave={() => setIsRevealed(false)}
-                  className={`p-3 rounded-full transition-all duration-300 border flex items-center justify-center shadow-lg active:scale-90 ${
-                    stage === 5
-                      ? 'opacity-20 grayscale pointer-events-none'
-                      : isRevealed 
-                        ? 'bg-playful-purple text-white border-playful-purple scale-110 shadow-playful-purple/20' 
-                        : 'bg-white dark:bg-charcoal text-earth/40 dark:text-ivory/40 border-earth/10 dark:border-white/10 hover:text-playful-purple hover:border-playful-purple/30'
-                  }`}
-                >
-                  {isRevealed ? <EyeOff size={20} /> : <Eye size={20} />}
-                </button>
+                {/* Eye/Reveal Slot - Stable width for symmetry */}
+                <div className="min-w-[85px] sm:min-w-[115px] flex justify-start">
+                  <button
+                    disabled={stage === 5}
+                    onPointerDown={() => setIsRevealed(true)}
+                    onPointerUp={() => setIsRevealed(false)}
+                    onPointerLeave={() => setIsRevealed(false)}
+                    className={`p-2.5 rounded-full transition-all duration-300 border flex items-center justify-center shadow-md active:scale-90 ${
+                      stage === 5
+                        ? 'bg-transparent border-earth/5 dark:border-white/5 text-earth/10 dark:text-ivory/10 cursor-not-allowed'
+                        : isRevealed 
+                          ? 'bg-playful-purple text-white border-playful-purple scale-110 shadow-lg shadow-playful-purple/20' 
+                          : 'bg-white dark:bg-charcoal text-earth/40 dark:text-ivory/40 border-earth/10 dark:border-white/10 hover:text-playful-purple hover:border-playful-purple/30'
+                    }`}
+                  >
+                    {isRevealed ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -1384,22 +1444,29 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
             {stage > 1 && (
               <motion.button 
                 key="back-nav"
-                onClick={prevStage}
+                onClick={stage === 5 ? undefined : prevStage}
+                disabled={stage === 5}
                 initial={{ opacity: 0, x: 20, scale: 0.8 }}
                 animate={{ opacity: 1, x: 0, scale: 1 }}
                 exit={{ opacity: 0, x: 20, scale: 0.8 }}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-white dark:bg-charcoal text-playful-purple dark:text-plum border-2 border-playful-purple/30 dark:border-plum/30 flex items-center justify-center hover:bg-playful-purple/5 hover:border-playful-purple transition-all shadow-sm group relative"
+                whileHover={stage === 5 ? {} : { scale: 1.05 }}
+                whileTap={stage === 5 ? {} : { scale: 0.95 }}
+                className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center transition-all shadow-sm group relative ${
+                  stage === 5 
+                    ? 'bg-earth/5 dark:bg-white/5 border-earth/10 dark:border-white/10 text-earth-light/20 dark:text-ivory/20 cursor-not-allowed'
+                    : 'bg-white dark:bg-charcoal text-playful-purple dark:text-plum border-2 border-playful-purple/30 dark:border-plum/30 hover:bg-playful-purple/5 hover:border-playful-purple'
+                }`}
                 aria-label="Back"
               >
-                <ArrowLeft size={24} strokeWidth={2.5} className="group-hover:-translate-x-0.5 transition-transform" />
+                <ArrowLeft size={24} strokeWidth={2.5} className={stage === 5 ? '' : "group-hover:-translate-x-0.5 transition-transform"} />
                 {/* Subtle back ring */}
-                <motion.div 
-                  className="absolute inset-0 rounded-full border border-playful-purple/10"
-                  animate={{ scale: [1, 1.1, 1], opacity: [0.3, 0.1, 0.3] }}
-                  transition={{ duration: 3, repeat: Infinity }}
-                />
+                {stage !== 5 && (
+                  <motion.div 
+                    className="absolute inset-0 rounded-full border border-playful-purple/10"
+                    animate={{ scale: [1, 1.1, 1], opacity: [0.3, 0.1, 0.3] }}
+                    transition={{ duration: 3, repeat: Infinity }}
+                  />
+                )}
               </motion.button>
             )}
 
