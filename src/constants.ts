@@ -711,8 +711,8 @@ export const PATHS: Path[] = [
   },
   {
     id: "students",
-    title: "Students",
-    titleEs: "Estudiantes",
+    title: "For Students",
+    titleEs: "Para estudiantes",
     description: "Scripture for focus, pressure, purpose, and identity.",
     descriptionEs: "Palabra para el enfoque, la presión, el propósito y la identidad.",
     duration: 5,

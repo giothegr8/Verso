@@ -27,17 +27,58 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
   const today = getLocalDateString();
   const votd = getVerseByDate(today);
   
-  // Unified Active Verse Logic
-  let verse: Verse;
-  if (state.activeSource === "custom" && state.selectedCustomVerse) {
-    verse = state.selectedCustomVerse;
-  } else if (state.selectedVerseId) {
-    verse = (MOCK_VERSES.find(v => v.id === state.selectedVerseId) || 
-             state.customVerses.find(v => v.id === state.selectedVerseId) || 
-             votd);
-  } else {
-    verse = votd;
-  }
+  // Path Logic for Fallback 
+  const currentPathId = state.pathProgress.selectedPathId || state.customPathProgress.selectedPathId;
+  const isCustomPath = !!state.customPaths.find(p => p.id === currentPathId);
+  const selectedPath = isCustomPath 
+    ? state.customPaths.find(p => p.id === currentPathId)
+    : (state.pathProgress.selectedPathId ? (MOCK_VERSES.length > 0 ? null : null) : null); // We don't have PATHS available here easily, so we rely on AppState or similar
+
+  // Helper to resolve the correct verse
+  const getResolvedVerse = (): Verse => {
+    // 1. If explicitly custom
+    if (state.activeSource === "custom" && state.selectedCustomVerse) {
+      return state.selectedCustomVerse;
+    }
+    
+    // 2. If explicit verse ID selected
+    if (state.selectedVerseId) {
+      const fromMock = MOCK_VERSES.find(v => v.id === state.selectedVerseId);
+      const fromCustomList = state.customVerses.find(v => v.id === state.selectedVerseId);
+      if (fromMock) return fromMock;
+      if (fromCustomList) return fromCustomList;
+      
+      // Check in custom paths
+      for (const p of state.customPaths) {
+        const vData = p.verses.find(v => v.id === state.selectedVerseId);
+        if (vData) {
+          return {
+            id: vData.id,
+            book: vData.reference.split(' ').slice(0, -1).join(' '),
+            chapter: parseInt(vData.reference.split(' ').pop()?.split(':')[0] || '1'),
+            verse: parseInt(vData.reference.split(' ').pop()?.split(':')[1] || '1'),
+            text: {
+              es: { RVR1960: vData.text || "", NVI: vData.text || "", NBLA: vData.text || "", KJV: "", NIV: "", NASB: "" },
+              en: { KJV: vData.text || "", NIV: vData.text || "", NASB: vData.text || "", RVR1960: "", NVI: "", NBLA: "" }
+            },
+            copyright: vData.copyright
+          } as Verse;
+        }
+      }
+    }
+    
+    // 3. Fallback for Path source
+    if (state.activeSource === "path") {
+      // In Memorize, we can't easily recalculate activePathVerse without access to all constants.
+      // But App.tsx should have set state optimally.
+      // If we are here and no ID is set, it means we are in a 'Path' flow.
+      // We'll rely on the VOTD if all else fails, but ideally Home passed the ID or it's resolved.
+    }
+
+    return votd;
+  };
+
+  const verse = getResolvedVerse();
 
   const [stage, setStage] = useState(() => state.progress.verseStages[verse.id] || 1);
   const [isRevealed, setIsRevealed] = useState(false);

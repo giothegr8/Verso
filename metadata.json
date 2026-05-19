@@ -1,5 +1,6 @@
 {
   "name": "Verso",
   "description": "A warm, bilingual Bible verse memorization app. One verse at a time, deep roots for life.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

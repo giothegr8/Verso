@@ -56,19 +56,40 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
 
   // Unified Active Verse Logic
   let verse: Verse;
-  switch (state.activeSource) {
-    case "custom":
-      verse = state.selectedCustomVerse || votd;
-      break;
-    case "path":
-    case "extra":
-    case "saved":
-      verse = (state.selectedVerseId 
-        ? (MOCK_VERSES.find(v => v.id === state.selectedVerseId) || state.customVerses.find(v => v.id === state.selectedVerseId))
-        : null) || votd;
-      break;
-    default:
-      verse = votd;
+  if (state.activeSource === "custom" && state.selectedCustomVerse) {
+    verse = state.selectedCustomVerse;
+  } else if (state.selectedVerseId) {
+    const fromMock = MOCK_VERSES.find(v => v.id === state.selectedVerseId);
+    const fromCustomList = state.customVerses.find(v => v.id === state.selectedVerseId);
+    
+    if (fromMock) {
+      verse = fromMock;
+    } else if (fromCustomList) {
+      verse = fromCustomList;
+    } else {
+      // Check custom paths
+      let foundInPath: Verse | null = null;
+      for (const path of state.customPaths) {
+        const vData = path.verses.find(v => v.id === state.selectedVerseId);
+        if (vData) {
+          foundInPath = {
+            id: vData.id,
+            book: vData.reference.split(' ').slice(0, -1).join(' '),
+            chapter: parseInt(vData.reference.split(' ').pop()?.split(':')[0] || '1'),
+            verse: parseInt(vData.reference.split(' ').pop()?.split(':')[1] || '1'),
+            text: {
+              es: { RVR1960: vData.text || "", NVI: vData.text || "", NBLA: vData.text || "", KJV: "", NIV: "", NASB: "" },
+              en: { KJV: vData.text || "", NIV: vData.text || "", NASB: vData.text || "", RVR1960: "", NVI: "", NBLA: "" }
+            },
+            copyright: vData.copyright
+          } as Verse;
+          break;
+        }
+      }
+      verse = foundInPath || votd;
+    }
+  } else {
+    verse = votd;
   }
 
   const { esText, enText, activePair } = useMemo(() => 

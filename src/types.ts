@@ -39,7 +39,8 @@ export interface Verse {
     en: Record<Translation, string>;
     es: Record<Translation, string>;
   };
-  source?: "daily" | "path" | "custom";
+  copyright?: string;
+  source?: string;
   addedAt?: string; // ISO date string
   preferredTranslation?: Translation; // Used for custom verse overrides
 }
@@ -60,6 +61,29 @@ export interface PathDay {
   reference: string;
   contextNote?: string;
   status: "reference-only" | "full-text";
+}
+
+export interface CustomPathVerse {
+  id: string;
+  dayNumber: number;
+  reference: string;
+  translation?: Translation;
+  bibleId?: string;
+  text?: string;
+  copyright?: string;
+  source?: string;
+  createdAt: string;
+}
+
+export interface CustomPath {
+  id: string;
+  type: "custom";
+  title: string;
+  description: string;
+  language: "es" | "en";
+  createdAt: string;
+  updatedAt: string;
+  verses: CustomPathVerse[];
 }
 
 export interface Path {
@@ -128,6 +152,7 @@ export interface AppState {
   hasCompletedTour: boolean;
   savedVerses: string[]; // IDs
   customVerses: Verse[]; // User-added verses
+  customPaths: CustomPath[];
   selectedVerseId: string | null;
   selectedCustomVerse: Verse | null; // Currently active custom verse
   activeSource: ActiveVerseSource;
@@ -135,6 +160,7 @@ export interface AppState {
   lastVotdDate: string | null; // ISO date string (YYYY-MM-DD)
   progress: UserProgress;
   pathProgress: UserPathProgress;
+  customPathProgress: UserPathProgress;
   reminders: ReminderSettings;
   onboardingProfile?: OnboardingProfile;
   reminderRotation?: ReminderRotationState;

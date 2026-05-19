@@ -1,8 +1,8 @@
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { AppState, Path, Translation, TRANSLATION_DETAILS, Verse } from "../types";
+import { AppState, Path, Translation, TRANSLATION_DETAILS, Verse, CustomPath, CustomPathVerse } from "../types";
 import { PATHS, MOCK_VERSES } from "../constants";
-import { ArrowLeft, Compass, Clock, ChevronRight, Sprout, CheckCircle2, Lock, Flower2, RotateCw, BookOpen, RotateCcw, X, Share2, Sparkles } from "lucide-react";
+import { ArrowLeft, Compass, Clock, ChevronRight, Sprout, CheckCircle2, Lock, Flower2, RotateCw, BookOpen, RotateCcw, X, Share2, Sparkles, Trash2, Plus } from "lucide-react";
 import { getCurrentTranslationPair, getLocalizedBookName, getValidatedVerse } from "../utils/verseUtils";
 import { handleShare } from "../utils/shareUtils";
 import ShareModal from "./ShareModal";
@@ -12,17 +12,38 @@ interface PathSelectionProps {
   onSelectPath: (pathId: string) => void;
   onBack: () => void;
   onMemorize: (verseId: string, source?: "path" | "saved" | "extra") => void;
+  onCreateCustom: () => void;
+  onEditCustom: (path: CustomPath) => void;
+  onDeleteCustom: (pathId: string) => void;
 }
 
-export default function PathSelection({ state, onSelectPath, onBack, onMemorize }: PathSelectionProps) {
+export default function PathSelection({ state, onSelectPath, onBack, onMemorize, onCreateCustom, onEditCustom, onDeleteCustom }: PathSelectionProps) {
   const isEs = state.primaryLanguage === "es";
-  const [selectedPath, setSelectedPath] = useState<Path | null>(null);
+  const [selectedPath, setSelectedPath] = useState<Path | CustomPath | null>(null);
   const [flippedDay, setFlippedDay] = useState<number | null>(null);
   const [reviewDay, setReviewDay] = useState<number | null>(null);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
-  const selectedPathId = state.pathProgress.selectedPathId;
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const selectedPathId = state.pathProgress.selectedPathId || state.customPathProgress.selectedPathId;
 
   const getVerseByRef = (ref: string) => {
+    // If we're in a custom path, we might have the verse text already
+    if (selectedPath && 'verses' in selectedPath && typeof selectedPath.verses[0] === 'object') {
+       const found = (selectedPath as CustomPath).verses.find(v => v.reference === ref);
+       if (found && found.text) {
+          return {
+            id: found.id,
+            book: found.reference.split(' ').slice(0, -1).join(' '),
+            chapter: parseInt(found.reference.split(' ').pop()?.split(':')[0] || '1'),
+            verse: parseInt(found.reference.split(' ').pop()?.split(':')[1] || '1'),
+            text: {
+              es: { RVR1960: found.text, NVI: found.text, NBLA: found.text, KJV: "", NIV: "", NASB: "" },
+              en: { KJV: found.text, NIV: found.text, NASB: found.text, RVR1960: "", NVI: "", NBLA: "" }
+            }
+          } as Verse;
+       }
+    }
+
     return MOCK_VERSES.find(v => {
       const parts = v.book.split(' / ');
       const esBook = parts[0];
@@ -42,8 +63,13 @@ export default function PathSelection({ state, onSelectPath, onBack, onMemorize 
 
   const currentReviewVerse = useMemo(() => {
     if (!selectedPath || reviewDay === null) return null;
-    const dayData = selectedPath.days?.find(d => d.day === reviewDay);
-    return dayData ? getVerseByRef(dayData.reference) : null;
+    if ('days' in selectedPath) {
+      const dayData = (selectedPath as Path).days?.find(d => d.day === reviewDay);
+      return dayData ? getVerseByRef(dayData.reference) : null;
+    } else {
+      const dayData = (selectedPath as CustomPath).verses.find(v => v.dayNumber === reviewDay);
+      return dayData ? getVerseByRef(dayData.reference) : null;
+    }
   }, [selectedPath, reviewDay]);
 
   // Sort paths to move currently selected path to the top, then alphabetize the rest
@@ -56,7 +82,17 @@ export default function PathSelection({ state, onSelectPath, onBack, onMemorize 
   });
 
   if (selectedPath) {
-    const reviewDayData = reviewDay !== null ? selectedPath.days?.find(d => d.day === reviewDay) : null;
+    const isCustom = 'verses' in selectedPath;
+    const pathTitle = isCustom ? (selectedPath as CustomPath).title : (isEs ? (selectedPath as Path).titleEs : (selectedPath as Path).title);
+    const pathDesc = isCustom ? (selectedPath as CustomPath).description : (isEs ? (selectedPath as Path).descriptionEs : (selectedPath as Path).description);
+    const pathDuration = isCustom ? (selectedPath as CustomPath).verses.length : (selectedPath as Path).duration;
+
+    const reviewDayData = reviewDay !== null 
+      ? (isCustom 
+          ? (selectedPath as CustomPath).verses.find(v => v.dayNumber === reviewDay)
+          : (selectedPath as Path).days?.find(d => d.day === reviewDay)) 
+      : null;
+    
     const { esText, enText, esError, enError } = currentReviewVerse 
       ? getValidatedVerse(currentReviewVerse, state) 
       : { esText: null, enText: null, esError: null, enError: null };
@@ -68,6 +104,57 @@ export default function PathSelection({ state, onSelectPath, onBack, onMemorize 
         exit={{ opacity: 0, x: -20 }}
         className="flex flex-col space-y-8 pb-12"
       >
+        {/* Delete Confirmation Overlay */}
+        <AnimatePresence>
+          {showDeleteConfirm && (
+            <div className="fixed inset-0 z-[120] flex items-center justify-center p-6">
+              <motion.div 
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                className="absolute inset-0 bg-espresso/80 backdrop-blur-md"
+                onClick={() => setShowDeleteConfirm(false)}
+              />
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                className="relative w-full max-w-sm bg-white dark:bg-charcoal rounded-[40px] shadow-2xl border border-earth/10 dark:border-white/10 p-8 space-y-6"
+              >
+                <div className="space-y-3 text-center">
+                  <div className="w-16 h-16 bg-coral/10 rounded-2xl flex items-center justify-center text-coral mx-auto mb-4">
+                    <Trash2 size={28} />
+                  </div>
+                  <h3 className="text-2xl font-serif font-black text-earth dark:text-ivory">
+                    {isEs ? "¿Eliminar esta Serie?" : "Delete this Path?"}
+                  </h3>
+                  <p className="text-sm font-medium text-earth-light/60 dark:text-lavender-muted/60 leading-relaxed">
+                    {isEs 
+                      ? "Esto elimina la Serie personalizada y su progreso. Las Series predeterminadas no se verán afectadas." 
+                      : "This removes the custom Path and its progress. Preset Paths will not be affected."}
+                  </p>
+                </div>
+                <div className="flex flex-col gap-3">
+                  <button 
+                    onClick={() => {
+                      if (selectedPath) {
+                        onDeleteCustom(selectedPath.id);
+                        setSelectedPath(null);
+                        setShowDeleteConfirm(false);
+                      }
+                    }}
+                    className="w-full h-14 bg-coral text-white rounded-2xl font-black uppercase tracking-widest text-xs"
+                  >
+                    {isEs ? "Eliminar Serie" : "Delete Path"}
+                  </button>
+                  <button 
+                    onClick={() => setShowDeleteConfirm(false)}
+                    className="w-full h-14 bg-earth/5 dark:bg-white/5 text-earth/60 dark:text-ivory/60 rounded-2xl font-black uppercase tracking-widest text-xs border border-earth/10 dark:border-white/10"
+                  >
+                    {isEs ? "Conservar Serie" : "Keep Path"}
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
         {/* Share Modal integrated for review flow */}
         {currentReviewVerse && (
           <ShareModal 
@@ -109,7 +196,7 @@ export default function PathSelection({ state, onSelectPath, onBack, onMemorize 
                         {isEs ? "VERSÍCULO DE LA SERIE" : "PATH VERSE"}
                       </span>
                       <h4 className="text-xl font-serif font-black text-ivory/60">
-                        {isEs ? selectedPath.titleEs : selectedPath.title} — {isEs ? `Día ${reviewDay}` : `Day ${reviewDay}`}
+                        {pathTitle} — {isEs ? `Día ${reviewDay}` : `Day ${reviewDay}`}
                       </h4>
                     </div>
                     <button 
@@ -200,23 +287,41 @@ export default function PathSelection({ state, onSelectPath, onBack, onMemorize 
 
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6">
             <div className="space-y-3 flex-1">
-              <div className="w-12 h-12 rounded-2xl bg-teal/10 flex items-center justify-center text-teal mb-2">
-                <Sprout size={24} />
+              <div className="flex items-center justify-between gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-teal/10 flex items-center justify-center text-teal mb-2">
+                  <Sprout size={24} />
+                </div>
+                {isCustom && (
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-500/5 dark:bg-amber-500/10 rounded-2xl border border-amber-500/20 dark:border-amber-400/30">
+                      <Clock size={14} className="text-amber-600 dark:text-amber-400" />
+                      <span className="text-[10px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-300/80">
+                        {pathDuration} {isEs ? (pathDuration === 1 ? "día" : "días") : (pathDuration === 1 ? "day" : "days")}
+                      </span>
+                    </div>
+                    <button 
+                      onClick={() => onEditCustom(selectedPath as CustomPath)}
+                      className="p-3 rounded-2xl bg-teal/10 text-teal hover:bg-teal/20 transition-all border border-teal/10"
+                      title={isEs ? "Editar Serie" : "Edit Path"}
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-pencil"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                    </button>
+                    <button 
+                      onClick={() => setShowDeleteConfirm(true)}
+                      className="p-3 rounded-2xl bg-coral/10 text-coral hover:bg-coral/20 transition-all border border-coral/10"
+                      title={isEs ? "Eliminar Serie" : "Delete Path"}
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
+                )}
               </div>
-              <h2 className="text-4xl sm:text-5xl font-serif font-black text-earth dark:text-ivory tracking-tight">
-                {isEs ? selectedPath.titleEs : selectedPath.title}
+              <h2 className="text-4xl sm:text-5xl font-serif font-black text-earth dark:text-ivory tracking-tight leading-tight">
+                {pathTitle}
               </h2>
               <p className="text-lg text-earth-light/80 dark:text-lavender-muted/80 font-medium max-w-xl">
-                {isEs ? selectedPath.descriptionEs : selectedPath.description}
+                {pathDesc}
               </p>
-            </div>
-            <div className="shrink-0">
-              <div className="flex items-center gap-2 px-4 py-2 bg-amber-500/5 dark:bg-amber-500/10 rounded-2xl border border-amber-500/20 dark:border-amber-400/30">
-                <Clock size={16} className="text-amber-600 dark:text-amber-400" />
-                <span className="text-sm font-black uppercase tracking-widest text-amber-700 dark:text-amber-300/80">
-                  {selectedPath.duration} {isEs ? "días" : "days"}
-                </span>
-              </div>
             </div>
           </div>
         </div>
@@ -227,19 +332,26 @@ export default function PathSelection({ state, onSelectPath, onBack, onMemorize 
             {isEs ? "Recorrido diario" : "Daily Journey"}
           </h3>
           <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
-            {Array.from({ length: selectedPath.duration }).map((_, i) => {
+            {Array.from({ length: pathDuration }).map((_, i) => {
               const dayNum = i + 1;
-              const dayData = selectedPath.days?.find(d => d.day === dayNum);
+              const dayData = isCustom 
+                ? (selectedPath as CustomPath).verses.find(v => v.dayNumber === dayNum)
+                : (selectedPath as Path).days?.find(d => d.day === dayNum);
               
               // Robust completion detection
-              const pathSaved = (state.pathProgress?.savedProgress || {})[selectedPath.id];
+              const pathSaved = isCustom 
+                ? (state.customPathProgress?.savedProgress || {} as any)[(selectedPath as any).id]
+                : (state.pathProgress?.savedProgress || {} as any)[(selectedPath as any).id];
+              
               const isCompleted = pathSaved?.completedDays.includes(dayNum) || 
-                                (state.pathProgress?.selectedPathId === selectedPath.id && (state.pathProgress?.currentDay || 1) > dayNum);
-              const isActive = (selectedPathId === selectedPath.id) && (state.pathProgress?.currentDay === dayNum);
-              const isFlipped = flippedDay === dayNum && isActive; // Only active day should flip
+                                (selectedPathId === selectedPath.id && 
+                                  (isCustom ? state.customPathProgress.currentDay : state.pathProgress.currentDay || 1) > dayNum);
+              const isActive = (selectedPathId === selectedPath.id) && 
+                              (isCustom ? state.customPathProgress.currentDay === dayNum : state.pathProgress.currentDay === dayNum);
+              const isFlipped = flippedDay === dayNum && isActive;
 
               const verse = dayData ? getVerseByRef(dayData.reference) : null;
-              const previewText = verse ? (isEs ? verse.text.es[state.selectedTranslations.es] : verse.text.en[state.selectedTranslations.en]) : null;
+              const previewText = verse ? (isEs ? (verse.text.es[state.selectedTranslations.es] || verse.text.es.RVR1960) : (verse.text.en[state.selectedTranslations.en] || verse.text.en.NIV)) : null;
 
               return (
                 <div key={dayNum} className="relative h-[90px] perspective-1000">
@@ -329,7 +441,9 @@ export default function PathSelection({ state, onSelectPath, onBack, onMemorize 
           >
             <Compass size={18} />
             <span className="tracking-tight">
-              {state.pathProgress.selectedPathId === selectedPath.id ? (isEs ? "continuar serie" : "continue path") : (state.primaryLanguage === "es" ? selectedPath.ctaEs.toLowerCase() : selectedPath.cta.toLowerCase())}
+              {state.pathProgress.selectedPathId === selectedPath.id || state.customPathProgress.selectedPathId === selectedPath.id 
+                ? (isEs ? "continuar serie" : "continue path") 
+                : (isCustom ? (isEs ? "empezar serie" : "start path") : (isEs ? (selectedPath as Path).ctaEs.toLowerCase() : (selectedPath as Path).cta.toLowerCase()))}
             </span>
           </button>
         </div>
@@ -350,7 +464,7 @@ export default function PathSelection({ state, onSelectPath, onBack, onMemorize 
           </div>
           
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-serif font-black text-earth dark:text-ivory tracking-tight leading-tight">
-            {isEs ? 'Tu jardín sagrado' : 'Your Sacred Garden'}
+            {isEs ? 'Tu Jardín Sagrado' : 'Your Sacred Garden'}
           </h2>
           
           <p className="text-sm sm:text-base text-earth-light/70 dark:text-lavender-muted/70 font-medium tracking-tight">
@@ -361,9 +475,121 @@ export default function PathSelection({ state, onSelectPath, onBack, onMemorize 
         </div>
       </div>
 
-      {/* Path Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {sortedPaths.map((path, index) => {
+      {/* Creation Entry Card */}
+      <div className="mb-10">
+        <motion.button 
+          whileHover={{ scale: 1.01 }}
+          whileTap={{ scale: 0.99 }}
+          onClick={onCreateCustom}
+          className="w-full relative overflow-hidden group rounded-[32px] p-8 border-2 border-dashed border-teal/20 bg-teal/[0.03] flex flex-col sm:flex-row items-center gap-6 text-left transition-all hover:bg-teal/[0.06] hover:border-teal/40"
+        >
+          <div className="w-20 h-20 shrink-0 rounded-[28px] bg-teal/10 flex items-center justify-center text-teal relative">
+            <Sparkles size={32} className="relative z-10" />
+            <div className="absolute inset-0 bg-teal/20 blur-2xl rounded-full scale-50 group-hover:scale-100 transition-transform" />
+          </div>
+          <div className="flex-1 space-y-2">
+            <div className="flex flex-col items-start gap-1">
+              <span className="text-[10px] font-black text-teal/60 dark:text-teal/40 uppercase tracking-[0.2em] ml-0.5">
+                {isEs ? "PERSONALIZADA" : "CUSTOM"}
+              </span>
+              <h3 className="text-2xl font-serif font-black text-earth dark:text-ivory tracking-tight">
+                {isEs ? "Crea tu propia Serie" : "Create your own Path"}
+              </h3>
+            </div>
+            <p className="text-sm font-medium text-earth-light/60 dark:text-lavender-muted/60 leading-relaxed max-w-sm">
+              {isEs 
+                ? "Agrega versículos de una prédica, clase, estudio o algo que quieras memorizar." 
+                : "Add verses from a sermon, class, study, or anything you want to memorize."}
+            </p>
+          </div>
+          <div className="flex items-center gap-2 px-6 py-3 bg-teal text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-xl shadow-teal/20 group-hover:scale-105 transition-transform">
+             {isEs ? "Crear Serie" : "Create Path"}
+             <Plus size={14} strokeWidth={3} />
+          </div>
+        </motion.button>
+      </div>
+
+      {/* Custom Paths Section */}
+      {state.customPaths.length > 0 && (
+        <div className="space-y-6 mb-10">
+           <h3 className="text-xs font-black uppercase tracking-[0.3em] text-earth/20 dark:text-ivory/20 px-1">
+             {isEs ? "TUS SERIES PERSONALIZADAS" : "YOUR CUSTOM PATHS"}
+           </h3>
+           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {state.customPaths.map((path, idx) => {
+                const isActive = path.id === selectedPathId;
+                return (
+                  <motion.button
+                    key={path.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.05 }}
+                    onClick={() => setSelectedPath(path)}
+                    className={`group relative flex flex-col items-start p-6 bg-white dark:bg-charcoal border transition-all text-left overflow-hidden ring-1 ${
+                      isActive 
+                        ? "border-teal/50 ring-teal/20 bg-teal/[0.02] shadow-lg" 
+                        : "border-earth/10 dark:border-white/10 ring-teal/5 shadow-sm hover:shadow-xl hover:border-teal/30"
+                    } rounded-[32px]`}
+                  >
+                    <div className="flex justify-between items-start w-full mb-4 relative z-10">
+                      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${
+                        isActive ? "bg-teal text-white shadow-xl shadow-teal/20 scale-110" : "bg-teal/10 text-teal group-hover:scale-110"
+                      }`}>
+                        <Sprout size={24} />
+                      </div>
+                      <div className="flex items-center gap-1.5 px-3 py-1.5 bg-teal/5 dark:bg-teal/10 rounded-full border border-teal/10 dark:border-teal/20">
+                        <Clock size={12} className="text-amber-500/80 dark:text-amber-400/80" />
+                        <span className="text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">
+                          {path.verses.length} {isEs ? (path.verses.length === 1 ? "día" : "días") : (path.verses.length === 1 ? "day" : "days")}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Watermark Motif */}
+                    <div className="absolute top-6 -right-16 p-8 opacity-[0.06] group-hover:opacity-[0.1] transition-opacity pointer-events-none">
+                      <Sprout size={140} className="text-teal transform rotate-[-12deg]" />
+                    </div>
+
+                    <div className="mb-4 min-h-[1.5rem] relative z-10">
+                      {isActive && (
+                        <motion.div 
+                          className="flex items-center gap-1.5 px-2.5 py-1 bg-teal/10 dark:bg-teal/20 rounded-lg border border-teal/20 dark:border-teal-400/20"
+                        >
+                          <div className="w-1.5 h-1.5 rounded-full bg-teal dark:bg-teal-400 animate-pulse" />
+                          <span className="text-[9px] font-black uppercase tracking-widest text-teal dark:text-teal-400">
+                            {isEs ? "Actual" : "Current"}
+                          </span>
+                        </motion.div>
+                      )}
+                    </div>
+
+                    <div className="flex-1 space-y-3 relative z-10 w-full mb-6 text-left">
+                      <h3 className="text-2xl font-serif font-black transition-colors leading-tight text-earth dark:text-ivory min-h-[4rem] line-clamp-2">
+                        {path.title}
+                      </h3>
+                      <p className="text-sm text-earth-light/70 dark:text-lavender-muted/60 leading-relaxed line-clamp-2 min-h-[2.5rem]">
+                        {path.description || (isEs ? "Serie personalizada" : "Custom scripture path")}
+                      </p>
+                    </div>
+
+                    <div className="mt-auto flex items-center gap-2 font-black text-[10px] uppercase tracking-widest transition-colors text-earth-light/40 dark:text-ivory/30 group-hover:text-teal">
+                      <span>{isEs ? "Ver detalles" : "View details"}</span>
+                      <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform" />
+                    </div>
+                  </motion.button>
+                );
+              })}
+           </div>
+        </div>
+      )}
+
+      {/* Preset Path Cards */}
+      <div className="space-y-6">
+        <h3 className="text-xs font-black uppercase tracking-[0.3em] text-earth/20 dark:text-ivory/20 px-1">
+          {isEs ? "BIBLIOTECA DE SERIES" : "PATH LIBRARY"}
+        </h3>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {sortedPaths.map((path, index) => {
           const isActive = path.id === selectedPathId;
           
           return (
@@ -393,7 +619,7 @@ export default function PathSelection({ state, onSelectPath, onBack, onMemorize 
                 <div className="flex items-center gap-1.5 px-3 py-1.5 bg-teal/5 dark:bg-teal/10 rounded-full border border-teal/10 dark:border-teal/20">
                   <Clock size={12} className="text-amber-500/80 dark:text-amber-400/80" />
                   <span className="text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">
-                    {path.duration} {isEs ? "días" : "days"}
+                    {path.duration} {isEs ? (path.duration === 1 ? "día" : "días") : (path.duration === 1 ? "day" : "days")}
                   </span>
                 </div>
               </div>
@@ -430,6 +656,7 @@ export default function PathSelection({ state, onSelectPath, onBack, onMemorize 
             </motion.button>
           );
         })}
+        </div>
       </div>
     </div>
   );

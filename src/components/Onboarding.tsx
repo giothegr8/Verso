@@ -15,17 +15,24 @@ import {
   CheckCircle2,
   Check,
   User,
-  AlertCircle
+  AlertCircle,
+  Mail,
+  Lock,
+  Crown
 } from "lucide-react";
 import { AppState, DailyRhythm, IdentityAnchor, Blocker, ReminderPreference, LanguageMode } from "../types";
 import { PATHS } from "../constants";
 import VersoLogo from "./VersoLogo";
+import { supabase } from "../lib/supabase";
+import { useAuth } from "../contexts/AuthContext";
+import Paywall from "./Paywall";
 
 interface OnboardingProps {
   onComplete: (prefs: Partial<AppState>) => void;
 }
 
 export default function Onboarding({ onComplete }: OnboardingProps) {
+  const { user } = useAuth();
   const [step, setStep] = useState(1);
   const [appLanguage, setAppLanguage] = useState<"en" | "es">("en");
   const [memMode, setMemMode] = useState<LanguageMode>("both");
@@ -35,25 +42,33 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
   const [blocker, setBlocker] = useState<Blocker | null>(null);
   const [reminder, setReminder] = useState<ReminderPreference | null>(null);
   const [isPreparing, setIsPreparing] = useState(false);
+  
+  // Auth state
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [isAuthLoading, setIsAuthLoading] = useState(false);
+  const [authMode, setAuthMode] = useState<"signup" | "signin">("signup");
 
-  // Total steps: 11
-  const TOTAL_STEPS = 11;
+  const isSupabaseConfigured = !!(import.meta as any).env?.VITE_SUPABASE_URL && !!(import.meta as any).env?.VITE_SUPABASE_ANON_KEY;
+
+  // Total steps: 13
+  // 1-9: Prefs, 10: Auth, 11: Preparing, 12: Ready, 13: Paywall
+  const TOTAL_STEPS = 13;
 
   const [showFallback, setShowFallback] = useState(false);
 
-  // Auto-advance logic for step 10
+  // Auto-advance logic for step 11 (Preparing)
   useEffect(() => {
     let timer: any;
     let fallbackTimer: any;
-    if (step === 10) {
+    if (step === 11) {
       setShowFallback(false);
-      // Actual advance timer
       timer = setTimeout(() => {
         setIsPreparing(false);
-        setStep(11);
+        setStep(12);
       }, 3500);
 
-      // Show fallback button if it takes too long
       fallbackTimer = setTimeout(() => {
         setShowFallback(true);
       }, 5000);
@@ -64,16 +79,44 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
     };
   }, [step]);
 
+  // If user is already authenticated and on step 10, advance
+  useEffect(() => {
+    if (step === 10 && user) {
+      setStep(11);
+    }
+  }, [step, user]);
+
   const next = () => {
-    if (step === 10) {
+    if (step === 11) {
       setIsPreparing(true);
-      // Transition is now handled by useEffect logic
     } else {
       setStep(s => s + 1);
     }
   };
 
   const prev = () => setStep(s => Math.max(1, s - 1));
+
+  const handleAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError(null);
+    setIsAuthLoading(true);
+
+    try {
+      if (authMode === "signup") {
+        const { error } = await supabase.auth.signUp({ email, password });
+        if (error) throw error;
+        // Profile created by trigger in SQL migration
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+      }
+      // Auth change will be caught by useAuth and effect above will move step
+    } catch (err: any) {
+      setAuthError(err.message);
+    } finally {
+      setIsAuthLoading(false);
+    }
+  };
 
   const handleFinish = () => {
     onComplete({
@@ -170,7 +213,13 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
         "Saving your reminder"
       ],
       readyTitle: "Your first path is ready.",
-      readyBtn: "Start today's verse"
+      readyBtn: "Start today's verse",
+      authTitle: "Save your progress",
+      authSub: "Create an account to keep your streaks and verses synced.",
+      authModeSwitch: "ALREADY HAVE AN ACCOUNT? SIGN IN",
+      authModeSwitchBack: "NO ACCOUNT? CREATE ONE",
+      authBtn: "Create Account",
+      authBtnSignin: "Sign In"
     },
     es: {
       langTitle: "Elige tu idioma",
@@ -198,13 +247,13 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
         { id: "weekly", label: "Algunos días a la semana" },
         { id: "loose", label: "Solo quiero empezar" }
       ],
-      identityTitle: "¿Qué quieres cultivar aquí?",
-      identitySub: "Elige un recordatorio que Verso pueda reflejar en ti.",
+      identityTitle: "¿Qué quieres cultivar?",
+      identitySub: "Elige un recordatorio que Verso pueda repetirte.",
       identityOptions: [
-        { id: "habit", label: "Un hábito constante", sub: "Quiero seguir presentándome." },
-        { id: "faith", label: "Una fe más fuerte", sub: "Quiero que esto me forme espiritualmente." },
-        { id: "heart", label: "Un corazón más tranquilo", sub: "Quiero que la Escritura me dé estabilidad." },
-        { id: "memory", label: "Una memoria duradera", sub: "Quiero recordar lo que aprendo." }
+        { id: "habit", label: "Un hábito constante", sub: "Quiero seguir volviendo." },
+        { id: "faith", label: "Una fe más firme", sub: "Quiero que esto me forme espiritualmente." },
+        { id: "heart", label: "Un corazón más tranquilo", sub: "Quiero que la paz me acompañe." },
+        { id: "memory", label: "Una memoria que permanece", sub: "Quiero recordar lo que aprendo." }
       ],
       blockerTitle: "¿Qué suele atravesarse?",
       blockerSub: "Te ayudaremos a mantener un hábito sencillo.",
@@ -212,7 +261,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
         forgetful: "Un pequeño recordatorio puede ayudarte a volver mañana.",
         busy: "Elige un momento que ya encaje en tu día.",
         inconsistent: "Elige un momento que te ayude a seguir adelante.",
-        clueless: "Elige un momento y Verso te ayudará con el siguiente paso.",
+        clueless: "ELIGE UN MOMENTO PARA QUE VERSO TE AYUDE A VOLVER.",
         distracted: "Elige un momento de quietud al que puedas volver.",
         other: "Elige un momento que funcione para ti."
       },
@@ -227,7 +276,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
       encouragementHead: "El crecimiento empieza pequeño.",
       encouragementSub: "No solo estás abriendo una app. Estás formando un hábito que nutre tu alma.",
       encouragementFooter: "LO QUE SIEMBRAS, COSECHARÁS",
-      reminderTitle: "¿Cuándo quieres hacer espacio para Verso?",
+      reminderTitle: "¿Cuándo quieres sacar tiempo para Verso?",
       reminderSubtitle: "Puedes cambiarlo después.",
       reminderOptions: [
         { id: "morning", label: "En la mañana" },
@@ -244,7 +293,13 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
         "Guardando tu recordatorio"
       ],
       readyTitle: "Tu primera serie está lista.",
-      readyBtn: "Empezar el versículo de hoy"
+      readyBtn: "Empezar el versículo de hoy",
+      authTitle: "Guarda tu progreso",
+      authSub: "Crea una cuenta para mantener tus rachas y versículos sincronizados.",
+      authModeSwitch: "¿YA TIENES CUENTA? INICIA SESIÓN",
+      authModeSwitchBack: "¿NO TIENES CUENTA? CREA UNA",
+      authBtn: "Crear Cuenta",
+      authBtnSignin: "Iniciar Sesión"
     }
   };
 
@@ -502,7 +557,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               <div className="space-y-1">
                 <p className="text-xs sm:text-sm font-medium text-earth-light/60 dark:text-lavender-muted/60 px-6">{curr.reminderSubtitle}</p>
                 {blocker && (
-                  <p className="text-[10px] font-black uppercase tracking-widest text-teal transition-all animate-in fade-in duration-500">
+                  <p className="text-[10px] font-black uppercase tracking-[0.15em] text-teal text-center px-8 mt-2 leading-relaxed max-w-[240px] mx-auto transition-all animate-in fade-in duration-500">
                     {curr.blockerHelper[blocker]}
                   </p>
                 )}
@@ -525,7 +580,110 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
           </div>
         );
 
-      case 10: // PREPARING
+      case 10: // AUTH
+        return (
+          <div className="space-y-10 w-full animate-in fade-in duration-700">
+            <div className="text-center space-y-3">
+              <div className="w-16 h-16 bg-playful-purple/10 rounded-2xl flex items-center justify-center mx-auto text-playful-purple mb-4 shadow-[0_0_20px_rgba(109,40,217,0.1)]">
+                <User size={28} strokeWidth={1.5} />
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-serif font-black text-earth dark:text-ivory tracking-tight">{curr.authTitle}</h2>
+              <p className="text-xs sm:text-sm font-medium text-earth-light/60 dark:text-lavender-muted/60 px-6">{curr.authSub}</p>
+            </div>
+
+            <form onSubmit={handleAuth} className="space-y-4 px-2 max-w-sm mx-auto">
+              <div className="space-y-3">
+                <div className="relative">
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-earth/20 dark:text-ivory/20" size={18} />
+                  <input 
+                    type="email"
+                    placeholder="Email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full h-14 bg-white/50 dark:bg-charcoal/30 backdrop-blur-md border-2 border-earth/5 dark:border-white/5 rounded-2xl pl-12 pr-4 focus:border-playful-purple/50 focus:ring-4 focus:ring-playful-purple/5 outline-none transition-all text-earth dark:text-ivory font-bold placeholder:text-earth/20 dark:placeholder:text-ivory/20"
+                  />
+                </div>
+                <div className="relative">
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-earth/20 dark:text-ivory/20" size={18} />
+                  <input 
+                    type="password"
+                    placeholder="Password"
+                    required
+                    minLength={6}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full h-14 bg-white/50 dark:bg-charcoal/30 backdrop-blur-md border-2 border-earth/5 dark:border-white/5 rounded-2xl pl-12 pr-4 focus:border-playful-purple/50 focus:ring-4 focus:ring-playful-purple/5 outline-none transition-all text-earth dark:text-ivory font-bold placeholder:text-earth/20 dark:placeholder:text-ivory/20"
+                  />
+                </div>
+              </div>
+
+              {authError && (
+                <div className="flex items-center gap-2 p-3 bg-coral/5 border border-coral/10 rounded-xl text-coral text-[10px] font-black uppercase tracking-widest animate-in fade-in slide-in-from-top-2">
+                  <AlertCircle size={14} />
+                  <span>{authError}</span>
+                </div>
+              )}
+
+              <button 
+                type="submit"
+                disabled={isAuthLoading}
+                className={`w-full h-14 sm:h-16 rounded-[24px] shadow-lg flex items-center justify-center gap-3 transition-all ${isAuthLoading ? 'bg-earth/10 text-earth/20 dark:bg-white/5 dark:text-white/10 cursor-wait border-none' : 'bg-playful-purple/5 border-2 border-playful-purple/30 text-playful-purple hover:bg-playful-purple/10 shadow-[0_0_20px_rgba(109,40,217,0.1)] active:scale-95'}`}
+              >
+                {isAuthLoading ? (
+                  <Loader2 size={24} className="animate-spin" />
+                ) : (
+                  <>
+                    <span className="font-black uppercase tracking-widest text-sm sm:text-base">
+                      {authMode === "signup" ? curr.authBtn : curr.authBtnSignin}
+                    </span>
+                    <ChevronRight size={18} />
+                  </>
+                )}
+              </button>
+
+              <div className="flex flex-col gap-4 items-center">
+                <button 
+                  type="button"
+                  onClick={() => setAuthMode(m => m === "signup" ? "signin" : "signup")}
+                  className="py-2 text-[10px] font-black uppercase tracking-[0.2em] text-earth-light/40 dark:text-lavender-muted/40 hover:text-playful-purple transition-colors"
+                  disabled={isAuthLoading}
+                >
+                  {authMode === "signup" ? curr.authModeSwitch : curr.authModeSwitchBack}
+                </button>
+
+                {!isSupabaseConfigured && process.env.NODE_ENV !== 'production' && (
+                  <div className="pt-4 border-t border-earth/5 dark:border-white/5 w-full flex flex-col items-center gap-2">
+                    <button 
+                      type="button"
+                      onClick={() => setStep(11)}
+                      className="text-[10px] font-black uppercase tracking-[0.2em] text-teal hover:text-teal-400 transition-colors"
+                    >
+                      {appLanguage === 'es' ? 'Continuar en modo vista previa' : 'Continue in preview mode'}
+                    </button>
+                    <p className="text-[9px] font-medium text-earth-light/30 dark:text-ivory/20 text-center px-4 leading-tight">
+                      {appLanguage === 'es' 
+                        ? 'Supabase aún no está configurado. Esto solo omite la cuenta para revisar la app.' 
+                        : 'Supabase is not configured yet. This only skips account creation for local preview.'}
+                    </p>
+                  </div>
+                )}
+                
+                <button 
+                  type="button"
+                  onClick={prev}
+                  className="h-12 flex items-center justify-center gap-2 text-earth-light/40 dark:text-ivory/30 font-black uppercase tracking-[0.2em] text-[10px] hover:text-teal transition-all"
+                  disabled={isAuthLoading}
+                >
+                  <ChevronLeft size={14} />
+                  {appLanguage === 'en' ? 'Back' : 'Atrás'}
+                </button>
+              </div>
+            </form>
+          </div>
+        );
+
+      case 11: // PREPARING
         return (
           <div className="text-center space-y-12 w-full">
             <div className="space-y-10">
@@ -552,14 +710,13 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 </div>
               </div>
 
-              {/* Safe Fallback Button */}
               {showFallback && (
                 <motion.button
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   onClick={() => {
                     setIsPreparing(false);
-                    setStep(11);
+                    setStep(12);
                   }}
                   className="mt-8 text-[10px] font-black uppercase tracking-widest text-teal hover:underline"
                 >
@@ -570,7 +727,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
           </div>
         );
 
-      case 11: // READY
+      case 12: // READY
         return (
           <div className="text-center space-y-12 w-full animate-in fade-in zoom-in duration-700">
             <div className="space-y-10">
@@ -611,6 +768,16 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
           </div>
         );
 
+      case 13: // PAYWALL
+        return (
+          <div className="w-full h-full relative">
+            <Paywall 
+              state={{ primaryLanguage: appLanguage } as AppState}
+              onSubscribe={() => handleFinish()}
+            />
+          </div>
+        );
+
       default: return null;
     }
   };
@@ -621,14 +788,15 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
     if (step === 6) return !growthGoal;
     if (step === 7) return !blocker;
     if (step === 9) return !reminder;
+    if (step === 10) return !user;
     return false;
   };
 
   return (
     <div className="fixed inset-0 z-[100] bg-parchment dark:bg-espresso flex flex-col items-center justify-center transition-colors duration-500 overflow-hidden">
-      {renderProgress()}
+      {step < 13 && renderProgress()}
       
-      <div className="w-full max-w-md h-full flex flex-col items-center justify-center p-6 relative">
+      <div className={`w-full ${step === 13 ? 'h-full' : 'max-w-md h-full'} flex flex-col items-center justify-center p-6 relative overflow-y-auto`}>
         <AnimatePresence mode="wait">
           {isPreparing ? (
             <motion.div 
@@ -647,9 +815,9 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.4 }}
-              className="flex-1 flex items-center justify-center w-full overflow-y-auto scrollbar-hide py-10"
+              className={`flex-1 flex items-center justify-center w-full ${step === 13 ? '' : 'py-10'}`}
             >
-              <div className="w-full">
+              <div className="w-full h-full flex items-center justify-center">
                 {renderStep()}
               </div>
             </motion.div>
@@ -657,8 +825,8 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
         </AnimatePresence>
 
         {/* Navigation Footer */}
-        {!isPreparing && step < 10 && (
-          <div className="w-full pt-8 flex flex-col gap-4">
+        {!isPreparing && step < 11 && step !== 10 && (
+          <div className="w-full pt-8 flex flex-col gap-4 max-w-[420px]">
             {step === 4 && (
               <motion.p 
                 initial={{ opacity: 0, y: 10 }}
@@ -673,7 +841,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               disabled={isNextDisabled()}
               className={`w-full h-14 sm:h-16 rounded-[24px] shadow-lg flex items-center justify-center gap-3 transition-all ${isNextDisabled() ? 'bg-earth/10 text-earth/20 dark:bg-white/5 dark:text-white/10 cursor-not-allowed border-none' : 'bg-playful-purple/5 border-2 border-playful-purple/30 text-playful-purple hover:bg-playful-purple/10 shadow-[0_0_20px_rgba(109,40,217,0.1)] active:scale-95'}`}
             >
-              <span className="font-black uppercase tracking-widest text-base sm:text-lg">
+              <span className="font-black uppercase tracking-[0.1em] text-base sm:text-lg">
                 {step === 1 ? (appLanguage === 'en' ? 'Continue' : 'Continuar') : curr.continue}
               </span>
               <ChevronRight size={18} />
@@ -690,14 +858,14 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
           </div>
         )}
 
-        {step === 11 && (
-          <div className="w-full pt-8">
+        {step === 12 && (
+          <div className="w-full pt-8 max-w-[420px]">
             <button 
-              onClick={handleFinish}
-              className="w-full h-16 bg-playful-purple/5 border-2 border-playful-purple/30 text-playful-purple rounded-[24px] shadow-[0_0_20px_rgba(109,40,217,0.1)] flex items-center justify-center gap-3 hover:bg-playful-purple/10 active:scale-95 transition-all"
+              onClick={next}
+              className="w-full h-16 bg-playful-purple/5 border-2 border-playful-purple/30 text-playful-purple rounded-[24px] shadow-[0_0_20px_rgba(109,40,217,0.1)] flex items-center justify-center gap-3 hover:bg-playful-purple/10 active:scale-95 transition-all px-6"
             >
-              <span className="font-black uppercase tracking-widest text-lg">{curr.readyBtn}</span>
-              <ChevronRight size={20} />
+              <span className="font-black uppercase tracking-tight sm:tracking-normal text-base sm:text-lg whitespace-nowrap">{curr.readyBtn}</span>
+              <ChevronRight size={20} className="shrink-0" />
             </button>
           </div>
         )}

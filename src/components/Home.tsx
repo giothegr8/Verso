@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { AppState, TRANSLATION_PAIRS, TRANSLATION_DETAILS, Verse, Translation } from "../types";
+import { AppState, TRANSLATION_PAIRS, TRANSLATION_DETAILS, Verse, Translation, CustomPath, CustomPathVerse, Path } from "../types";
 import { MOCK_VERSES, getVerseByDate } from "../constants";
 import { getVerseText, getFallbackMessage } from "../utils/verseProvider";
 import { Globe, Play, Flame, Trophy, Sparkles, Languages, BookOpen, History, AlertCircle, Share2, Star, X, Sprout, Compass, ChevronRight, CheckCircle2, Search, Loader2 } from "lucide-react";
@@ -115,13 +115,85 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
   const today = getLocalDateString();
   const votd = getVerseByDate(today);
 
-  // Unified Active Verse Logic (Part 5)
+  // Path Logic
+  const currentPathId = state.pathProgress.selectedPathId || state.customPathProgress.selectedPathId;
+  const isCustomPath = !!state.customPaths.find(p => p.id === currentPathId);
+  const selectedPath = isCustomPath 
+    ? state.customPaths.find(p => p.id === currentPathId)
+    : (state.pathProgress.selectedPathId ? PATHS.find(p => p.id === state.pathProgress.selectedPathId) : null);
+  
+  const isPathDayComplete = isCustomPath ? state.customPathProgress.pathCompletedToday : state.pathProgress.pathCompletedToday;
+  const currentPathDayNum = isCustomPath ? state.customPathProgress.currentDay : state.pathProgress.currentDay;
+  
+  const pathDuration = selectedPath ? ('duration' in selectedPath ? selectedPath.duration : selectedPath.verses.length) : 0;
+  const nextPathDayNum = currentPathDayNum < pathDuration ? currentPathDayNum + 1 : null;
+  
+  const currentPathDay = selectedPath 
+    ? ('days' in selectedPath 
+        ? selectedPath.days[currentPathDayNum - 1] 
+        : selectedPath.verses.find(v => v.dayNumber === currentPathDayNum)) 
+    : null;
+    
+  const nextPathDay = selectedPath && nextPathDayNum 
+    ? ('days' in selectedPath 
+        ? selectedPath.days[nextPathDayNum - 1] 
+        : selectedPath.verses.find(v => v.dayNumber === nextPathDayNum)) 
+    : null;
+  
+  const getPathVerse = () => {
+    if (!currentPathDay) return null;
+    if (isCustomPath) {
+      const v = currentPathDay as any;
+      return {
+        id: v.id,
+        book: v.reference.split(' ').slice(0, -1).join(' '),
+        chapter: parseInt(v.reference.split(' ').pop()?.split(':')[0] || '1'),
+        verse: parseInt(v.reference.split(' ').pop()?.split(':')[1] || '1'),
+        text: {
+          es: { 
+            RVR1960: v.text || "", 
+            NVI: v.text || "", 
+            NBLA: v.text || "",
+            KJV: "", NIV: "", NASB: "" 
+          },
+          en: { 
+            KJV: v.text || "", 
+            NIV: v.text || "", 
+            NASB: v.text || "",
+            RVR1960: "", NVI: "", NBLA: "" 
+          }
+        },
+        copyright: v.copyright
+      };
+    }
+    return getVerseText({ reference: (currentPathDay as any).reference });
+  };
+
+  const currentPathVerse = getPathVerse();
+
+  // The UI needs a verse object even if text is missing
+  const activePathVerse = currentPathVerse || (currentPathDay ? {
+    id: `ref-${(currentPathDay as any).reference}`,
+    book: (currentPathDay as any).reference.split(' ').slice(0, -1).join(' '),
+    chapter: parseInt((currentPathDay as any).reference.split(' ').pop()?.split(':')[0] || '0'),
+    verse: parseInt((currentPathDay as any).reference.split(' ').pop()?.split(':')[1] || '0'),
+    text: {
+       es: { RVR1960: getFallbackMessage('es'), NVI: getFallbackMessage('es'), NBLA: getFallbackMessage('es'), KJV: '', NIV: '', NASB: '' },
+       en: { KJV: getFallbackMessage('en'), NIV: getFallbackMessage('en'), NASB: getFallbackMessage('en'), RVR1960: '', NVI: '', NBLA: '' }
+    }
+  } as Verse : null);
+
+  // Unified Active Verse Logic (Refactored to support Path fallback)
   let currentVerse: Verse;
   switch (state.activeSource) {
     case "custom":
       currentVerse = state.selectedCustomVerse || votd;
       break;
     case "path":
+      currentVerse = (state.selectedVerseId 
+        ? (MOCK_VERSES.find(v => v.id === state.selectedVerseId) || state.customVerses.find(v => v.id === state.selectedVerseId))
+        : null) || activePathVerse || votd;
+      break;
     case "extra":
     case "saved":
       currentVerse = (state.selectedVerseId 
@@ -136,30 +208,6 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
   const isVotd = currentVerse.id === votd.id && !isCustomMode;
 
   const { esText, enText, esError, enError } = getValidatedVerse(currentVerse, state);
-
-  // Path Logic
-  const selectedPath = state.pathProgress.selectedPathId ? PATHS.find(p => p.id === state.pathProgress.selectedPathId) : null;
-  const isPathDayComplete = state.pathProgress.pathCompletedToday;
-  
-  const currentPathDayNum = state.pathProgress.currentDay;
-  const nextPathDayNum = currentPathDayNum < (selectedPath?.duration || 0) ? currentPathDayNum + 1 : null;
-  
-  const currentPathDay = selectedPath ? selectedPath.days[currentPathDayNum - 1] : null;
-  const nextPathDay = selectedPath && nextPathDayNum ? selectedPath.days[nextPathDayNum - 1] : null;
-  
-  const currentPathVerse = currentPathDay ? getVerseText({ reference: currentPathDay.reference }) : null;
-
-  // The UI needs a verse object even if text is missing
-  const activePathVerse = currentPathVerse || (currentPathDay ? {
-    id: `ref-${currentPathDay.reference}`,
-    book: currentPathDay.reference.split(' ').slice(0, -1).join(' '),
-    chapter: parseInt(currentPathDay.reference.split(' ').pop()?.split(':')[0] || '0'),
-    verse: parseInt(currentPathDay.reference.split(' ').pop()?.split(':')[1] || '0'),
-    text: {
-       es: { RVR1960: getFallbackMessage('es'), NVI: getFallbackMessage('es'), NBLA: getFallbackMessage('es'), KJV: '', NIV: '', NASB: '' },
-       en: { KJV: getFallbackMessage('en'), NIV: getFallbackMessage('en'), NASB: getFallbackMessage('en'), RVR1960: '', NVI: '', NBLA: '' }
-    }
-  } : null);
 
   const onShareClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -367,20 +415,20 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
               <div className="relative flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                 <div className="flex-1 space-y-5">
                     <div className="space-y-2">
-                      <h3 className="text-2xl sm:text-3xl font-serif font-black text-earth dark:text-ivory tracking-tight">
-                        {isEs ? selectedPath.titleEs : selectedPath.title}
+                      <h3 className="text-2xl sm:text-3xl font-serif font-black text-earth dark:text-ivory tracking-tight leading-tight">
+                        {isCustomPath ? (selectedPath as CustomPath).title : (isEs ? (selectedPath as Path).titleEs : (selectedPath as Path).title)}
                       </h3>
                       <div className="flex flex-col gap-4">
                         <span className="text-[11px] font-black uppercase tracking-[0.15em] text-amber-500 dark:text-amber-400">
-                          {isEs ? `Día ${state.pathProgress.currentDay} de ${selectedPath.duration}` : `Day ${state.pathProgress.currentDay} of ${selectedPath.duration}`}
+                          {isEs ? `Día ${currentPathDayNum} de ${pathDuration}` : `Day ${currentPathDayNum} of ${pathDuration}`}
                         </span>
                         
                         {/* Path Snail Trail */}
                         <div className="flex flex-wrap items-center gap-2.5 pb-1">
-                          {Array.from({ length: selectedPath.duration }).map((_, i) => {
+                          {Array.from({ length: pathDuration }).map((_, i) => {
                             const dayNum = i + 1;
-                            const isCompleted = dayNum < state.pathProgress.currentDay;
-                            const isActive = dayNum === state.pathProgress.currentDay;
+                            const isCompleted = dayNum < currentPathDayNum;
+                            const isActive = dayNum === currentPathDayNum;
                             
                             return (
                               <div key={i} className="relative flex items-center justify-center">

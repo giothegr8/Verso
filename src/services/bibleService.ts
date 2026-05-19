@@ -1,17 +1,13 @@
 import { Verse } from "../types";
+import { getVerseFromApiBible, BIBLE_VERSIONS } from "./apiBible";
 
 /**
  * Bible Service
- * Handles verse lookups and prepares for real API integration.
- * Currently uses mock data for MVP.
+ * Handles verse lookups using API.Bible with mock fallbacks.
  */
-
-// TODO: Define your Bible API key in .env (server-side only)
-// BIBLE_API_KEY=your_key_here
 
 /**
  * Normalized Bible API Response Interface
- * Future-proofing for real API results (e.g., API.Bible or ESV API)
  */
 export interface BibleApiResponse {
   data: {
@@ -31,7 +27,6 @@ export interface BibleApiResponse {
 
 /**
  * Normalizes a Bible reference for matching.
- * Handles: case, extra whitespace, dots, abbreviations, accents, Spanish/English.
  */
 export function normalizeReference(ref: string): string {
   if (!ref) return "";
@@ -41,7 +36,7 @@ export function normalizeReference(ref: string): string {
   // 1. Remove accents/diacritics
   normalized = normalized.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   
-  // 2. Replace dots with colons (John 3.16 -> john 3:16)
+  // 2. Replace dots with colons
   normalized = normalized.replace(/\./g, ":");
   
   // 3. Remove punctuation that isn't colon or hyphen
@@ -53,17 +48,13 @@ export function normalizeReference(ref: string): string {
   // 5. Normalize multiple spaces to single
   normalized = normalized.replace(/\s+/g, " ");
 
-  // 6. Handle common abbreviations and aliases
   const aliases: Record<string, string> = {
-    // John / Juan
     "jn": "john",
     "juan": "john",
     "john": "john",
-    // Romans / Romanos
     "rom": "romans",
     "romanos": "romans",
     "romans": "romans",
-    // Psalms / Salmos
     "ps": "psalm",
     "pss": "psalm",
     "psa": "psalm",
@@ -73,7 +64,6 @@ export function normalizeReference(ref: string): string {
     "salmos": "psalm"
   };
 
-  // Find if book part matches an alias
   const parts = normalized.split(" ");
   if (parts.length > 1) {
     const bookPart = parts.slice(0, -1).join(" ");
@@ -87,15 +77,14 @@ export function normalizeReference(ref: string): string {
   return normalized;
 }
 
-// Canonical lookup keys should also be normalized
 const CANONICAL_MOCK_DATA: Record<string, string> = {
   "john 3:16": "John 3:16",
   "romans 8:28": "Romans 8:28",
-  "psalm 23:1": "Psalm 23:1"
+  "psalm 23:1": "Psalm 23:1",
+  "juan 3:16": "Juan 3:16",
+  "romanos 8:28": "Romanos 8:28"
 };
 
-// Mock Bible API implementation for MVP
-// John 3:16, Romans 8:28, Psalm 23:1
 const MOCK_BIBLE_DATA: Record<string, Verse> = {
   "John 3:16": {
     id: "custom-john-3-16",
@@ -200,24 +189,35 @@ const MOCK_BIBLE_DATA: Record<string, Verse> = {
 };
 
 /**
- * Real Bible API Lookup (Placeholder)
- * This will eventually call the server-side API proxy to fetch verses
- * without exposing sensitive API keys to the client.
+ * Real Bible API Lookup
  */
 async function fetchVerseFromApi(reference: string, translation: string): Promise<Verse | null> {
-  try {
-    // TODO: Implement server-side proxy call in /api/bible
-    // const response = await fetch(`/api/bible/verse?ref=${encodeURIComponent(reference)}&translation=${translation}`);
-    // if (!response.ok) throw new Error("API call failed");
-    // const data = await response.json();
-    // return mapApiResultToVerse(data);
-    
-    console.log(`API simulation: looking up ${reference} in ${translation}`);
-    return null; // Return null until implemented
-  } catch (error) {
-    console.error("Bible API Error:", error);
-    return null;
-  }
+  const versionId = BIBLE_VERSIONS[translation] || BIBLE_VERSIONS.en;
+  const result = await getVerseFromApiBible(reference, versionId);
+
+  if (!result) return null;
+
+  // Partial mapping back to Verse object
+  const isSpanish = translation.includes('RVR') || translation.includes('NVI') || translation.includes('NBLA');
+  
+  return {
+    id: `api-bible-${reference.replace(/\s+/g, '-')}-${translation}`,
+    book: result.reference.split(' ')[0],
+    chapter: 1, // API search doesn't always provide discrete chapter/verse in some endpoints
+    verse: 1,
+    text: {
+      en: {
+        [translation]: isSpanish ? "" : result.text,
+        KJV: "", NIV: "", NASB: "", RVR1960: "", NVI: "", NBLA: ""
+      },
+      es: {
+        [translation]: isSpanish ? result.text : "",
+        RVR1960: "", NVI: "", NBLA: "", KJV: "", NIV: "", NASB: ""
+      }
+    },
+    copyright: result.copyright,
+    source: "api-bible"
+  };
 }
 
 /**
@@ -227,15 +227,11 @@ export async function searchVerse(reference: string, translation?: string): Prom
   const normalizedInput = normalizeReference(reference);
   if (!normalizedInput) return null;
 
-  // 1. Try mock data first (MVP behavior preserved)
+  // 1. Try mock data first
   const canonicalKey = CANONICAL_MOCK_DATA[normalizedInput];
   const mockVerse = canonicalKey ? MOCK_BIBLE_DATA[canonicalKey] : null;
-  if (mockVerse) {
-    // Simulation of network delay for API readiness
-    await new Promise(resolve => setTimeout(resolve, 600));
-    return mockVerse;
-  }
+  if (mockVerse) return mockVerse;
 
-  // 2. Fallback to placeholder API call (Integration-readiness)
-  return await fetchVerseFromApi(normalizedInput, translation || "KJV");
+  // 2. Fallback to API.Bible
+  return await fetchVerseFromApi(reference, translation || "KJV");
 }
