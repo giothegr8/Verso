@@ -146,8 +146,19 @@ export default function ShareModal({ isOpen, onClose, verse, state, onNativeShar
                         transformOrigin: 'top left'
                       }
                     });
+                    const reference = `${verse.book} ${verse.chapter}:${verse.verse}`;
+                    const slug = reference
+                      .toLowerCase()
+                      .trim()
+                      .replace(/:/g, "-")
+                      .replace(/,/g, "")
+                      .replace(/\./g, "")
+                      .replace(/[^a-z0-9]+/g, "-")
+                      .replace(/-+/g, "-")
+                      .replace(/^-|-$/g, "");
+                      
                     const link = document.createElement('a');
-                    link.download = `verso-${Date.now()}.png`;
+                    link.download = slug ? `verso-${slug}.png` : "verso-verse.png";
                     link.href = dataUrl;
                     link.click();
                   }

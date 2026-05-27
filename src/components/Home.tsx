@@ -412,6 +412,11 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
               whileHover={{ scale: 1.01 }}
               className="card bg-white dark:bg-charcoal p-6 sm:p-8 shadow-xl border-earth/10 dark:border-white/10 relative overflow-hidden group"
             >
+              {/* Path Watermark */}
+              <div className="absolute -bottom-10 -right-10 p-12 opacity-[0.03] pointer-events-none group-hover:opacity-[0.06] transition-transform duration-700 group-hover:scale-110">
+                <Sprout size={180} className="text-teal" />
+              </div>
+              
               <div className="relative flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                 <div className="flex-1 space-y-5">
                     <div className="space-y-2">
@@ -514,15 +519,15 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
                     </button>
                   )}
                   
-                  {!isPathDayComplete && (
-                     <button 
-                      onClick={onCompletePathDay}
-                      className="p-4 rounded-full border border-earth/10 dark:border-white/10 text-earth/40 hover:text-teal hover:border-teal/30 hover:bg-teal/5 transition-all shadow-sm"
-                      title={isEs ? "marcar como hecho" : "mark as complete"}
-                    >
-                      <CheckCircle2 size={24} />
-                    </button>
-                  )}
+                      {!isPathDayComplete && (
+                        <button 
+                          onClick={onCompletePathDay}
+                          className="p-2.5 rounded-full border border-earth/5 dark:border-white/5 text-earth/20 dark:text-white/10 hover:text-teal hover:border-teal/30 hover:bg-teal/5 transition-all shadow-sm shrink-0"
+                          title={isEs ? "marcar como hecho" : "mark as complete"}
+                        >
+                          <CheckCircle2 size={18} />
+                        </button>
+                      )}
                 </div>
               </div>
             </motion.div>
@@ -532,7 +537,7 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
 
           {/* Verse of the Day Card - Second priority when path is active */}
           <div className="space-y-6">
-            <div className="flex items-center justify-between px-1">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center px-1 gap-3 sm:gap-0">
               <div className="flex items-center gap-2">
                 <Sparkles size={16} className="text-amber-500 dark:text-amber-400" />
                 <h2 className="text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] text-earth-light dark:text-lavender-muted">
@@ -546,7 +551,7 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
                 </h2>
               </div>
               
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-4 ml-auto sm:ml-0">
                 <span className="hidden sm:inline text-[9px] font-black uppercase tracking-widest text-earth-light/40 dark:text-lavender-muted/40">
                   {state.primaryLanguage === 'es' ? '1 versículo al día' : '1 verse a day'}
                 </span>
@@ -575,6 +580,10 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
               whileTap={{ scale: 0.99 }}
               className="card bg-white dark:bg-charcoal p-8 sm:p-10 shadow-2xl border-earth/10 dark:border-white/10 relative overflow-hidden group cursor-pointer"
             >
+              {/* Active Verse Watermark */}
+              <div className="absolute -bottom-8 -right-8 p-10 opacity-[0.03] pointer-events-none group-hover:opacity-[0.05] transition-transform duration-700 group-hover:rotate-6 group-hover:scale-110">
+                <Sparkles size={160} className="text-amber-500" />
+              </div>
               <div className="absolute top-4 right-4 sm:top-6 sm:right-6 z-20">
                 <motion.button 
                   id="share-btn-home"
@@ -704,7 +713,7 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
 
           {/* Verse of the Day Card - Primary when NO path is active */}
           <div className="space-y-6">
-            <div className="flex items-center justify-between px-1">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center px-1 gap-3 sm:gap-0">
               <div className="flex items-center gap-2">
                 <Sparkles size={16} className="text-amber-500 dark:text-amber-400" />
                 <h2 className="text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] text-earth-light dark:text-lavender-muted">
@@ -718,7 +727,7 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
                 </h2>
               </div>
               
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-4 ml-auto sm:ml-0">
                 <span className="hidden sm:inline text-[9px] font-black uppercase tracking-widest text-earth-light/40 dark:text-lavender-muted/40">
                   {state.primaryLanguage === 'es' ? '1 versículo al día' : '1 verse a day'}
                 </span>
@@ -747,6 +756,10 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
               whileTap={{ scale: 0.99 }}
               className="card bg-white dark:bg-charcoal p-8 sm:p-10 shadow-2xl border-earth/10 dark:border-white/10 relative overflow-hidden group cursor-pointer"
             >
+              {/* Active Verse Watermark */}
+              <div className="absolute -bottom-8 -right-8 p-10 opacity-[0.03] pointer-events-none group-hover:opacity-[0.05] transition-transform duration-700 group-hover:rotate-6 group-hover:scale-110">
+                <Sparkles size={160} className="text-amber-500" />
+              </div>
               <div className="absolute top-4 right-4 sm:top-6 sm:right-6 z-20">
                 <motion.button 
                   id="share-btn-home"
@@ -852,6 +865,11 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
           whileHover={{ scale: 1.01 }}
           className="card bg-white dark:bg-charcoal p-8 shadow-xl border border-earth/10 dark:border-white/10 relative overflow-hidden group"
         >
+          {/* Custom Verse Watermark */}
+          <div className="absolute -bottom-6 -right-6 p-8 opacity-[0.03] pointer-events-none group-hover:opacity-[0.06] transition-opacity duration-700">
+            <BookOpen size={140} className="text-playful-purple" />
+          </div>
+          
           {/* Subtle Accent Glow */}
           <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-playful-purple/30 to-transparent" />
           

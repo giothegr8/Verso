@@ -120,6 +120,10 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
   const [isWrongEn, setIsWrongEn] = useState(false);
   const [hasSubmittedEs, setHasSubmittedEs] = useState(false);
   const [hasSubmittedEn, setHasSubmittedEn] = useState(false);
+  const [incorrectIndicesEs, setIncorrectIndicesEs] = useState<number[]>([]);
+  const [incorrectIndicesEn, setIncorrectIndicesEn] = useState<number[]>([]);
+  const [submittedWrongCharsEs, setSubmittedWrongCharsEs] = useState<Record<number, string>>({});
+  const [submittedWrongCharsEn, setSubmittedWrongCharsEn] = useState<Record<number, string>>({});
   const [isCorrectEs, setIsCorrectEs] = useState(false);
   const [isCorrectEn, setIsCorrectEn] = useState(false);
   const [didFailFlowEs, setDidFailFlowEs] = useState(false);
@@ -149,6 +153,22 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
   const isAnyPartFailed = state.memorizeMode === 'both'
     ? (didFailFlowEs || didFailFlowEn)
     : (state.memorizeMode === 'es' ? didFailFlowEs : didFailFlowEn);
+
+  const activeClueCount = activeLanguage === 'es' ? clueCountEs : clueCountEn;
+  const activeAttempts = activeLanguage === 'es' ? attemptsEs : attemptsEn;
+  const activeDidFailFlow = activeLanguage === 'es' ? didFailFlowEs : didFailFlowEn;
+  const activeIsCorrect = activeLanguage === 'es' ? isCorrectEs : isCorrectEn;
+
+  const canShowClue =
+    stage === 5 &&
+    !isRevealed &&
+    !activeIsCorrect &&
+    !activeDidFailFlow &&
+    activeAttempts < 3;
+
+  const canUseClue =
+    canShowClue &&
+    activeClueCount < 1;
   
   const [inputValue, setInputValue] = useState(" ");
   
@@ -191,7 +211,161 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
   const esDetail = TRANSLATION_DETAILS[activePair?.es || "RVR1960"] || TRANSLATION_DETAILS["RVR1960"];
   const enDetail = TRANSLATION_DETAILS[activePair?.en || "KJV"] || TRANSLATION_DETAILS["KJV"];
 
+  const getCleanLetters = (text: string | null | undefined) => {
+    if (!text) return "";
+    return text.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ]/g, "");
+  };
+
   const { esText, enText, esError, enError } = getValidatedVerse(verse, state);
+
+  const isEditable = (idx: number, lang: 'es' | 'en') => {
+    const text = lang === 'es' ? esText : enText;
+    if (!text) return false;
+    const cleanLen = getCleanLetters(text).length;
+    const revealedIndices = lang === 'es' ? revealedIndicesEs : revealedIndicesEn;
+    return idx >= 0 && idx < cleanLen && !revealedIndices.includes(idx);
+  };
+
+  const isValidCursorIndex = (p: number, lang: 'es' | 'en') => {
+    const text = lang === 'es' ? esText : enText;
+    if (!text) return false;
+    const cleanLen = getCleanLetters(text).length;
+    if (p < 0 || p > cleanLen) return false;
+    
+    // Position is valid if we can stand before an editable letter at p
+    if (p < cleanLen && isEditable(p, lang)) return true;
+    
+    // Position is valid if we can stand after an editable letter at p - 1
+    if (p - 1 >= 0 && isEditable(p - 1, lang)) return true;
+    
+    return false;
+  };
+
+  const findPreviousEditableIndex = (cursorPosition: number, lang: 'es' | 'en') => {
+    for (let i = cursorPosition - 1; i >= 0; i--) {
+      if (isEditable(i, lang)) {
+        return i;
+      }
+    }
+    return -1;
+  };
+
+  const findNextEditableIndex = (cursorPosition: number, lang: 'es' | 'en') => {
+    const text = lang === 'es' ? esText : enText;
+    if (!text) return -1;
+    const cleanLen = getCleanLetters(text).length;
+    for (let i = cursorPosition; i < cleanLen; i++) {
+      if (isEditable(i, lang)) {
+        return i;
+      }
+    }
+    return -1;
+  };
+
+  const getNearestCursorIndex = (p: number, lang: 'es' | 'en') => {
+    const text = lang === 'es' ? esText : enText;
+    if (!text) return 0;
+    const cleanLen = getCleanLetters(text).length;
+    p = Math.max(0, Math.min(p, cleanLen));
+    
+    if (isValidCursorIndex(p, lang)) return p;
+    
+    let dist = 1;
+    while (p - dist >= 0 || p + dist <= cleanLen) {
+      if (p + dist <= cleanLen && isValidCursorIndex(p + dist, lang)) return p + dist;
+      if (p - dist >= 0 && isValidCursorIndex(p - dist, lang)) return p - dist;
+      dist++;
+    }
+    return 0;
+  };
+
+  const getNearestEditable = (idx: number, lang: 'es' | 'en') => {
+    return getNearestCursorIndex(idx, lang);
+  };
+
+  interface WordGroup {
+    wordIndex: number;
+    wordText: string;
+    cleanStartIndex: number;
+    cleanEndIndex: number;
+    editableIndices: number[];
+  }
+
+  const getWordGroups = (text: string | null | undefined, lang: 'es' | 'en'): WordGroup[] => {
+    if (!text) return [];
+    const words = text.split(" ");
+    const groups: WordGroup[] = [];
+    let cleanLetterAccumulator = 0;
+    
+    words.forEach((word, wordIndex) => {
+      const wordStartIdx = cleanLetterAccumulator;
+      const cleanWordLen = getCleanLetters(word).length;
+      const cleanEndIdx = wordStartIdx + cleanWordLen;
+      
+      const editableIndices: number[] = [];
+      for (let i = wordStartIdx; i < cleanEndIdx; i++) {
+        if (isEditable(i, lang)) {
+          editableIndices.push(i);
+        }
+      }
+      
+      groups.push({
+        wordIndex,
+        wordText: word,
+        cleanStartIndex: wordStartIdx,
+        cleanEndIndex: cleanEndIdx,
+        editableIndices,
+      });
+      
+      cleanLetterAccumulator += cleanWordLen;
+    });
+    
+    return groups;
+  };
+
+  const findCurrentWordGroupIndex = (cursorIndex: number, groups: WordGroup[]): number => {
+    for (let i = 0; i < groups.length; i++) {
+      const g = groups[i];
+      if (cursorIndex >= g.cleanStartIndex && cursorIndex <= g.cleanEndIndex) {
+        return i;
+      }
+    }
+    return -1;
+  };
+
+  const findNextEditableWordStart = (cursorIndex: number, lang: 'es' | 'en'): number => {
+    const text = lang === 'es' ? esText : enText;
+    const groups = getWordGroups(text, lang);
+    const currentGroupIdx = findCurrentWordGroupIndex(cursorIndex, groups);
+    
+    for (let i = currentGroupIdx + 1; i < groups.length; i++) {
+      const g = groups[i];
+      if (g.editableIndices.length > 0) {
+        return g.editableIndices[0];
+      }
+    }
+    return -1;
+  };
+
+  const findPreviousEditableWordStart = (cursorIndex: number, lang: 'es' | 'en'): number => {
+    const text = lang === 'es' ? esText : enText;
+    const groups = getWordGroups(text, lang);
+    const currentGroupIdx = findCurrentWordGroupIndex(cursorIndex, groups);
+    
+    if (currentGroupIdx === -1) return -1;
+    
+    const currentGroup = groups[currentGroupIdx];
+    const isAtStartOfWord = currentGroup.editableIndices.length > 0 && cursorIndex === currentGroup.editableIndices[0];
+    const startIdx = isAtStartOfWord ? currentGroupIdx - 1 : currentGroupIdx;
+    
+    for (let i = startIdx; i >= 0; i--) {
+      const g = groups[i];
+      if (g.editableIndices.length > 0) {
+        return g.editableIndices[0];
+      }
+    }
+    return -1;
+  };
 
   const processedEs = useMemo(() => {
     if (isRevealed) return esText;
@@ -243,6 +417,9 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
       setIsRevealed(false);
       setDidFailFlowEs(false);
       setDidFailFlowEn(false);
+      setBilingualPass(1);
+      setShowHalfwayTransition(false);
+      setIsAlmostDone(false);
       
       // Preserve attempts if it's the same verse and translations
       if (lastConfigRef.current.verseId !== verse.id || 
@@ -254,12 +431,16 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
       
       setUserInputEs([]);
       setUserInputEn([]);
+      setSubmittedWrongCharsEs({});
+      setSubmittedWrongCharsEn({});
       setClueCountEs(0);
       setClueCountEn(0);
       setIsWrongEs(false);
       setIsWrongEn(false);
       setHasSubmittedEs(false);
       setHasSubmittedEn(false);
+      setIncorrectIndicesEs([]);
+      setIncorrectIndicesEn([]);
       setIsCorrectEs(false);
       setIsCorrectEn(false);
       setFeedback(null);
@@ -267,7 +448,10 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
       setRevealedIndicesEn([]);
       setCursorIndexEs(0);
       setCursorIndexEn(0);
-      setActiveLanguage(state.memorizeMode === 'en' ? 'en' : 'es');
+      
+      // Determine initial language for the session
+      const initialLang = state.memorizeMode === 'en' ? 'en' : (state.memorizeMode === 'es' ? 'es' : state.primaryLanguage);
+      setActiveLanguage(initialLang);
       
       lastConfigRef.current = {
         selectedTranslationsEs: state.selectedTranslations.es,
@@ -298,6 +482,10 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
       setIsRevealed(false);
       setHasSubmittedEs(false);
       setHasSubmittedEn(false);
+      setIncorrectIndicesEs([]);
+      setIncorrectIndicesEn([]);
+      setSubmittedWrongCharsEs({});
+      setSubmittedWrongCharsEn({});
       setIsCorrectEs(false);
       setIsCorrectEn(false);
     } else if (tourStepId === 'practice-mechanic' || tourStepId === 'nav-memorize-step') {
@@ -329,8 +517,8 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
 
   // Focus management for Stage 5 typing
   useEffect(() => {
-    // Allow focus if in stage 5, not revealed, and either not submitted OR submitted but wrong with attempts left
-    const canEdit = stage === 5 && !isRevealed && !isAlmostDone && (!hasSubmitted || (isWrong && attempts < 3));
+    // Allow focus if in stage 5, not revealed, and they haven't won or failed completely
+    const canEdit = stage === 5 && !isRevealed && !isAlmostDone && !isCorrect && !didFailFlow;
     
     if (canEdit) {
       const focusInput = () => {
@@ -348,7 +536,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
       window.addEventListener('focus', focusInput);
       return () => window.removeEventListener('focus', focusInput);
     }
-  }, [stage, isRevealed, isAlmostDone, hasSubmitted, isWrong, attempts, activeLanguage, clueCountEs, clueCountEn]);
+  }, [stage, isRevealed, isAlmostDone, isCorrect, didFailFlow, activeLanguage, clueCountEs, clueCountEn]);
 
   useEffect(() => {
     if (isAlmostDone && isOverallSuccess) {
@@ -421,12 +609,16 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
       setAttemptsEn(0);
       setUserInputEs([]);
       setUserInputEn([]);
+      setSubmittedWrongCharsEs({});
+      setSubmittedWrongCharsEn({});
       setClueCountEs(0);
       setClueCountEn(0);
       setIsWrongEs(false);
       setIsWrongEn(false);
       setHasSubmittedEs(false);
       setHasSubmittedEn(false);
+      setIncorrectIndicesEs([]);
+      setIncorrectIndicesEn([]);
       setIsCorrectEs(false);
       setIsCorrectEn(false);
       setFeedback(null);
@@ -494,12 +686,16 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
     setAttemptsEn(0);
     setUserInputEs([]);
     setUserInputEn([]);
+    setSubmittedWrongCharsEs({});
+    setSubmittedWrongCharsEn({});
     setClueCountEs(0);
     setClueCountEn(0);
     setIsWrongEs(false);
     setIsWrongEn(false);
     setHasSubmittedEs(false);
     setHasSubmittedEn(false);
+    setIncorrectIndicesEs([]);
+    setIncorrectIndicesEn([]);
     setIsCorrectEs(false);
     setIsCorrectEn(false);
     setFeedback(null);
@@ -525,6 +721,8 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
       
       setUserInputEs([]);
       setUserInputEn([]);
+      setSubmittedWrongCharsEs({});
+      setSubmittedWrongCharsEn({});
       setCursorIndexEs(0);
       setCursorIndexEn(0);
       setClueCountEs(0);
@@ -533,6 +731,8 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
       setIsWrongEn(false);
       setHasSubmittedEs(false);
       setHasSubmittedEn(false);
+      setIncorrectIndicesEs([]);
+      setIncorrectIndicesEn([]);
       setIsCorrectEs(false);
       setIsCorrectEn(false);
       setFeedback(null);
@@ -559,18 +759,28 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
     setStage(1);
     setIsRevealed(false);
     setIsAlmostDone(false);
+    setShowHalfwayTransition(false);
+    setBilingualPass(1);
+    
+    const initialLang = state.memorizeMode === 'en' ? 'en' : (state.memorizeMode === 'es' ? 'es' : state.primaryLanguage);
+    setActiveLanguage(initialLang);
+    
     setDidFailFlowEs(false);
     setDidFailFlowEn(false);
     setAttemptsEs(0);
     setAttemptsEn(0);
     setUserInputEs([]);
     setUserInputEn([]);
+    setSubmittedWrongCharsEs({});
+    setSubmittedWrongCharsEn({});
     setClueCountEs(0);
     setClueCountEn(0);
     setIsWrongEs(false);
     setIsWrongEn(false);
     setHasSubmittedEs(false);
     setHasSubmittedEn(false);
+    setIncorrectIndicesEs([]);
+    setIncorrectIndicesEn([]);
     setIsCorrectEs(false);
     setIsCorrectEn(false);
     setFeedback(null);
@@ -669,11 +879,41 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
 
         if (l === activeLanguage) {
           const setCursor = l === 'es' ? setCursorIndexEs : setCursorIndexEn;
-          let firstEmpty = 0;
-          while (firstEmpty < cleanTargetArr.length && newRevealed.includes(firstEmpty)) {
-            firstEmpty++;
+          const oldCursor = l === 'es' ? cursorIndexEs : cursorIndexEn;
+
+          const tempRevealed = [...revealed, ...newRevealed];
+          const isEditableWithTemp = (idx: number) => {
+            if (idx < 0 || idx >= cleanTargetArr.length) return false;
+            return !tempRevealed.includes(idx);
+          };
+
+          let finalCursor = oldCursor;
+          if (!isEditableWithTemp(finalCursor)) {
+            let foundNext = -1;
+            for (let i = finalCursor + 1; i < cleanTargetArr.length; i++) {
+              if (isEditableWithTemp(i)) {
+                foundNext = i;
+                break;
+              }
+            }
+            if (foundNext !== -1) {
+              finalCursor = foundNext;
+            } else {
+              let foundPrev = -1;
+              for (let i = finalCursor - 1; i >= 0; i--) {
+                if (isEditableWithTemp(i)) {
+                  foundPrev = i;
+                  break;
+                }
+              }
+              if (foundPrev !== -1) {
+                finalCursor = foundPrev;
+              } else {
+                finalCursor = 0;
+              }
+            }
           }
-          setCursor(firstEmpty);
+          setCursor(finalCursor);
         }
       } else {
         if (count >= 2) return;
@@ -712,11 +952,6 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
     return text.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "").replace(/\s{2,}/g, " ").trim();
   };
 
-  const getCleanLetters = (text: string | null | undefined) => {
-    if (!text) return "";
-    return text.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ]/g, "");
-  };
-
   const handleCheck = () => {
     if (isCorrect) return;
     
@@ -732,20 +967,38 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
     
     const normalizedTarget = removeAccents(targetClean).toLowerCase();
     let isCurrentCorrect = true;
+    let firstIncorrectIdx = -1;
+    const currentIncorrectIndices: number[] = [];
+    const wrongChars: Record<number, string> = {};
     
     for (let i = 0; i < normalizedTarget.length; i++) {
       if (!revealed.includes(i)) {
         const char = userInput[i] || "";
+        const isCharEmpty = char.trim() === "";
+        
         if (removeAccents(char.toLowerCase()) !== normalizedTarget[i]) {
           isCurrentCorrect = false;
-          break;
+          currentIncorrectIndices.push(i);
+          if (firstIncorrectIdx === -1) {
+            firstIncorrectIdx = i;
+          }
+          if (char && !isCharEmpty) {
+            wrongChars[i] = char;
+          }
         }
       }
     }
     
     if (isCurrentCorrect) {
-      if (activeLanguage === 'es') setIsCorrectEs(true);
-      else setIsCorrectEn(true);
+      if (activeLanguage === 'es') {
+        setIsCorrectEs(true);
+        setIncorrectIndicesEs([]);
+        setSubmittedWrongCharsEs({});
+      } else {
+        setIsCorrectEn(true);
+        setIncorrectIndicesEn([]);
+        setSubmittedWrongCharsEn({});
+      }
 
       setFeedback(state.primaryLanguage === 'es' ? "¡Correcto!" : "Correct!");
       setTimeout(() => {
@@ -758,13 +1011,31 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
       if (activeLanguage === 'es') {
         setAttemptsEs(nextAttempts);
         setIsWrongEs(true);
+        setIncorrectIndicesEs(currentIncorrectIndices);
+        setSubmittedWrongCharsEs(wrongChars);
+        if (firstIncorrectIdx !== -1) {
+          setCursorIndexEs(firstIncorrectIdx);
+        }
         setTimeout(() => setIsWrongEs(false), 1500);
       } else {
         setAttemptsEn(nextAttempts);
         setIsWrongEn(true);
+        setIncorrectIndicesEn(currentIncorrectIndices);
+        setSubmittedWrongCharsEn(wrongChars);
+        if (firstIncorrectIdx !== -1) {
+          setCursorIndexEn(firstIncorrectIdx);
+        }
         setTimeout(() => setIsWrongEn(false), 1500);
       }
       
+      // Auto-focus input on failure so user can type immediately
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.focus();
+          inputRef.current.setSelectionRange(1, 1);
+        }
+      }, 50);
+
       if (nextAttempts >= 3) {
         if (activeLanguage === 'es') setDidFailFlowEs(true);
         else setDidFailFlowEn(true);
@@ -789,28 +1060,68 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
     const revealed = lang === 'es' ? revealedIndicesEs : revealedIndicesEn;
     const cleanTargetArr = getCleanLetters(textContent).split("");
     const isLangRevealed = isRevealed || (lang === 'es' ? didFailFlowEs : didFailFlowEn);
-
-    const getNextEditable = (idx: number, dir: number) => {
-      let next = idx;
-      while (next >= 0 && next < cleanTargetArr.length && revealed.includes(next)) {
-        next += dir;
-      }
-      return Math.max(0, Math.min(next, cleanTargetArr.length));
-    };
-
+    let cleanLetterAccumulator = 0;
+ 
     return (
       <div className={`w-full font-serif select-none ${VERSE_LAYOUT.FONT_SIZE_CLASSES} ${VERSE_LAYOUT.FONT_WEIGHT} transition-opacity duration-500 ${!isCurrentActive ? 'opacity-60' : 'opacity-100'}`}>
         <div className="flex flex-wrap justify-center content-start gap-y-4 sm:gap-y-6 gap-x-[0.5em] w-full max-w-4xl mx-auto px-4 sm:px-12">
           {words.map((word, wordIdx) => {
+            const wordStartIdx = cleanLetterAccumulator;
+            const cleanWordLen = getCleanLetters(word).length;
+            cleanLetterAccumulator += cleanWordLen;
             const chars = word.split("");
+            let lettersInWordCount = 0;
             return (
-              <div key={wordIdx} className="flex flex-row flex-nowrap gap-x-[1.5px] items-end">
+              <div 
+                key={wordIdx} 
+                className="flex flex-row flex-nowrap gap-x-[1.5px] items-end cursor-text"
+                onClick={(e) => {
+                  if (stage === 5 && !isLangRevealed) {
+                    e.stopPropagation();
+                    if (!isCurrentActive) setActiveLanguage(lang);
+                    
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const clickX = e.clientX - rect.left;
+                    const isRightHalf = clickX > rect.width / 2;
+                    
+                    const targetBaseIdx = isRightHalf ? wordStartIdx + cleanWordLen : wordStartIdx;
+                    
+                    const targetIdx = getNearestCursorIndex(targetBaseIdx, lang);
+                    if (lang === 'es') setCursorIndexEs(targetIdx);
+                    else setCursorIndexEn(targetIdx);
+                    setTimeout(() => inputRef.current?.focus(), 0);
+                  }
+                }}
+              >
                 {chars.map((char, charIdx) => {
                   const isLetter = /[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ]/.test(char);
+                  const currentLetterIndex = wordStartIdx + lettersInWordCount;
+                  if (isLetter) {
+                    lettersInWordCount++;
+                  }
+                  
                   const baseSlotClasses = `relative inline-flex flex-col items-center justify-center min-w-[0.25em] ${VERSE_LAYOUT.CHAR_HEIGHT} transition-all duration-300`;
                   
                   if (!isLetter) {
-                    return <span key={charIdx} className={`${baseSlotClasses} text-earth/40 dark:text-ivory/40`}>{char}</span>;
+                    return (
+                      <span 
+                        key={charIdx} 
+                        className={`${baseSlotClasses} text-earth/40 dark:text-ivory/40 cursor-text`}
+                        onClick={(e) => {
+                          if (stage === 5 && !isLangRevealed) {
+                            e.stopPropagation();
+                            if (!isCurrentActive) setActiveLanguage(lang);
+                            
+                            const targetIdx = getNearestCursorIndex(currentLetterIndex, lang);
+                            if (lang === 'es') setCursorIndexEs(targetIdx);
+                            else setCursorIndexEn(targetIdx);
+                            setTimeout(() => inputRef.current?.focus(), 0);
+                          }
+                        }}
+                      >
+                        {char}
+                      </span>
+                    );
                   }
                   
                   if (stage < 5 && !isLangRevealed) {
@@ -819,7 +1130,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                     else if (stage === 2) isHidden = wordIdx % 2 !== 0;
                     else if (stage === 3) isHidden = wordIdx % 2 === 0;
                     else if (stage === 4) isHidden = charIdx > 0;
-
+ 
                     return (
                       <span key={charIdx} className={baseSlotClasses}>
                         <span className={`transition-all duration-300 ${isHidden ? 'opacity-0' : 'opacity-100'}`}>{char}</span>
@@ -827,53 +1138,88 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                       </span>
                     );
                   }
-
+ 
                   if (stage === 5 && !isLangRevealed) {
-                    const currentLetterIndex = words.slice(0, wordIdx).reduce((acc, w) => acc + getCleanLetters(w).length, 0) + getCleanLetters(word.slice(0, charIdx)).length;
                     const isRevealedByClue = revealed.includes(currentLetterIndex);
                     const userChar = (userInput[currentLetterIndex] || "").trim();
-                    const isSlotActive = isCurrentActive && currentLetterIndex === (lang === 'es' ? cursorIndexEs : cursorIndexEn);
-                    const isWrongChar = hasSubmitted && !isCorrect && userChar && removeAccents(userChar.toLowerCase()) !== removeAccents(char.toLowerCase());
+                    const submittedWrongChars = lang === 'es' ? submittedWrongCharsEs : submittedWrongCharsEn;
+                    const isWrongChar = submittedWrongChars[currentLetterIndex] !== undefined && userChar === submittedWrongChars[currentLetterIndex];
                     
+                    const activeCursorIdx = lang === 'es' ? cursorIndexEs : cursorIndexEn;
+                    const isEditableSlot = isEditable(currentLetterIndex, lang);
+                    
+                    let displayActiveIdx = activeCursorIdx;
+                    if (displayActiveIdx < cleanTargetArr.length && !isEditable(displayActiveIdx, lang)) {
+                      let nextEd = displayActiveIdx;
+                      while (nextEd < cleanTargetArr.length && !isEditable(nextEd, lang)) {
+                        nextEd++;
+                      }
+                      if (nextEd < cleanTargetArr.length) {
+                        displayActiveIdx = nextEd;
+                      }
+                    }
+                    const isActiveSlot = isCurrentActive && currentLetterIndex === displayActiveIdx && isEditableSlot;
+ 
                     return (
                       <span 
                         key={charIdx} 
+                        data-lang={isEditableSlot ? lang : undefined}
+                        data-index={isEditableSlot ? currentLetterIndex : undefined}
                         onClick={(e) => {
                           e.stopPropagation();
                           if (!isCurrentActive) setActiveLanguage(lang);
-                          const targetIdx = isRevealedByClue ? getNextEditable(currentLetterIndex, 1) : currentLetterIndex;
+                          
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          const clickX = e.clientX - rect.left;
+                          const isRightHalf = clickX > rect.width / 2;
+                          const rawCaretPosition = isRightHalf ? currentLetterIndex + 1 : currentLetterIndex;
+                          
+                          const targetIdx = getNearestCursorIndex(rawCaretPosition, lang);
+                          
                           if (lang === 'es') setCursorIndexEs(targetIdx);
                           else setCursorIndexEn(targetIdx);
                           setTimeout(() => inputRef.current?.focus(), 0);
                         }}
-                        className={`${baseSlotClasses} cursor-text ${
+                        className={`${baseSlotClasses} cursor-text transition-all duration-200 ${
                           isRevealedByClue || userChar
-                            ? isWrongChar ? 'text-coral bg-coral/5' : isCorrect || isRevealedByClue ? 'text-teal' : 'text-playful-purple'
+                            ? isWrongChar ? 'text-coral' : isCorrect || isRevealedByClue ? 'text-teal' : 'text-playful-purple'
                             : 'text-transparent'
                         }`}
                       >
-                        <span className={`absolute bottom-1 left-0 right-0 h-[2px] rounded-full transition-all duration-300 ${
-                          isRevealedByClue || userChar
-                            ? isWrongChar ? 'bg-coral' : isCorrect || isRevealedByClue ? 'bg-teal' : 'bg-playful-purple'
-                            : isSlotActive ? 'bg-coral' : 'bg-earth/10 dark:bg-white/10'
-                        }`} />
-                        {isSlotActive && (
-                          <motion.div 
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: [0, 1, 0] }}
-                            transition={{ duration: 0.8, repeat: Infinity }}
-                            className="absolute inset-y-1 sm:inset-y-2 left-0 w-[3px] bg-coral rounded-full shadow-[0_0_8px_rgba(255,111,97,0.5)]"
+                        {isActiveSlot ? (
+                          <motion.span 
+                            animate={{ opacity: [0.45, 1, 0.45], scaleX: [0.92, 1.04, 0.92] }}
+                            transition={{ duration: 0.9, repeat: Infinity, ease: "easeInOut" }}
+                            className="absolute bottom-1 left-0 right-0 h-[3.5px] rounded-full bg-playful-purple shadow-[0_0_10px_rgba(151,71,255,0.85)] z-20"
                           />
+                        ) : (
+                          <span className={`absolute bottom-1 left-0 right-0 h-[2px] rounded-full transition-all duration-300 ${
+                            isRevealedByClue || userChar
+                              ? isWrongChar ? 'bg-coral' : isCorrect || isRevealedByClue ? 'bg-teal' : 'bg-playful-purple'
+                              : 'bg-earth/10 dark:bg-white/10'
+                          }`} />
                         )}
                         <span className="opacity-0 pointer-events-none select-none">{char}</span>
-                        <span className={`absolute inset-0 flex items-center justify-center transition-all duration-200 ${(userChar || isRevealedByClue) ? 'opacity-100' : 'opacity-0'}`}>
-                          {userChar || (isRevealedByClue ? char : "")}
+                        <span 
+                          className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center select-none transition-all duration-200 ${(userChar || isRevealedByClue) ? 'opacity-100' : 'opacity-0'} overflow-visible`}
+                          style={{ width: 'max-content', minWidth: 'max-content', maxWidth: 'none' }}
+                        >
+                          <span 
+                            className="whitespace-nowrap overflow-visible flex-shrink-0"
+                            style={{ width: 'max-content', minWidth: 'max-content', maxWidth: 'none' }}
+                          >
+                            {userChar || (isRevealedByClue ? char : "")}
+                          </span>
                         </span>
                       </span>
                     );
                   }
-
-                  return <span key={charIdx} className={`${baseSlotClasses} opacity-100`}>{char}</span>;
+ 
+                  return (
+                    <span key={charIdx} className={`${baseSlotClasses} opacity-100`}>
+                      {char}
+                    </span>
+                  );
                 })}
               </div>
             );
@@ -1107,8 +1453,8 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
           <div className="space-y-2 sm:space-y-3">
             <div className="flex flex-wrap items-center gap-3">
               <div className="flex items-center gap-2">
-                <div className="w-2.5 h-2.5 rounded-full bg-gold animate-pulse" />
-                <span className="text-[12px] sm:text-[13px] font-black uppercase tracking-[0.3em] text-gold leading-none">
+                <div className="w-2.5 h-2.5 rounded-full bg-amber-500 dark:bg-gold animate-pulse" />
+                <span className="text-[12px] sm:text-[13px] font-black uppercase tracking-[0.3em] text-amber-600 dark:text-gold leading-none">
                   {state.primaryLanguage === 'es' ? 'MEMORIZA' : 'MEMORIZE'}
                 </span>
               </div>
@@ -1154,12 +1500,12 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
           {/* Progress Indicator */}
           <div className="flex items-center gap-6 mt-2 sm:mt-0">
             <div className="flex flex-col items-center sm:items-end">
-              <span className="text-[9px] font-black uppercase tracking-widest text-earth-light/20 dark:text-lavender-muted/30 mb-0.5">
+              <span className="text-[9px] font-black uppercase tracking-widest text-earth-light/40 dark:text-lavender-muted/30 mb-0.5">
                 {state.primaryLanguage === 'es' ? 'Paso' : 'Step'}
               </span>
               <div className="flex items-baseline gap-1">
-                <span className="text-3xl sm:text-4xl font-serif font-black text-amber-100/90 dark:text-amber-200/90 lining-nums">{stage}</span>
-                <span className="text-sm text-earth/20 dark:text-ivory/20 font-black">/ 5</span>
+                <span className="text-3xl sm:text-4xl font-serif font-black text-amber-600 dark:text-amber-200/90 lining-nums">{stage}</span>
+                <span className="text-sm text-earth-light/40 dark:text-ivory/20 font-black">/ 5</span>
               </div>
             </div>
           </div>
@@ -1197,13 +1543,13 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                             isCompleted 
                               ? "bg-amber-500/30 dark:bg-amber-200/10 shadow-[0_0_8px_rgba(251,191,36,0.1)]" 
                               : isActive 
-                                ? "bg-amber-100/90 dark:bg-amber-200/90 shadow-[0_0_15px_rgba(251,191,36,0.4)]" 
-                                : "bg-earth/20 dark:bg-white/10"
+                                ? "bg-amber-600 dark:bg-amber-200 shadow-[0_0_15px_rgba(251,191,36,0.4)]" 
+                                : "bg-earth-light/20 dark:bg-white/10"
                           }`
                         : `w-1 h-1 ${
                             isCompleted 
                               ? "bg-amber-500/10 dark:bg-amber-100/5" 
-                              : "bg-earth-light/10 dark:bg-white/5"
+                              : "bg-earth-light/20 dark:bg-white/5"
                           }`
                     }`}
                   />
@@ -1211,7 +1557,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                   {/* Subtle active pulse for current main node */}
                   {isActive && (
                     <motion.div
-                      className="absolute inset-0 rounded-full bg-amber-200/40"
+                      className="absolute inset-0 rounded-full bg-amber-500/20 dark:bg-amber-200/40"
                       initial={{ opacity: 0, scale: 1 }}
                       animate={{ opacity: [0, 0.4, 0], scale: [1, 2.5, 3] }}
                       transition={{ duration: 2.5, repeat: Infinity, ease: "easeOut" }}
@@ -1221,7 +1567,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                   {/* Seed glow for completed trail */}
                   {isCompleted && !isMainNode && i % 2 === 0 && (
                     <motion.div 
-                      className="absolute inset-0 rounded-full bg-amber-500/5 blur-[2px]"
+                      className="absolute inset-0 rounded-full bg-amber-500/10 dark:bg-amber-500/5 blur-[2px]"
                       animate={{ opacity: [0.3, 0.6, 0.3] }}
                       transition={{ duration: 3, repeat: Infinity, delay: i * 0.1 }}
                     />
@@ -1256,22 +1602,26 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                 spellCheck="false"
                 value={inputValue}
                 onKeyDown={(e) => {
-                  const revealed = activeLanguage === 'es' ? revealedIndicesEs : revealedIndicesEn;
                   const cursor = activeLanguage === 'es' ? cursorIndexEs : cursorIndexEn;
                   const setCursor = activeLanguage === 'es' ? setCursorIndexEs : setCursorIndexEn;
-                  const targetTextClean = getCleanLetters(activeLanguage === 'es' ? esText : enText);
+                  const text = activeLanguage === 'es' ? esText : enText;
                   const setter = activeLanguage === 'es' ? setUserInputEs : setUserInputEn;
+                  const userInput = activeLanguage === 'es' ? userInputEs : userInputEn;
 
                   const getNextIdx = (idx: number, dir: number) => {
+                    if (!text) return 0;
+                    const cleanLen = getCleanLetters(text).length;
                     let next = idx + dir;
-                    while (next >= 0 && next < targetTextClean.length && revealed.includes(next)) {
+                    while (next >= 0 && next <= cleanLen) {
+                      if (isValidCursorIndex(next, activeLanguage)) {
+                        return next;
+                      }
                       next += dir;
                     }
-                    return Math.max(0, Math.min(next, targetTextClean.length));
+                    return getNearestCursorIndex(idx + dir, activeLanguage);
                   };
 
                   if (e.key === 'Backspace') {
-                    // Manual backspace handling
                     e.preventDefault();
 
                     // Reset "submitted" state if user starts correcting
@@ -1285,19 +1635,110 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                       }
                     }
 
-                    // Move to previous editable slot
-                    let prev = cursor - 1;
-                    while (prev >= 0 && revealed.includes(prev)) {
-                      prev--;
-                    }
-                    
-                    if (prev >= 0) {
+                    const isCurrentEditable = isEditable(cursor, activeLanguage);
+                    const hasTypedInCurrent = isCurrentEditable && (userInput[cursor] || "").trim() !== "";
+
+                    if (hasTypedInCurrent) {
+                      if (activeLanguage === 'es') {
+                        setSubmittedWrongCharsEs(prev => {
+                          const next = { ...prev };
+                          delete next[cursor];
+                          return next;
+                        });
+                        setIncorrectIndicesEs(prev => prev.filter(idx => idx !== cursor));
+                      } else {
+                        setSubmittedWrongCharsEn(prev => {
+                          const next = { ...prev };
+                          delete next[cursor];
+                          return next;
+                        });
+                        setIncorrectIndicesEn(prev => prev.filter(idx => idx !== cursor));
+                      }
                       setter(prevArr => {
                         const next = [...prevArr];
-                        next[prev] = ""; // Clear the character
+                        next[cursor] = ""; // Clear active slot
                         return next;
                       });
-                      setCursor(prev);
+                    } else {
+                      const prevEditable = findPreviousEditableIndex(cursor, activeLanguage);
+                      if (prevEditable !== -1) {
+                        if (activeLanguage === 'es') {
+                          setSubmittedWrongCharsEs(prev => {
+                            const next = { ...prev };
+                            delete next[prevEditable];
+                            return next;
+                          });
+                          setIncorrectIndicesEs(prev => prev.filter(idx => idx !== prevEditable));
+                        } else {
+                          setSubmittedWrongCharsEn(prev => {
+                            const next = { ...prev };
+                            delete next[prevEditable];
+                            return next;
+                          });
+                          setIncorrectIndicesEn(prev => prev.filter(idx => idx !== prevEditable));
+                        }
+                        setter(prevArr => {
+                          const next = [...prevArr];
+                          next[prevEditable] = ""; // Clear character before cursor
+                          return next;
+                        });
+                        setCursor(prevEditable);
+                      }
+                    }
+                  } else if (e.key === 'Delete') {
+                    e.preventDefault();
+                    
+                    if (hasSubmitted) {
+                      if (activeLanguage === 'es') {
+                        setHasSubmittedEs(false);
+                        setIsWrongEs(false);
+                      } else {
+                        setHasSubmittedEn(false);
+                        setIsWrongEn(false);
+                      }
+                    }
+
+                    const nextEditable = findNextEditableIndex(cursor, activeLanguage);
+                    if (nextEditable !== -1) {
+                      if (activeLanguage === 'es') {
+                        setSubmittedWrongCharsEs(prev => {
+                          const next = { ...prev };
+                          delete next[nextEditable];
+                          return next;
+                        });
+                        setIncorrectIndicesEs(prev => prev.filter(idx => idx !== nextEditable));
+                      } else {
+                        setSubmittedWrongCharsEn(prev => {
+                          const next = { ...prev };
+                          delete next[nextEditable];
+                          return next;
+                        });
+                        setIncorrectIndicesEn(prev => prev.filter(idx => idx !== nextEditable));
+                      }
+                      setter(prevArr => {
+                        const nextArr = [...prevArr];
+                        nextArr[nextEditable] = ""; // Clear character after caret
+                        return nextArr;
+                      });
+                    }
+                  } else if (e.key === 'Tab') {
+                    e.preventDefault();
+                    if (e.shiftKey) {
+                      const prevWordStart = findPreviousEditableWordStart(cursor, activeLanguage);
+                      if (prevWordStart !== -1) {
+                        setCursor(prevWordStart);
+                      }
+                    } else {
+                      const nextWordStart = findNextEditableWordStart(cursor, activeLanguage);
+                      if (nextWordStart !== -1) {
+                        setCursor(nextWordStart);
+                      }
+                    }
+                  } else if (e.key === ' ' || e.key === 'Spacebar') {
+                    e.preventDefault();
+                    const nextWordStart = findNextEditableWordStart(cursor, activeLanguage);
+                    if (nextWordStart !== -1) {
+                      setCursor(nextWordStart);
                     }
                   } else if (e.key === 'ArrowLeft') {
                     e.preventDefault();
@@ -1305,6 +1746,86 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                   } else if (e.key === 'ArrowRight') {
                     e.preventDefault();
                     setCursor(getNextIdx(cursor, 1));
+                  } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    const currentSpan = document.querySelector(`[data-lang="${activeLanguage}"][data-index="${cursor}"]`) 
+                      || document.querySelector(`[data-lang="${activeLanguage}"][data-index="${cursor - 1}"]`);
+                    if (currentSpan) {
+                      const refRect = currentSpan.getBoundingClientRect();
+                      const refX = refRect.left + refRect.width / 2;
+                      const allSpans = Array.from(document.querySelectorAll(`[data-lang="${activeLanguage}"]`));
+                      
+                      const candidateSpans = allSpans.filter(span => {
+                        const rect = span.getBoundingClientRect();
+                        return (rect.top + rect.height / 2) < refRect.top;
+                      });
+                      
+                      if (candidateSpans.length > 0) {
+                        const maxY = Math.max(...candidateSpans.map(s => s.getBoundingClientRect().top + s.getBoundingClientRect().height / 2));
+                        const lineCandidates = candidateSpans.filter(s => {
+                          const rect = s.getBoundingClientRect();
+                          const centerY = rect.top + rect.height / 2;
+                          return Math.abs(centerY - maxY) < 15;
+                        });
+                        
+                        let bestSpan = lineCandidates[0];
+                        let minDiff = Infinity;
+                        lineCandidates.forEach(s => {
+                          const rect = s.getBoundingClientRect();
+                          const centerX = rect.left + rect.width / 2;
+                          const diff = Math.abs(centerX - refX);
+                          if (diff < minDiff) {
+                            minDiff = diff;
+                            bestSpan = s;
+                          }
+                        });
+                        
+                        if (bestSpan) {
+                          const targetIdx = parseInt(bestSpan.getAttribute('data-index') || "0", 10);
+                          setCursor(getNearestCursorIndex(targetIdx, activeLanguage));
+                        }
+                      }
+                    }
+                  } else if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    const currentSpan = document.querySelector(`[data-lang="${activeLanguage}"][data-index="${cursor}"]`) 
+                      || document.querySelector(`[data-lang="${activeLanguage}"][data-index="${cursor - 1}"]`);
+                    if (currentSpan) {
+                      const refRect = currentSpan.getBoundingClientRect();
+                      const refX = refRect.left + refRect.width / 2;
+                      const allSpans = Array.from(document.querySelectorAll(`[data-lang="${activeLanguage}"]`));
+                      
+                      const candidateSpans = allSpans.filter(span => {
+                        const rect = span.getBoundingClientRect();
+                        return (rect.top + rect.height / 2) > (refRect.top + refRect.height);
+                      });
+                      
+                      if (candidateSpans.length > 0) {
+                        const minY = Math.min(...candidateSpans.map(s => s.getBoundingClientRect().top + s.getBoundingClientRect().height / 2));
+                        const lineCandidates = candidateSpans.filter(s => {
+                          const rect = s.getBoundingClientRect();
+                          const centerY = rect.top + rect.height / 2;
+                          return Math.abs(centerY - minY) < 15;
+                        });
+                        
+                        let bestSpan = lineCandidates[0];
+                        let minDiff = Infinity;
+                        lineCandidates.forEach(s => {
+                          const rect = s.getBoundingClientRect();
+                          const centerX = rect.left + rect.width / 2;
+                          const diff = Math.abs(centerX - refX);
+                          if (diff < minDiff) {
+                            minDiff = diff;
+                            bestSpan = s;
+                          }
+                        });
+                        
+                        if (bestSpan) {
+                          const targetIdx = parseInt(bestSpan.getAttribute('data-index') || "0", 10);
+                          setCursor(getNearestCursorIndex(targetIdx, activeLanguage));
+                        }
+                      }
+                    }
                   } else if (e.key === 'Enter') {
                     handleCheck();
                   }
@@ -1313,10 +1834,10 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                   const val = e.target.value;
                   const cursor = activeLanguage === 'es' ? cursorIndexEs : cursorIndexEn;
                   const setCursor = activeLanguage === 'es' ? setCursorIndexEs : setCursorIndexEn;
-                  const revealed = activeLanguage === 'es' ? revealedIndicesEs : revealedIndicesEn;
-                  const targetText = activeLanguage === 'es' ? esText : enText;
-                  const targetClean = getCleanLetters(targetText || "");
+                  const text = activeLanguage === 'es' ? esText : enText;
+                  const targetClean = getCleanLetters(text || "");
                   const setter = activeLanguage === 'es' ? setUserInputEs : setUserInputEn;
+                  const userInput = activeLanguage === 'es' ? userInputEs : userInputEn;
                   
                   // Reset "submitted" state if user starts interaction
                   if (hasSubmitted) {
@@ -1333,43 +1854,106 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                   if (val.length > 1) {
                     const char = val.charAt(val.length - 1);
                     
-                    if (cursor < targetClean.length && !revealed.includes(cursor)) {
+                    if (char.trim() === "") {
+                      const nextWordStart = findNextEditableWordStart(cursor, activeLanguage);
+                      if (nextWordStart !== -1) {
+                        setCursor(nextWordStart);
+                      }
+                      setInputValue(" ");
+                      return;
+                    }
+                    
+                    const cleanLen = targetClean.length;
+                    if (cursor < cleanLen && isEditable(cursor, activeLanguage)) {
                       // Update state
                       setter(prev => {
-                        const next = [...prev];
-                        next[cursor] = char;
-                        return next;
+                        const nextArr = [...prev];
+                        nextArr[cursor] = char;
+                        return nextArr;
                       });
+
+                      // Reset error state for ONLY this slot
+                      if (activeLanguage === 'es') {
+                        setSubmittedWrongCharsEs(prev => {
+                          const next = { ...prev };
+                          delete next[cursor];
+                          return next;
+                        });
+                        setIncorrectIndicesEs(prev => prev.filter(idx => idx !== cursor));
+                      } else {
+                        setSubmittedWrongCharsEn(prev => {
+                          const next = { ...prev };
+                          delete next[cursor];
+                          return next;
+                        });
+                        setIncorrectIndicesEn(prev => prev.filter(idx => idx !== cursor));
+                      }
 
                       // Advance cursor to next editable
                       let next = cursor + 1;
-                      while (next < targetClean.length && revealed.includes(next)) {
+                      while (next < cleanLen && !isEditable(next, activeLanguage)) {
                         next++;
                       }
-                      setCursor(Math.min(next, targetClean.length));
+                      setCursor(Math.min(next, cleanLen));
                     }
                   } else if (val.length === 0) {
                     // Mobile Backspace detection fallback
-                    // Move to previous editable slot
-                    let prev = cursor - 1;
-                    while (prev >= 0 && revealed.includes(prev)) {
-                      prev--;
-                    }
-                    
-                    if (prev >= 0) {
+                    const isCurrentEditable = isEditable(cursor, activeLanguage);
+                    const hasTypedInCurrent = isCurrentEditable && (userInput[cursor] || "").trim() !== "";
+
+                    if (hasTypedInCurrent) {
+                      if (activeLanguage === 'es') {
+                        setSubmittedWrongCharsEs(prev => {
+                          const next = { ...prev };
+                          delete next[cursor];
+                          return next;
+                        });
+                        setIncorrectIndicesEs(prev => prev.filter(idx => idx !== cursor));
+                      } else {
+                        setSubmittedWrongCharsEn(prev => {
+                          const next = { ...prev };
+                          delete next[cursor];
+                          return next;
+                        });
+                        setIncorrectIndicesEn(prev => prev.filter(idx => idx !== cursor));
+                      }
                       setter(prevArr => {
-                        const next = [...prevArr];
-                        next[prev] = ""; // Clear the character
-                        return next;
+                        const nextArr = [...prevArr];
+                        nextArr[cursor] = ""; // Clear character at active slot
+                        return nextArr;
                       });
-                      setCursor(prev);
+                    } else {
+                      const prevEditable = findPreviousEditableIndex(cursor, activeLanguage);
+                      if (prevEditable !== -1) {
+                        if (activeLanguage === 'es') {
+                          setSubmittedWrongCharsEs(prev => {
+                            const next = { ...prev };
+                            delete next[prevEditable];
+                            return next;
+                          });
+                          setIncorrectIndicesEs(prev => prev.filter(idx => idx !== prevEditable));
+                        } else {
+                          setSubmittedWrongCharsEn(prev => {
+                            const next = { ...prev };
+                            delete next[prevEditable];
+                            return next;
+                          });
+                          setIncorrectIndicesEn(prev => prev.filter(idx => idx !== prevEditable));
+                        }
+                        setter(prevArr => {
+                          const nextArr = [...prevArr];
+                          nextArr[prevEditable] = ""; // Clear character at the previous editable index
+                          return nextArr;
+                        });
+                        setCursor(prevEditable);
+                      }
                     }
                   }
 
                   // Always reset input value to " " to be ready for next char/deletion
                   setInputValue(" ");
                 }}
-                className="absolute opacity-0 inset-0 w-full h-full cursor-default"
+                className="absolute opacity-0 inset-0 w-full h-full cursor-default caret-transparent text-transparent outline-none border-none select-none bg-transparent shadow-none"
                 autoFocus
               />
             )}
@@ -1380,13 +1964,13 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                 key={`${activeLanguage}-${state.selectedTranslations.es}-${state.selectedTranslations.en}`}
                 initial={{ opacity: 0, y: -5 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="flex items-center gap-3 opacity-30"
+                className="flex items-center gap-3 opacity-40 dark:opacity-30"
               >
-                <div className="h-px w-6 bg-earth/30 dark:bg-white/20" />
-                <span className="text-[10px] font-black uppercase tracking-[0.4em] text-earth-light dark:text-lavender-muted">
+                <div className="h-px w-6 bg-earth-light/30 dark:bg-white/20" />
+                <span className="text-[10px] font-black uppercase tracking-[0.4em] text-earth dark:text-lavender-muted">
                   {activeLanguage === 'es' ? (activePair?.es || 'RVR1960') : (activePair?.en || 'KJV')}
                 </span>
-                <div className="h-px w-6 bg-earth/30 dark:bg-white/20" />
+                <div className="h-px w-6 bg-earth-light/30 dark:bg-white/20" />
               </motion.div>
             </div>
 
@@ -1407,16 +1991,16 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                 {/* Pista/Clue Slot - Stable width for symmetry */}
                 <div className="min-w-[85px] sm:min-w-[115px] flex justify-end">
                   <div className={`transition-all duration-500 transform ${
-                    (stage === 5 && !isRevealed && !hasSubmitted) 
+                    canShowClue 
                       ? 'opacity-100 translate-y-0 scale-100' 
                       : 'opacity-0 translate-y-1 scale-95 pointer-events-none'
                   }`}>
                     <button 
                       onClick={(e) => { e.stopPropagation(); handleClue(activeLanguage); }}
-                      disabled={(activeLanguage === 'es' ? clueCountEs : clueCountEn) >= 1}
+                      disabled={!canUseClue}
                       className="flex items-center gap-2.5 px-4 py-2 rounded-xl bg-teal/10 dark:bg-teal-400/10 border border-teal/20 text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-teal dark:text-teal-400 shadow-sm hover:bg-teal/20 transition-all active:scale-95 disabled:opacity-20 disabled:grayscale"
                     >
-                      <Sparkles size={14} className={(activeLanguage === 'es' ? clueCountEs : clueCountEn) >= 1 ? '' : 'text-amber-500/80 animate-pulse'} />
+                      <Sparkles size={14} className={activeClueCount >= 1 ? '' : 'text-amber-500/80 animate-pulse'} />
                       <span className="whitespace-nowrap">{state.primaryLanguage === 'es' ? 'Pista' : 'Clue'}</span>
                     </button>
                   </div>
@@ -1578,7 +2162,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                   ? 'w-10 bg-playful-purple dark:bg-plum shadow-[0_0_15px_rgba(151,71,255,0.4)]' 
                   : s < stage 
                     ? 'w-2 bg-teal shadow-[0_0_10px_rgba(20,184,166,0.3)]' 
-                    : 'w-2 bg-earth/10 dark:bg-white/10'
+                    : 'w-2 bg-earth/20 dark:bg-white/10'
               }`} 
             />
           ))}

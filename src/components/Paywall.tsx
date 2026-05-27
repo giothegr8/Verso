@@ -120,12 +120,12 @@ export default function Paywall({ state, onSubscribe, onClose, isDismissible = f
               <Crown size={32} />
             </div>
             <h2 className="text-3xl sm:text-4xl font-serif font-black text-earth dark:text-ivory tracking-tight leading-tight">
-              {isSpanish ? "No rompas el ritmo." : "Don’t break the rhythm."}
+              {isSpanish ? "Sigue cultivando la Palabra." : "Keep growing in Scripture."}
             </h2>
             <p className="text-earth-light dark:text-lavender-muted font-medium text-balance">
               {isSpanish 
-                ? "Ya empezaste a crear el hábito. Sigue memorizando un versículo a la vez." 
-                : "You’ve started building the habit. Keep memorizing one verse at a time."}
+                ? "Ya empezaste este hábito. Sigue volviendo, un versículo a la vez." 
+                : "You’ve planted the habit. Keep showing up, one verse at a time."}
             </p>
           </div>
 
@@ -141,12 +141,12 @@ export default function Paywall({ state, onSubscribe, onClose, isDismissible = f
                 { 
                   day: isSpanish ? "Día 2" : "Day 2", 
                   text: isSpanish ? "Te recordamos antes de que termine" : "We'll remind you before it ends",
-                  sub: isSpanish ? "Aviso de prueba gratuita" : "Trial ending reminder"
+                  sub: isSpanish ? "Trial reminder before trial ends" : "Trial reminder before trial ends"
                 },
                 { 
                   day: isSpanish ? "Día 3" : "Day 3", 
-                  text: isSpanish ? "Continúa si decides seguir" : "Continue if you choose",
-                  sub: isSpanish ? "Tu plan comienza hoy" : "Subscription starts"
+                  text: isSpanish ? "Sigues solo si quieres" : "Continue only if you choose",
+                  sub: isSpanish ? "La suscripción empieza después" : "Subscription starts after trial"
                 }
               ].map((step, i) => (
                 <div key={i} className="flex gap-4 items-start">
@@ -224,22 +224,22 @@ export default function Paywall({ state, onSubscribe, onClose, isDismissible = f
               <button 
                 disabled={isProcessing}
                 onClick={handleSubscribe}
-                className={`w-full h-14 sm:h-16 rounded-[24px] shadow-lg flex items-center justify-center gap-3 transition-all mt-4 ${isProcessing ? 'bg-earth/10 text-earth/20 dark:bg-white/5 dark:text-white/10 cursor-wait border-none' : 'bg-playful-purple/5 border-2 border-playful-purple/30 text-playful-purple hover:bg-playful-purple/10 shadow-[0_0_20px_rgba(109,40,217,0.1)] active:scale-95'}`}
+                className={`w-full h-14 sm:h-16 rounded-[24px] shadow-lg flex items-center justify-center transition-all mt-4 px-8 ${isProcessing ? 'bg-earth/10 text-earth/20 dark:bg-white/5 dark:text-white/10 cursor-wait border-none' : 'bg-playful-purple/5 border-2 border-playful-purple/30 text-playful-purple hover:bg-playful-purple/10 shadow-[0_0_20px_rgba(109,40,217,0.1)] active:scale-95'}`}
               >
                 {isProcessing ? (
                   <Loader2 size={24} className="animate-spin" />
                 ) : (
-                  <>
-                    <Sparkles size={20} />
-                    <span className="font-black uppercase tracking-widest text-sm sm:text-base">
+                  <div className="flex items-center justify-between w-full">
+                    <Sparkles size={20} className="shrink-0" />
+                    <span className="font-black uppercase tracking-widest text-sm sm:text-base whitespace-nowrap px-2">
                       {isSpanish ? "EMPEZAR PRUEBA GRATIS" : "START FREE TRIAL"}
                     </span>
-                    <ArrowRight size={20} className="ml-auto" />
-                  </>
+                    <ArrowRight size={20} className="shrink-0" />
+                  </div>
                 )}
               </button>
               <p className="text-center text-[9px] font-medium text-earth-light/40 dark:text-lavender-muted/40 px-6">
-                {isSpanish ? "Puedes cancelar antes de que termine la prueba." : "Cancel before the trial ends."}
+                {isSpanish ? "3 días gratis. Puedes cancelar antes de que termine la prueba." : "3 days free. Cancel before the trial ends."}
               </p>
             </div>
 

@@ -380,6 +380,10 @@ function AppInner() {
       if (isCustom) {
         return {
           ...baseState,
+          pathProgress: {
+            ...s.pathProgress,
+            selectedPathId: null // Clear preset selection when a custom path is chosen
+          },
           customPathProgress: {
             ...s.customPathProgress,
             selectedPathId: pathId,
@@ -391,6 +395,10 @@ function AppInner() {
 
       return {
         ...baseState,
+        customPathProgress: {
+          ...s.customPathProgress,
+          selectedPathId: null // Clear custom selection when a preset path is chosen
+        },
         pathProgress: {
           ...s.pathProgress,
           selectedPathId: pathId,
