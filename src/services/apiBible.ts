@@ -32,6 +32,117 @@ export const BIBLE_VERSIONS: Record<string, string> = {
   es: "592420522e16049f-01"
 };
 
+function parseReference(ref: string) {
+  const regex = /^\s*(?:(\d+)\s+)?([\w\u00C0-\u017F]+(?:(?:\s+|[-_])[\w\u00C0-\u017F]+)?)\s+(\d+)\s*[:.]\s*([\d\-]+)/i;
+  const match = ref.match(regex);
+  if (!match) return null;
+  
+  const num = match[1] ? match[1] + " " : "";
+  const name = match[2].trim();
+  const chapter = match[3];
+  const verse = match[4];
+  
+  return {
+    book: (num + name).toLowerCase().trim(),
+    chapter,
+    verse
+  };
+}
+
+function formatBookForDeno(book: string): string {
+  let b = book.toLowerCase().trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // removes accents
+    .replace(/\s+/g, "-");           // replaces spaces with hyphens (e.g. "1 juan" -> "1-juan")
+  
+  const enToEs: Record<string, string> = {
+    "john": "juan", "matthew": "mateo", "mark": "marcos", "luke": "lucas", "acts": "hechos", "romans": "romanos",
+    "galatians": "galatas", "ephesians": "efesios", "philippians": "filipenses", "colossians": "colosenses",
+    "titus": "tito", "philemon": "filemon", "hebrews": "hebreos", "james": "santiago", "jude": "judas",
+    "revelation": "apocalipsis", "genesis": "genesis", "exodus": "exodo", "leviticus": "levitico",
+    "numbers": "numeros", "deuteronomy": "deuteronomio", "joshua": "josue", "judges": "jueces",
+    "ruth": "rut", "job": "job", "psalms": "salmos", "psalm": "salmos", "proverbs": "proverbios",
+    "ecclesiastes": "eclesiastes", "song-of-solomon": "cantares", "canticles": "cantares",
+    "isaiah": "isaias", "jeremiah": "jeremias", "lamentations": "lamentaciones", "ezekiel": "ezequiel",
+    "daniel": "daniel", "hosea": "oseas", "joel": "joel", "amos": "amos", "obadiah": "abdias",
+    "jonah": "jonas", "micah": "miqueas", "nahum": "nahum", "habakkuk": "habacuc", "zephaniah": "sofonias",
+    "haggai": "hageo", "zechariah": "zacarias", "malachi": "malaquias",
+    // books with numbers
+    "1-corinthians": "1-corintios", "2-corinthians": "2-corintios",
+    "1-thessalonians": "1-tesalonicenses", "2-thessalonians": "2-tesalonicenses",
+    "1-timothy": "1-timoteo", "2-timothy": "2-timoteo",
+    "1-samuel": "1-samuel", "2-samuel": "2-samuel",
+    "1-kings": "1-reyes", "2-kings": "2-reyes",
+    "1-chronicles": "1-cronicas", "2-chronicles": "2-cronicas",
+    "1-peter": "1-pedro", "2-peter": "2-pedro",
+    "1-john": "1-juan", "2-john": "2-juan", "3-john": "3-juan"
+  };
+
+  if (enToEs[b]) {
+    return enToEs[b];
+  }
+  return b;
+}
+
+async function fetchFallbackVerse(
+  reference: string,
+  versionId: string
+): Promise<{ text: string; reference: string; copyright: string } | null> {
+  const isSpanish = versionId === BIBLE_VERSIONS.RVR1960 || versionId === BIBLE_VERSIONS.NVI || versionId === BIBLE_VERSIONS.es;
+
+  if (isSpanish) {
+    try {
+      const parsed = parseReference(reference);
+      if (parsed) {
+        const denoBook = formatBookForDeno(parsed.book);
+        const url = `https://bible-api.deno.dev/api/read/rvr1960/${denoBook}/${parsed.chapter}/${parsed.verse}`;
+        const response = await fetch(url);
+        if (response.ok) {
+          const data = await response.json();
+          if (data && typeof data.text === "string") {
+            return {
+              text: data.text.trim(),
+              reference: `${data.book} ${data.chapter}:${data.vers}`,
+              copyright: "Reina-Valera 1960"
+            };
+          } else if (data && Array.isArray(data)) {
+            const text = data.map((v: any) => v.text.trim()).join(" ");
+            const bookName = data[0]?.book || parsed.book;
+            const chap = data[0]?.chapter || parsed.chapter;
+            const verses = data.map((v: any) => v.vers).join("-");
+            return {
+              text,
+              reference: `${bookName} ${chap}:${verses}`,
+              copyright: "Reina-Valera 1960"
+            };
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("Spanish Fallback API failed:", e);
+    }
+  }
+
+  // Common or English fallback (bible-api.com)
+  try {
+    const translation = versionId === BIBLE_VERSIONS.ASV ? "asv" : "kjv";
+    const url = `https://bible-api.com/${encodeURIComponent(reference)}?translation=${translation}`;
+    const response = await fetch(url);
+    if (response.ok) {
+      const data = await response.json();
+      return {
+        text: data.text.trim(),
+        reference: data.reference,
+        copyright: data.translation_note || "Public Domain"
+      };
+    }
+  } catch (e) {
+    console.warn("English Fallback API failed:", e);
+  }
+
+  return null;
+}
+
 /**
  * Fetches a verse from API.Bible
  */
@@ -39,46 +150,48 @@ export async function getVerseFromApiBible(
   reference: string, 
   versionId: string = BIBLE_VERSIONS.KJV
 ): Promise<{ text: string; reference: string; copyright: string } | null> {
-  if (!API_KEY) {
-    console.warn("VITE_API_BIBLE_KEY is missing.");
-    return null;
-  }
-
   // Check cache first
   const cached = getFromCache(reference, versionId);
   if (cached) return cached;
 
-  try {
-    // API.Bible search endpoint
-    const url = `${API_BASE}/bibles/${versionId}/search?query=${encodeURIComponent(reference)}`;
-    const response = await fetch(url, {
-      headers: { "api-key": API_KEY }
-    });
+  if (API_KEY) {
+    try {
+      // API.Bible search endpoint
+      const url = `${API_BASE}/bibles/${versionId}/search?query=${encodeURIComponent(reference)}`;
+      const response = await fetch(url, {
+        headers: { "api-key": API_KEY }
+      });
 
-    if (!response.ok) throw new Error(`API.Bible error: ${response.status}`);
-
-    const data = await response.json();
-    if (!data.data || !data.data.verses || data.data.verses.length === 0) {
-      return null;
+      if (response.ok) {
+        const data = await response.json();
+        if (data.data && data.data.verses && data.data.verses.length > 0) {
+          const verse = data.data.verses[0];
+          const result = {
+            text: verse.text.replace(/\[\d+\]/g, "").trim(), // Remove verse numbers if present
+            reference: verse.reference,
+            copyright: data.meta?.fumsId ? "Provided by API.Bible" : "© Bible Translation Owner"
+          };
+          saveToCache(reference, versionId, result);
+          return result;
+        }
+      } else {
+        console.warn(`API.Bible returned status ${response.status} for ${reference}. Trying fallback...`);
+      }
+    } catch (error) {
+      console.warn("API.Bible Fetch Error, trying fallback...", error);
     }
-
-    const verse = data.data.verses[0];
-    
-    // API.Bible doesn't always return full copyright in search results, 
-    // so we might need a separate call for bible info if not present.
-    // For MVP, we'll use a placeholder if missing.
-    const result = {
-      text: verse.text.replace(/\[\d+\]/g, "").trim(), // Remove verse numbers if present
-      reference: verse.reference,
-      copyright: data.meta?.fumsId ? "Provided by API.Bible" : "© Bible Translation Owner"
-    };
-
-    saveToCache(reference, versionId, result);
-    return result;
-  } catch (error) {
-    console.error("API.Bible Fetch Error:", error);
-    return null;
+  } else {
+    console.log("VITE_API_BIBLE_KEY is missing. Trying fallback...");
   }
+
+  // Fallback to keyless public APIs
+  const fallbackResult = await fetchFallbackVerse(reference, versionId);
+  if (fallbackResult) {
+    saveToCache(reference, versionId, fallbackResult);
+    return fallbackResult;
+  }
+
+  return null;
 }
 
 function getFromCache(ref: string, version: string) {

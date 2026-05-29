@@ -327,9 +327,9 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 </div>
                 <div className="space-y-1">
                   <h1 className="text-3xl sm:text-4xl font-serif font-black text-earth dark:text-ivory tracking-tight">Choose your language</h1>
-                  <p className="text-lg sm:text-xl font-serif italic text-earth-light/60 dark:text-lavender-muted/60">Elige tu idioma</p>
+                  <p className="text-lg sm:text-xl font-serif italic text-earth-light/90 dark:text-lavender-muted/90">Elige tu idioma</p>
                 </div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-earth-light/40 dark:text-ivory/30">
+                <p className="text-[10px] font-black uppercase tracking-widest text-earth-light/90 dark:text-ivory/90">
                   Set your main app language
                 </p>
               </div>
@@ -345,7 +345,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                   >
                     <div className="text-left">
                       <p className="text-lg font-black text-earth dark:text-ivory">{opt.label}</p>
-                      <p className="text-[9px] font-black uppercase tracking-widest text-earth-light/30 dark:text-ivory/20">{opt.sub}</p>
+                      <p className="text-[9px] font-black uppercase tracking-widest text-earth-light/90 dark:text-ivory/20">{opt.sub}</p>
                     </div>
                     <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${appLanguage === opt.id ? 'bg-teal border-teal text-white' : 'border-earth/20 dark:border-white/20'}`}>
                       {appLanguage === opt.id && <Check size={12} strokeWidth={4} />}
@@ -362,7 +362,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
             <VersoLogo size="xl" showText={true} variant="onboarding" />
             <div className="space-y-3">
               <h3 className="text-2xl font-serif font-black text-earth dark:text-ivory leading-tight">{curr.welcomeHead}</h3>
-              <p className="text-lg font-serif italic text-earth-light/60 dark:text-lavender-muted/60 leading-relaxed px-4">{curr.welcomeSub}</p>
+              <p className="text-lg font-serif italic text-earth-light/90 dark:text-lavender-muted/90 leading-relaxed px-4">{curr.welcomeSub}</p>
             </div>
           </div>
         );
@@ -376,8 +376,8 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               </div>
               <h2 className="text-2xl sm:text-3xl font-serif font-black text-earth dark:text-ivory tracking-tight">{curr.memTitle}</h2>
               <div className="space-y-1">
-                <p className="text-xs sm:text-sm font-medium text-earth-light/60 dark:text-lavender-muted/60 px-6">{curr.memSub}</p>
-                <p className="text-[10px] font-black uppercase tracking-widest text-earth-light/30 dark:text-ivory/20">{curr.memHelper}</p>
+                <p className="text-xs sm:text-sm font-medium text-earth-light/90 dark:text-lavender-muted/90 px-6">{curr.memSub}</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-earth-light/90 dark:text-ivory/20">{curr.memHelper}</p>
               </div>
             </div>
             <div className="grid grid-cols-1 gap-3 px-2">
@@ -405,7 +405,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 <Compass size={28} />
               </div>
               <h2 className="text-2xl sm:text-3xl font-serif font-black text-earth dark:text-ivory tracking-tight max-w-[280px] sm:max-w-sm mx-auto leading-tight">{curr.pathTitle}</h2>
-              <p className="text-sm sm:text-base font-medium text-earth-light/60 dark:text-lavender-muted/60 px-6 max-w-sm mx-auto balance-text">
+              <p className="text-sm sm:text-base font-medium text-earth-light/90 dark:text-lavender-muted/90 px-6 max-w-sm mx-auto balance-text">
                 {appLanguage === 'es' ? (
                   <>
                     Elige una Serie de versículos<br />
@@ -445,7 +445,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 <Activity size={28} />
               </div>
               <h2 className="text-2xl sm:text-3xl font-serif font-black text-earth dark:text-ivory tracking-tight">{curr.rhythmTitle}</h2>
-              <p className="text-xs sm:text-sm font-medium text-earth-light/60 dark:text-lavender-muted/60 px-6">{curr.rhythmSub}</p>
+              <p className="text-xs sm:text-sm font-medium text-earth-light/90 dark:text-lavender-muted/90 px-6">{curr.rhythmSub}</p>
             </div>
             <div className="grid grid-cols-1 gap-3 px-2">
               {curr.rhythmOptions.map(opt => (
@@ -472,7 +472,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 <Anchor size={28} />
               </div>
               <h2 className="text-2xl sm:text-3xl font-serif font-black text-earth dark:text-ivory tracking-tight">{curr.identityTitle}</h2>
-              <p className="text-xs sm:text-sm font-medium text-earth-light/60 dark:text-lavender-muted/60 px-6">{curr.identitySub}</p>
+              <p className="text-xs sm:text-sm font-medium text-earth-light/90 dark:text-lavender-muted/90 px-6">{curr.identitySub}</p>
             </div>
             <div className="grid grid-cols-1 gap-3 px-2">
               {curr.identityOptions.map(opt => (
@@ -483,7 +483,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 >
                   <div className="flex flex-col gap-1">
                     <span className="text-base sm:text-lg font-black text-earth dark:text-ivory leading-tight">{opt.label}</span>
-                    <span className="text-xs text-earth-light/60 dark:text-lavender-muted/60 font-serif italic">{opt.sub}</span>
+                    <span className="text-sm text-[#4a4a4a] dark:text-[#cccccc] font-serif italic">{opt.sub}</span>
                   </div>
                   <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 ml-4 transition-all ${growthGoal?.label === opt.label ? 'bg-teal border-teal text-white' : 'border-earth/20 dark:border-white/20'}`}>
                     {growthGoal?.label === opt.label && <Check size={12} strokeWidth={4} />}
@@ -502,7 +502,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 <ShieldAlert size={28} />
               </div>
               <h2 className="text-2xl sm:text-3xl font-serif font-black text-earth dark:text-ivory tracking-tight">{curr.blockerTitle}</h2>
-              <p className="text-xs sm:text-sm font-medium text-earth-light/60 dark:text-lavender-muted/60 px-6">{curr.blockerSub}</p>
+              <p className="text-xs sm:text-sm font-medium text-earth-light/90 dark:text-lavender-muted/90 px-6">{curr.blockerSub}</p>
             </div>
             <div className="grid grid-cols-2 gap-3 max-w-sm mx-auto px-2">
               {curr.blockerOptions.map(opt => (
@@ -534,10 +534,10 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               <div className="space-y-6">
                 <div className="space-y-4">
                   <h2 className="text-4xl font-serif font-black text-earth dark:text-ivory tracking-tight">{curr.encouragementHead}</h2>
-                  <p className="text-lg font-serif italic text-earth-light/60 dark:text-lavender-muted/60 leading-relaxed max-w-xs mx-auto">{curr.encouragementSub}</p>
+                  <p className="text-lg font-serif italic text-earth-light/90 dark:text-lavender-muted/90 leading-relaxed max-w-xs mx-auto">{curr.encouragementSub}</p>
                 </div>
                 {curr.encouragementFooter && (
-                  <p className="text-xs font-black uppercase tracking-[0.2em] text-teal/40 animate-pulse">
+                  <p className="text-xs font-black uppercase tracking-[0.2em] text-teal/90 animate-pulse">
                     {curr.encouragementFooter}
                   </p>
                 )}
@@ -555,7 +555,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               </div>
               <h2 className="text-2xl sm:text-3xl font-serif font-black text-earth dark:text-ivory tracking-tight">{curr.reminderTitle}</h2>
               <div className="space-y-1">
-                <p className="text-xs sm:text-sm font-medium text-earth-light/60 dark:text-lavender-muted/60 px-6">{curr.reminderSubtitle}</p>
+                <p className="text-xs sm:text-sm font-medium text-earth-light/90 dark:text-lavender-muted/90 px-6">{curr.reminderSubtitle}</p>
                 {blocker && (
                   <p className="text-[10px] font-black uppercase tracking-[0.15em] text-teal text-center px-8 mt-2 leading-relaxed max-w-[240px] mx-auto transition-all animate-in fade-in duration-500">
                     {curr.blockerHelper[blocker]}
@@ -588,7 +588,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 <User size={28} strokeWidth={1.5} />
               </div>
               <h2 className="text-2xl sm:text-3xl font-serif font-black text-earth dark:text-ivory tracking-tight">{curr.authTitle}</h2>
-              <p className="text-xs sm:text-sm font-medium text-earth-light/60 dark:text-lavender-muted/60 px-6">{curr.authSub}</p>
+              <p className="text-xs sm:text-sm font-medium text-earth-light/90 dark:text-lavender-muted/90 px-6">{curr.authSub}</p>
             </div>
 
             <form onSubmit={handleAuth} className="space-y-4 px-2 max-w-sm mx-auto">
@@ -646,7 +646,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 <button 
                   type="button"
                   onClick={() => setAuthMode(m => m === "signup" ? "signin" : "signup")}
-                  className="py-2 text-[10px] font-black uppercase tracking-[0.2em] text-earth-light/40 dark:text-lavender-muted/40 hover:text-playful-purple transition-colors"
+                  className="py-2 text-[10px] font-black uppercase tracking-[0.2em] text-earth-light/90 dark:text-lavender-muted/90 hover:text-playful-purple transition-colors"
                   disabled={isAuthLoading}
                 >
                   {authMode === "signup" ? curr.authModeSwitch : curr.authModeSwitchBack}
@@ -670,7 +670,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                     >
                       {appLanguage === 'es' ? 'Continuar en modo vista previa' : 'Continue in preview mode'}
                     </button>
-                    <p className="text-[9px] font-medium text-earth-light/30 dark:text-ivory/20 text-center px-4 leading-tight">
+                    <p className="text-[9px] font-medium text-earth-light/90 dark:text-ivory/20 text-center px-4 leading-tight">
                       {appLanguage === 'es' 
                         ? 'Supabase aún no está configurado. Esto solo omite la cuenta para revisar la app.' 
                         : 'Supabase is not configured yet. This only skips account creation for local preview.'}
@@ -681,7 +681,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 <button 
                   type="button"
                   onClick={prev}
-                  className="h-12 flex items-center justify-center gap-2 text-earth-light/40 dark:text-ivory/30 font-black uppercase tracking-[0.2em] text-[10px] hover:text-teal transition-all"
+                  className="h-12 flex items-center justify-center gap-2 text-earth-light/90 dark:text-ivory/90 font-black uppercase tracking-[0.2em] text-[10px] hover:text-teal transition-all"
                   disabled={isAuthLoading}
                 >
                   <ChevronLeft size={14} />
@@ -713,7 +713,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                       <div className="w-5 h-5 rounded-full bg-teal/10 flex items-center justify-center text-teal">
                         <Check size={12} strokeWidth={4} />
                       </div>
-                      <span className="text-sm font-bold text-earth-light/60 dark:text-lavender-muted/60">{line}</span>
+                      <span className="text-sm font-bold text-earth-light/90 dark:text-lavender-muted/90">{line}</span>
                     </motion.div>
                   ))}
                 </div>
@@ -748,7 +748,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 <div className="bg-white dark:bg-charcoal/50 rounded-[32px] p-8 border border-earth/5 dark:border-white/5 space-y-6 shadow-xl">
                   {selectedPathId && (
                     <div className="space-y-1">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-earth-light/40 dark:text-ivory/30">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-earth-light/90 dark:text-ivory/90">
                         {appLanguage === 'es' ? 'TU SERIE' : 'YOUR PATH'}
                       </p>
                       <p className="text-xl font-serif font-black text-playful-purple">
@@ -758,14 +758,14 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                   )}
                   {growthGoal && (
                     <div className="space-y-2">
-                       <p className="text-[10px] font-black uppercase tracking-widest text-earth-light/40 dark:text-ivory/30">
+                       <p className="text-[10px] font-black uppercase tracking-widest text-earth-light/90 dark:text-ivory/90">
                         {appLanguage === 'es' ? 'ESTÁS AQUÍ PARA CULTIVAR' : "YOU'RE HERE TO GROW"}
                       </p>
                       <div className="space-y-1">
                         <p className="text-lg font-black text-earth dark:text-ivory leading-tight">
                           {growthGoal.label}
                         </p>
-                        <p className="text-sm font-serif italic text-earth-light/80 dark:text-lavender-muted">
+                        <p className="text-sm font-serif italic text-earth-light/90 dark:text-lavender-muted">
                           "{growthGoal.subline}"
                         </p>
                       </div>
@@ -858,7 +858,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
             {step > 1 && (
               <button 
                 onClick={prev}
-                className="h-12 flex items-center justify-center gap-2 text-earth-light/40 dark:text-ivory/30 font-black uppercase tracking-[0.2em] text-[10px] hover:text-teal transition-all"
+                className="h-12 flex items-center justify-center gap-2 text-earth-light/90 dark:text-ivory/90 font-black uppercase tracking-[0.2em] text-[10px] hover:text-teal transition-all"
               >
                 <ChevronLeft size={14} />
                 {appLanguage === 'en' ? 'Back' : 'Atrás'}

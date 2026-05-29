@@ -20,7 +20,10 @@ const PLANS = [
     nameEn: 'Weekly',
     nameEs: 'Semanal',
     labelEn: null,
-    labelEs: null
+    labelEs: null,
+    trialEn: 'starts immediately',
+    trialEs: 'comienza de inmediato',
+    hasTrial: false
   },
   { 
     id: 'verso_monthly_1199', 
@@ -30,18 +33,24 @@ const PLANS = [
     nameEn: 'Monthly',
     nameEs: 'Mensual',
     labelEn: null,
-    labelEs: null
+    labelEs: null,
+    trialEn: 'starts immediately',
+    trialEs: 'comienza de inmediato',
+    hasTrial: false
   },
   { 
     id: 'verso_quarterly_2999', 
-    price: '$29.99', 
+    price: '$27.99', 
     periodEn: '3 months', 
     periodEs: '3 meses',
     nameEn: '3-Month',
     nameEs: '3 Meses',
-    labelEn: 'Most popular', 
-    labelEs: 'Más popular',
-    isPopular: true
+    labelEn: 'MOST POPULAR', 
+    labelEs: 'MÁS POPULAR',
+    isPopular: true,
+    trialEn: '3 day free trial',
+    trialEs: '3 días de prueba gratis',
+    hasTrial: true
   },
   { 
     id: 'verso_annual_7999', 
@@ -50,18 +59,25 @@ const PLANS = [
     periodEs: 'año',
     nameEn: 'Annual',
     nameEs: 'Anual',
-    labelEn: 'Best value', 
-    labelEs: 'Mejor valor',
+    labelEn: 'BEST VALUE', 
+    labelEs: 'MEJOR VALOR',
     isBestValue: true,
-    default: true 
+    default: true,
+    trialEn: '3 day free trial',
+    trialEs: '3 días de prueba gratis',
+    hasTrial: true
   },
 ];
 
 export default function Paywall({ state, onSubscribe, onClose, isDismissible = false }: PaywallProps) {
   const isSpanish = state.primaryLanguage === "es";
-  const [selectedPlanId, setSelectedPlanId] = useState(PLANS.find(p => p.default)?.id || PLANS[3].id);
+  const [selectedPlanId, setSelectedPlanId] = useState(PLANS.find(p => p.default)?.id || PLANS[PLANS.length - 1].id);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showAllPlans, setShowAllPlans] = useState(false);
+
+  const selectedPlan = PLANS.find(p => p.id === selectedPlanId);
+  const hasTrial = selectedPlan ? selectedPlan.hasTrial : false;
+  const isTrialPlanSelected = selectedPlanId === 'verso_quarterly_2999' || selectedPlanId === 'verso_annual_7999';
 
   const features = isSpanish 
     ? [
@@ -120,7 +136,10 @@ export default function Paywall({ state, onSubscribe, onClose, isDismissible = f
               <Crown size={32} />
             </div>
             <h2 className="text-3xl sm:text-4xl font-serif font-black text-earth dark:text-ivory tracking-tight leading-tight">
-              {isSpanish ? "Sigue cultivando la Palabra." : "Keep growing in Scripture."}
+              {isTrialPlanSelected 
+                ? (isSpanish ? "Sigue creciendo en la Escritura." : "Keep growing in Scripture.")
+                : (isSpanish ? "Empieza a memorizar hoy." : "Start memorizing today.")
+              }
             </h2>
             <p className="text-earth-light dark:text-lavender-muted font-medium text-balance">
               {isSpanish 
@@ -130,41 +149,43 @@ export default function Paywall({ state, onSubscribe, onClose, isDismissible = f
           </div>
 
           {/* Trial Timeline */}
-          <div className="bg-earth/5 dark:bg-white/5 p-6 rounded-3xl border border-earth/5 dark:border-white/5 space-y-4">
-            <div className="flex flex-col gap-4">
-              {[
-                { 
-                  day: isSpanish ? "Hoy" : "Today", 
-                  text: isSpanish ? "Empieza gratis" : "Start free",
-                  sub: isSpanish ? "Acceso total inmediato" : "Full access immediately"
-                },
-                { 
-                  day: isSpanish ? "Día 2" : "Day 2", 
-                  text: isSpanish ? "Te recordamos antes de que termine" : "We'll remind you before it ends",
-                  sub: isSpanish ? "Trial reminder before trial ends" : "Trial reminder before trial ends"
-                },
-                { 
-                  day: isSpanish ? "Día 3" : "Day 3", 
-                  text: isSpanish ? "Sigues solo si quieres" : "Continue only if you choose",
-                  sub: isSpanish ? "La suscripción empieza después" : "Subscription starts after trial"
-                }
-              ].map((step, i) => (
-                <div key={i} className="flex gap-4 items-start">
-                  <div className="flex flex-col items-center">
-                    <div className="w-2 h-2 rounded-full bg-teal shadow-[0_0_8px_rgba(20,184,166,0.5)]" />
-                    {i < 2 && <div className="w-0.5 h-8 bg-teal/20" />}
-                  </div>
-                  <div className="flex-1 -mt-1">
-                    <div className="flex justify-between items-center">
-                       <span className="text-[10px] font-black uppercase tracking-widest text-teal">{step.day}</span>
-                       <span className="text-[9px] font-bold text-earth-light/60 dark:text-ivory/40 uppercase tracking-widest">{step.text}</span>
+          {isTrialPlanSelected && (
+            <div className="bg-earth/5 dark:bg-white/5 p-6 rounded-3xl border border-earth/5 dark:border-white/5 space-y-4">
+              <div className="flex flex-col gap-4">
+                {[
+                  { 
+                    day: isSpanish ? "Hoy" : "Today", 
+                    text: isSpanish ? "Empieza gratis" : "Start free",
+                    sub: isSpanish ? "Acceso total inmediato" : "Full access immediately"
+                  },
+                  { 
+                    day: isSpanish ? "Día 2" : "Day 2", 
+                    text: isSpanish ? "Te recordamos antes de que termine" : "We'll remind you before it ends",
+                    sub: isSpanish ? "Trial reminder before trial ends" : "Trial reminder before trial ends"
+                  },
+                  { 
+                    day: isSpanish ? "Día 3" : "Day 3", 
+                    text: isSpanish ? "Sigues solo si quieres" : "Continue only if you choose",
+                    sub: isSpanish ? "La suscripción empieza después" : "Subscription starts after trial"
+                  }
+                ].map((step, i) => (
+                  <div key={i} className="flex gap-4 items-start">
+                    <div className="flex flex-col items-center">
+                      <div className="w-2 h-2 rounded-full bg-teal shadow-[0_0_8px_rgba(20,184,166,0.5)]" />
+                      {i < 2 && <div className="w-0.5 h-8 bg-teal/20" />}
                     </div>
-                    <p className="text-[10px] font-medium text-earth-light/40 dark:text-lavender-muted/40">{step.sub}</p>
+                    <div className="flex-1 -mt-1">
+                      <div className="flex justify-between items-center">
+                         <span className="text-[10px] font-black uppercase tracking-widest text-teal">{step.day}</span>
+                         <span className="text-[9px] font-bold text-earth-light/90 dark:text-ivory/90 uppercase tracking-widest">{step.text}</span>
+                      </div>
+                      <p className="text-[10px] font-medium text-earth-light/90 dark:text-lavender-muted/90">{step.sub}</p>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Pricing Selector */}
           <div className="space-y-4">
@@ -194,8 +215,11 @@ export default function Paywall({ state, onSubscribe, onClose, isDismissible = f
                         <p className="text-sm font-black text-earth dark:text-ivory uppercase tracking-widest">
                           {isSpanish ? plan.nameEs : plan.nameEn}
                         </p>
-                        <p className="text-[10px] font-bold text-earth-light/60 dark:text-lavender-muted uppercase tracking-widest">
+                        <p className="text-[10px] font-bold text-earth-light/90 dark:text-lavender-muted uppercase tracking-widest">
                           {plan.price} / {isSpanish ? plan.periodEs : plan.periodEn}
+                        </p>
+                        <p className="text-[10px] font-medium text-earth-light/90 dark:text-lavender-muted/90 mt-1 font-serif italic">
+                          {isSpanish ? plan.trialEs : plan.trialEn}
                         </p>
                       </div>
                       <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
@@ -214,7 +238,7 @@ export default function Paywall({ state, onSubscribe, onClose, isDismissible = f
             {!showAllPlans && (
               <button 
                 onClick={() => setShowAllPlans(true)}
-                className="w-full py-2 text-[10px] font-black uppercase tracking-[0.2em] text-earth-light/40 dark:text-lavender-muted/40 hover:text-playful-purple transition-colors"
+                className="w-full py-2 text-[10px] font-black uppercase tracking-[0.2em] text-earth-light/90 dark:text-lavender-muted/90 hover:text-playful-purple transition-colors"
               >
                 {isSpanish ? "Ver todos los planes" : "View all plans"}
               </button>
@@ -232,18 +256,24 @@ export default function Paywall({ state, onSubscribe, onClose, isDismissible = f
                   <div className="flex items-center justify-between w-full">
                     <Sparkles size={20} className="shrink-0" />
                     <span className="font-black uppercase tracking-widest text-sm sm:text-base whitespace-nowrap px-2">
-                      {isSpanish ? "EMPEZAR PRUEBA GRATIS" : "START FREE TRIAL"}
+                      {isSpanish 
+                        ? (hasTrial ? "EMPEZAR PRUEBA GRATIS" : "COMENZAR AHORA")
+                        : (hasTrial ? "START FREE TRIAL" : "START NOW")}
                     </span>
                     <ArrowRight size={20} className="shrink-0" />
                   </div>
                 )}
               </button>
-              <p className="text-center text-[9px] font-medium text-earth-light/40 dark:text-lavender-muted/40 px-6">
-                {isSpanish ? "3 días gratis. Puedes cancelar antes de que termine la prueba." : "3 days free. Cancel before the trial ends."}
+              <p className="text-center text-[9px] font-medium text-earth-light/90 dark:text-lavender-muted/90 px-6">
+                {hasTrial ? (
+                  isSpanish ? "3 días gratis. Puedes cancelar antes de que termine la prueba." : "3 days free. Cancel before the trial ends."
+                ) : (
+                  isSpanish ? "Sin periodo de prueba. La suscripción comienza de inmediato." : "No free trial. Subscription starts immediately."
+                )}
               </p>
             </div>
 
-            <p className="text-center text-[10px] font-black uppercase tracking-widest text-earth-light/40 dark:text-lavender-muted/40 animate-pulse">
+            <p className="text-center text-[10px] font-black uppercase tracking-widest text-earth-light/90 dark:text-lavender-muted/90 animate-pulse">
               {isSpanish ? "MODO DE PRUEBA ACTIVO" : "TEST MODE ACTIVE"}
             </p>
           </div>
@@ -251,7 +281,7 @@ export default function Paywall({ state, onSubscribe, onClose, isDismissible = f
           {/* Secondary Action */}
           <div className="pt-4 text-center">
             <button 
-              className="text-xs font-black uppercase tracking-widest text-earth-light/60 dark:text-lavender-muted hover:text-playful-purple transition-colors flex items-center justify-center gap-2 mx-auto"
+              className="text-xs font-black uppercase tracking-widest text-earth-light/90 dark:text-lavender-muted hover:text-playful-purple transition-colors flex items-center justify-center gap-2 mx-auto"
             >
               <Lock size={12} />
               {isSpanish ? "RESTAURAR COMPRA" : "RESTORE PURCHASE"}
