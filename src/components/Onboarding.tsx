@@ -652,6 +652,15 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                   {authMode === "signup" ? curr.authModeSwitch : curr.authModeSwitchBack}
                 </button>
 
+                <button 
+                  type="button"
+                  onClick={() => setStep(11)}
+                  className="py-2 text-[10px] font-black uppercase tracking-[0.2em] text-teal-600 dark:text-teal hover:text-teal-500 transition-colors font-bold"
+                  disabled={isAuthLoading}
+                >
+                  {appLanguage === 'es' ? 'CONTINUAR COMO INVITADO' : 'CONTINUE AS GUEST'}
+                </button>
+
                 {!isSupabaseConfigured && process.env.NODE_ENV !== 'production' && (
                   <div className="pt-4 border-t border-earth/5 dark:border-white/5 w-full flex flex-col items-center gap-2">
                     <button 
