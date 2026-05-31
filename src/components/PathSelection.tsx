@@ -316,13 +316,13 @@ export default function PathSelection({ state, onSelectPath, onBack, onMemorize,
 
         {/* Detail Header */}
         <div className="space-y-6">
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex items-start justify-between gap-4">
             <button 
               onClick={() => setSelectedPath(null)}
-              className="flex items-center gap-2 text-earth/50 dark:text-ivory/50 hover:text-teal transition-colors group"
+              className="flex items-center h-5 gap-2 text-earth/50 dark:text-ivory/50 hover:text-teal transition-colors group"
             >
               <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
-              <span className="text-sm font-black uppercase tracking-widest">
+              <span className="text-xs sm:text-sm font-black uppercase tracking-widest">
                 {isEs ? "Todas las series" : "All Paths"}
               </span>
             </button>
@@ -332,13 +332,13 @@ export default function PathSelection({ state, onSelectPath, onBack, onMemorize,
                 onClick={() => setSelectedPath(nextPath)}
                 className="flex flex-col items-end text-right text-earth/50 dark:text-ivory/50 hover:text-teal transition-colors group shrink-0 animate-in fade-in slide-in-from-right-3 duration-500"
               >
-                <div className="flex items-center gap-1">
-                  <span className="text-xs font-black uppercase tracking-widest">
+                <div className="flex items-center h-5 gap-1">
+                  <span className="text-xs sm:text-sm font-black uppercase tracking-widest">
                     {isEs ? "Siguiente" : "Next Path"}
                   </span>
                   <ChevronRight size={16} className="group-hover:translate-x-0.5 transition-transform" />
                 </div>
-                <span className="text-[10px] text-earth-light/50 dark:text-lavender-muted/50 font-serif font-semibold max-w-[120px] sm:max-w-[200px] truncate">
+                <span className="text-[10px] text-earth-light/50 dark:text-lavender-muted/50 font-serif font-semibold max-w-[120px] sm:max-w-[200px] truncate mt-0.5">
                   {'type' in nextPath && nextPath.type === "custom" 
                     ? (nextPath as CustomPath).title 
                     : (isEs ? (nextPath as Path).titleEs : (nextPath as Path).title)}

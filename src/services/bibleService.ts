@@ -1,5 +1,5 @@
 import { Verse, AppState, Translation } from "../types";
-import { getVerseFromApiBible, BIBLE_VERSIONS } from "./apiBible";
+import { getVerseFromApiBible, BIBLE_VERSIONS, parseReference, BOOK_TO_USFM } from "./apiBible";
 
 /**
  * Bible Service
@@ -213,11 +213,20 @@ async function fetchVerseFromApi(reference: string, translation: string): Promis
     initialEn[translation as Translation] = result.text;
   }
 
+  let bookName = result.reference.split(' ').slice(0, -1).join(' ') || result.reference.split(' ')[0] || "Verse";
+  let ch = 1;
+  let vs = 1;
+  const match = result.reference.match(/(\d+)\s*[:.]\s*([\d\-]+)\s*$/);
+  if (match) {
+    ch = parseInt(match[1]) || 1;
+    vs = parseInt(match[2].split('-')[0]) || 1;
+  }
+
   return {
     id: `api-bible-${reference.replace(/\s+/g, '-')}-${translation}`,
-    book: result.reference.split(' ')[0],
-    chapter: 1, // API search doesn't always provide discrete chapter/verse in some endpoints
-    verse: 1,
+    book: bookName,
+    chapter: ch,
+    verse: vs,
     text: {
       en: initialEn,
       es: initialEs
@@ -239,7 +248,29 @@ export async function searchVerse(reference: string, translation?: string): Prom
   const mockVerse = canonicalKey ? MOCK_BIBLE_DATA[canonicalKey] : null;
   if (mockVerse) return mockVerse;
 
-  // 2. Fallback to API.Bible
+  // 2. Validate exact Bible reference parsing
+  const parsed = parseReference(reference);
+  const isSpanish = translation && (translation.includes('RVR') || translation.includes('NVI') || translation.includes('NBLA'));
+
+  if (!parsed) {
+    throw new Error(
+      "PARSE_ERROR:" + (isSpanish 
+        ? "Formato de cita bíblica no válido. Citas válidas ej: 'Efesios 2:8', 'eph 2 8' o 'EPH.2.8'." 
+        : "Invalid Bible reference format. Valid examples: 'Ephesians 2:8', 'eph 2 8', or 'EPH.2.8'.")
+    );
+  }
+
+  const bookCleaned = parsed.book.toLowerCase().trim();
+  const usfmBook = BOOK_TO_USFM[bookCleaned];
+  if (!usfmBook) {
+    throw new Error(
+      "PARSE_ERROR:" + (isSpanish 
+        ? `Libro bíblico no reconocido: "${parsed.book}". Intenta verificar la ortografía.` 
+        : `Unrecognized Bible book name: "${parsed.book}". Please check your spelling.`)
+    );
+  }
+
+  // 3. Fallback to API.Bible
   return await fetchVerseFromApi(reference, translation || "KJV");
 }
 

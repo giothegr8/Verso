@@ -55,8 +55,12 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
         setLookupError(isEs ? "Versículo no encontrado. Prueba 'Juan 3:16'." : "Verse not found. Try 'John 3:16'.");
         setSearchResult(null);
       }
-    } catch (e) {
-      setLookupError(isEs ? "Error al buscar." : "Error searching.");
+    } catch (e: any) {
+      if (e && e.message && e.message.startsWith("PARSE_ERROR:")) {
+        setLookupError(e.message.substring("PARSE_ERROR:".length));
+      } else {
+        setLookupError(isEs ? "Error al buscar." : "Error searching.");
+      }
       setSearchResult(null);
     } finally {
       setIsSearching(false);
@@ -625,7 +629,7 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
 
           {/* Verse of the Day Card - Second priority when path is active */}
           <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center px-1 gap-3 sm:gap-0">
+            <div className="flex flex-row justify-between items-center px-1 gap-4 w-full">
               <div className="flex items-center gap-2">
                 <Sparkles size={16} className="text-amber-500 dark:text-amber-400" />
                 <h2 className="text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] text-earth-light dark:text-lavender-muted">
@@ -639,8 +643,8 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
                 </h2>
               </div>
               
-              <div className="flex items-center gap-4 ml-auto sm:ml-0">
-                <span className="hidden sm:inline text-[9px] font-black uppercase tracking-widest text-earth-light/40 dark:text-lavender-muted/40">
+              <div className="flex items-center gap-3 sm:gap-4 shrink-0">
+                <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-earth-light/40 dark:text-lavender-muted/40 whitespace-nowrap">
                   {state.primaryLanguage === 'es' ? '1 versículo al día' : '1 verse a day'}
                 </span>
                 <button 
@@ -653,7 +657,7 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
                       setState(s => ({ ...s, selectedVerseId: null, activeSource: "daily" }));
                     }
                   }}
-                  className="text-[10px] font-black uppercase tracking-widest text-playful-purple hover:underline transition-all active:scale-95"
+                  className="text-[10px] font-black uppercase tracking-widest text-playful-purple hover:underline transition-all active:scale-95 whitespace-nowrap"
                 >
                   {isCustomMode || !isVotd
                     ? (state.primaryLanguage === 'es' ? 'VOLVER AL DIARIO' : 'BACK TO DAILY')
@@ -668,6 +672,14 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
               whileTap={{ scale: 0.99 }}
               className="card bg-white dark:bg-charcoal p-8 sm:p-10 shadow-2xl border-earth/10 dark:border-white/10 relative overflow-hidden group cursor-pointer"
             >
+              {state.isLoadingAnotherVerse && (
+                <div id="another-verse-loader-1" className="absolute inset-0 bg-white/80 dark:bg-charcoal/80 z-30 flex flex-col items-center justify-center gap-3 backdrop-blur-[2px] rounded-2xl animate-in fade-in duration-200">
+                  <Loader2 size={32} className="animate-spin text-playful-purple" />
+                  <span className="text-xs font-black uppercase tracking-widest text-earth-light dark:text-lavender-muted">
+                    {state.primaryLanguage === 'es' ? "Cargando versículo..." : "Loading verse..."}
+                  </span>
+                </div>
+              )}
               {/* Active Verse Watermark */}
               <div className="absolute -bottom-8 -right-8 p-10 opacity-[0.03] pointer-events-none group-hover:opacity-[0.05] transition-transform duration-700 group-hover:rotate-6 group-hover:scale-110">
                 <Sparkles size={160} className="text-amber-500" />
@@ -685,6 +697,12 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
               </div>
 
               <div className="relative space-y-8 sm:space-y-10 focus:outline-none">
+                {state.anotherVerseError && (
+                  <div id="another-verse-err-1" className="p-4 bg-coral/10 rounded-2xl flex items-center gap-3 text-coral border border-coral/20 animate-in fade-in slide-in-from-top-2 duration-300">
+                    <AlertCircle size={20} />
+                    <p className="text-sm font-bold">{state.anotherVerseError}</p>
+                  </div>
+                )}
                 <div className="space-y-8">
                   {(state.memorizeMode === 'es' || state.memorizeMode === 'both') && (
                     <div className="space-y-4">
@@ -801,7 +819,7 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
 
           {/* Verse of the Day Card - Primary when NO path is active */}
           <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center px-1 gap-3 sm:gap-0">
+            <div className="flex flex-row justify-between items-center px-1 gap-4 w-full">
               <div className="flex items-center gap-2">
                 <Sparkles size={16} className="text-amber-500 dark:text-amber-400" />
                 <h2 className="text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] text-earth-light dark:text-lavender-muted">
@@ -815,8 +833,8 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
                 </h2>
               </div>
               
-              <div className="flex items-center gap-4 ml-auto sm:ml-0">
-                <span className="hidden sm:inline text-[9px] font-black uppercase tracking-widest text-earth-light/40 dark:text-lavender-muted/40">
+              <div className="flex items-center gap-3 sm:gap-4 shrink-0">
+                <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-earth-light/40 dark:text-lavender-muted/40 whitespace-nowrap">
                   {state.primaryLanguage === 'es' ? '1 versículo al día' : '1 verse a day'}
                 </span>
                 <button 
@@ -829,7 +847,7 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
                       setState(s => ({ ...s, selectedVerseId: null, activeSource: "daily" }));
                     }
                   }}
-                  className="text-[10px] font-black uppercase tracking-widest text-playful-purple hover:underline transition-all active:scale-95"
+                  className="text-[10px] font-black uppercase tracking-widest text-playful-purple hover:underline transition-all active:scale-95 whitespace-nowrap"
                 >
                   {isCustomMode || !isVotd
                     ? (state.primaryLanguage === 'es' ? 'VOLVER AL DIARIO' : 'BACK TO DAILY')
@@ -844,6 +862,14 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
               whileTap={{ scale: 0.99 }}
               className="card bg-white dark:bg-charcoal p-8 sm:p-10 shadow-2xl border-earth/10 dark:border-white/10 relative overflow-hidden group cursor-pointer"
             >
+              {state.isLoadingAnotherVerse && (
+                <div id="another-verse-loader-2" className="absolute inset-0 bg-white/80 dark:bg-charcoal/80 z-30 flex flex-col items-center justify-center gap-3 backdrop-blur-[2px] rounded-2xl animate-in fade-in duration-200">
+                  <Loader2 size={32} className="animate-spin text-playful-purple" />
+                  <span className="text-xs font-black uppercase tracking-widest text-earth-light dark:text-lavender-muted">
+                    {state.primaryLanguage === 'es' ? "Cargando versículo..." : "Loading verse..."}
+                  </span>
+                </div>
+              )}
               {/* Active Verse Watermark */}
               <div className="absolute -bottom-8 -right-8 p-10 opacity-[0.03] pointer-events-none group-hover:opacity-[0.05] transition-transform duration-700 group-hover:rotate-6 group-hover:scale-110">
                 <Sparkles size={160} className="text-amber-500" />
@@ -861,6 +887,12 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
               </div>
 
               <div className="relative space-y-8 sm:space-y-10">
+                {state.anotherVerseError && (
+                  <div id="another-verse-err-2" className="p-4 bg-coral/10 rounded-2xl flex items-center gap-3 text-coral border border-coral/20 animate-in fade-in slide-in-from-top-2 duration-300">
+                    <AlertCircle size={20} />
+                    <p className="text-sm font-bold">{state.anotherVerseError}</p>
+                  </div>
+                )}
                 <div className="space-y-8">
                   {(state.memorizeMode === 'es' || state.memorizeMode === 'both') && (
                     <div className="space-y-4">

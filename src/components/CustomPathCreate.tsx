@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { AppState, CustomPath, CustomPathVerse, Translation, TRANSLATION_DETAILS } from "../types";
 import { ArrowLeft, Plus, Search, Loader2, X, ChevronUp, ChevronDown, Trash2, Save, AlertCircle, Info, BookOpen, Sparkles } from "lucide-react";
@@ -23,9 +23,15 @@ export default function CustomPathCreate({ state, onSave, onBack, initialPath }:
   // Search state
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
-  const [searchTranslation, setSearchTranslation] = useState<Translation | "">(isEs ? "RVR1960" : "NIV");
+  const [searchTranslation, setSearchTranslation] = useState<Translation>(() => 
+    isEs ? state.selectedTranslations.es : state.selectedTranslations.en
+  );
   const [searchError, setSearchError] = useState<string | null>(null);
   const [showSearch, setShowSearch] = useState(false);
+
+  useEffect(() => {
+    setSearchTranslation(isEs ? state.selectedTranslations.es : state.selectedTranslations.en);
+  }, [state.selectedTranslations, isEs]);
 
   // Validation
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -66,8 +72,12 @@ export default function CustomPathCreate({ state, onSave, onBack, initialPath }:
       } else {
         setSearchError(isEs ? "Versículo no encontrado. Prueba 'Juan 3:16'." : "Verse not found. Try 'John 3:16'.");
       }
-    } catch (e) {
-      setSearchError(isEs ? "Error al buscar." : "Error searching.");
+    } catch (e: any) {
+      if (e && e.message && e.message.startsWith("PARSE_ERROR:")) {
+        setSearchError(e.message.substring("PARSE_ERROR:".length));
+      } else {
+        setSearchError(isEs ? "Error al buscar." : "Error searching.");
+      }
     } finally {
       setIsSearching(false);
     }

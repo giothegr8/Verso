@@ -13,10 +13,11 @@ import {
   RotateCcw,
   Loader2
 } from "lucide-react";
-import { AppState, LanguageMode, Translation, TRANSLATION_PAIRS } from "./types";
+import { AppState, LanguageMode, Translation, TRANSLATION_PAIRS, Verse } from "./types";
 import { MOCK_VERSES, getVerseByDate, PATHS } from "./constants";
-import { getLocalDateString } from "./utils/verseUtils";
+import { getLocalDateString, getLocalizedBookName } from "./utils/verseUtils";
 import { rotateReminder } from "./utils/reminderRotation";
+import { getVerseFromApiBible, BIBLE_VERSIONS } from "./services/apiBible";
 
 // Contexts
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
@@ -122,6 +123,8 @@ const INITIAL_STATE: AppState = {
   onboardingProfile: {},
   trialStartDate: null,
   isSubscribed: false,
+  isLoadingAnotherVerse: false,
+  anotherVerseError: null,
 };
 
 function AppInner() {
@@ -318,7 +321,7 @@ function AppInner() {
     setActiveTab("memorize");
   };
 
-  const getAnotherVerse = () => {
+  const getAnotherVerse = async () => {
     const today = getLocalDateString();
     const votd = getVerseByDate(today);
     const currentActiveId = state.selectedVerseId || votd.id;
@@ -333,24 +336,123 @@ function AppInner() {
     if (eligiblePool.length === 0) {
       eligiblePool = MOCK_VERSES.filter((v: any) => v.id !== currentActiveId);
     }
+    if (eligiblePool.length === 0) {
+      eligiblePool = MOCK_VERSES;
+    }
 
     const randomVerse = eligiblePool[Math.floor(Math.random() * eligiblePool.length)];
     
-    if (randomVerse) {
-      const newRecent = [randomVerse.id, ...state.recentVerseIds].slice(0, 14);
-      
+    if (!randomVerse) return;
+
+    setState(prev => ({
+      ...prev,
+      isLoadingAnotherVerse: true,
+      anotherVerseError: null
+    }));
+
+    try {
+      const activePair = state.selectedTranslations;
+      const esTrans = activePair.es;
+      const enTrans = activePair.en;
+      const mode = state.memorizeMode;
+
+      const esBookName = getLocalizedBookName(randomVerse.book, 'es');
+      const enBookName = getLocalizedBookName(randomVerse.book, 'en');
+      const esRef = `${esBookName} ${randomVerse.chapter}:${randomVerse.verse}`;
+      const enRef = `${enBookName} ${randomVerse.chapter}:${randomVerse.verse}`;
+
+      let esRes: { text: string; reference: string; copyright: string } | null = null;
+      let enRes: { text: string; reference: string; copyright: string } | null = null;
+
+      if (mode === "es" || mode === "both") {
+        const esBibleId = BIBLE_VERSIONS[esTrans] || BIBLE_VERSIONS.es;
+        esRes = await getVerseFromApiBible(esRef, esBibleId);
+        if (!esRes) {
+          throw new Error(state.primaryLanguage === 'es' ? "No se pudo cargar la versión en español." : "Could not fetch Spanish translation.");
+        }
+      }
+
+      if (mode === "en" || mode === "both") {
+        const enBibleId = BIBLE_VERSIONS[enTrans] || BIBLE_VERSIONS.en;
+        enRes = await getVerseFromApiBible(enRef, enBibleId);
+        if (!enRes) {
+          throw new Error(state.primaryLanguage === 'es' ? "No se pudo cargar la versión en inglés." : "Could not fetch English translation.");
+        }
+      }
+
+      const initialEs: Record<Translation, string> = {
+        RVR1960: esTrans === "RVR1960" ? (esRes ? esRes.text : "") : "",
+        NVI: esTrans === "NVI" ? (esRes ? esRes.text : "") : "",
+        NBLA: esTrans === "NBLA" ? (esRes ? esRes.text : "") : "",
+        KJV: "", NIV: "", NASB: ""
+      };
+
+      const initialEn: Record<Translation, string> = {
+        KJV: enTrans === "KJV" ? (enRes ? enRes.text : "") : "",
+        NIV: enTrans === "NIV" ? (enRes ? enRes.text : "") : "",
+        NASB: enTrans === "NASB" ? (enRes ? enRes.text : "") : "",
+        RVR1960: "", NVI: "", NBLA: ""
+      };
+
+      const newVerseId = randomVerse.id;
+      const newVerse: Verse = {
+        id: newVerseId,
+        book: randomVerse.book,
+        chapter: randomVerse.chapter,
+        verse: randomVerse.verse,
+        text: {
+          es: initialEs,
+          en: initialEn
+        },
+        copyright: esRes?.copyright || enRes?.copyright,
+        source: "api-bible"
+      };
+
+      const newRecent = [newVerseId, ...state.recentVerseIds].slice(0, 14);
+
+      setState(prev => {
+        const exists = prev.customVerses.some(v => v.id === newVerseId);
+        let updatedCustom;
+        if (exists) {
+          updatedCustom = prev.customVerses.map(v => v.id === newVerseId ? newVerse : v);
+        } else {
+          updatedCustom = [...prev.customVerses, newVerse];
+        }
+
+        return {
+          ...prev,
+          selectedVerseId: newVerseId,
+          activeSource: "extra",
+          recentVerseIds: newRecent,
+          customVerses: updatedCustom,
+          isLoadingAnotherVerse: false,
+          anotherVerseError: null,
+          progress: {
+            ...prev.progress,
+            verseStages: {
+              ...prev.progress.verseStages,
+              [newVerseId]: 1
+            }
+          }
+        };
+      });
+
+    } catch (err: any) {
+      console.error("Failed to fetch another verse:", err);
       setState(prev => ({
         ...prev,
-        selectedVerseId: randomVerse.id,
-        recentVerseIds: newRecent,
-        progress: {
-          ...prev.progress,
-          verseStages: {
-            ...prev.progress.verseStages,
-            [randomVerse.id]: 1
-          }
-        }
+        isLoadingAnotherVerse: false,
+        anotherVerseError: err.message || (state.primaryLanguage === 'es' ? "Error al cargar el versículo." : "Failed to load verse.")
       }));
+
+      setTimeout(() => {
+        setState(prev => {
+          if (prev.anotherVerseError) {
+            return { ...prev, anotherVerseError: null };
+          }
+          return prev;
+        });
+      }, 4000);
     }
   };
 

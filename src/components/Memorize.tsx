@@ -1496,7 +1496,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
             </div>
             
             {state.memorizeMode === 'both' && (
-              <span className="bg-teal/10 dark:bg-teal/20 text-[10px] sm:text-[11px] font-black uppercase tracking-[0.2em] px-3 py-1 rounded-full text-teal dark:text-teal-400 border border-teal/20">
+              <span className="inline-flex items-center justify-center bg-teal/10 dark:bg-teal/20 text-[10px] sm:text-[11px] font-black uppercase tracking-[0.2em] px-3 py-1 rounded-full text-teal dark:text-teal-400 border border-teal/20">
                 {activeLanguage === 'es' 
                   ? (state.primaryLanguage === 'es' ? 'Español' : 'Spanish')
                   : (state.primaryLanguage === 'es' ? 'Inglés' : 'English')}

@@ -169,4 +169,6 @@ export interface AppState {
   reminderRotation?: ReminderRotationState;
   trialStartDate: string | null; // ISO date string
   isSubscribed: boolean;
+  isLoadingAnotherVerse?: boolean;
+  anotherVerseError?: string | null;
 }

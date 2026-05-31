@@ -21,9 +21,15 @@ export default function Saved({ state, setState, onStartMemorizing }: SavedProps
   const [selectedVerseForShare, setSelectedVerseForShare] = useState<any>(null);
   const activePair = getCurrentTranslationPair(state);
   
+  const allAvailableVerses = Array.from(
+    new Map(
+      [...MOCK_VERSES, ...state.customVerses].map(v => [v.id, v])
+    ).values()
+  );
+  
   // For demo, we'll show some from MOCK_VERSES if savedVerses is empty
   const savedList = state.savedVerses.length > 0 
-    ? [...MOCK_VERSES, ...state.customVerses].filter(v => state.savedVerses.includes(v.id))
+    ? allAvailableVerses.filter(v => state.savedVerses.includes(v.id))
     : MOCK_VERSES.slice(0, 2);
 
   const filteredList = savedList.filter(v => {
@@ -215,7 +221,7 @@ export default function Saved({ state, setState, onStartMemorizing }: SavedProps
             const getSourceInfo = (verseId: string) => {
               const isEs = state.primaryLanguage === 'es';
               
-              const vObj = [...MOCK_VERSES, ...state.customVerses].find(v => v.id === verseId);
+              const vObj = allAvailableVerses.find(v => v.id === verseId);
               if (!vObj) return { label: isEs ? 'versículo' : 'verse', icon: <Compass size={10} /> };
 
               for (const path of PATHS) {
