@@ -131,9 +131,9 @@ export default function CustomPathCreate({ state, onSave, onBack, initialPath }:
   };
 
   return (
-    <div className="fixed inset-0 z-[100] bg-parchment dark:bg-espresso flex flex-col overflow-hidden">
+    <div className="fixed inset-y-0 left-1/2 -translate-x-1/2 w-full max-w-2xl z-[100] bg-parchment dark:bg-espresso flex flex-col overflow-hidden transition-colors duration-500 shadow-2xl border-x border-earth/5 dark:border-white/5">
       {/* Top Header */}
-      <div className="flex items-center justify-between p-6 border-b border-earth/5 dark:border-white/5 bg-white/50 dark:bg-charcoal/50 backdrop-blur-md sticky top-0 z-20">
+      <div className="flex items-center justify-between p-6 bg-white/50 dark:bg-charcoal/50 backdrop-blur-md sticky top-0 z-20">
         <button 
           onClick={onBack}
           className="p-3 rounded-2xl bg-earth/5 dark:bg-white/5 text-earth/60 dark:text-ivory/60 hover:text-teal transition-all"
@@ -173,7 +173,7 @@ export default function CustomPathCreate({ state, onSave, onBack, initialPath }:
               value={title}
               onChange={(e) => setTitle(e.target.value.substring(0, 60))}
               placeholder={isEs ? "Ej: Clase bíblica o Paz para esta semana" : "e.g. Sunday School or Peace for This Week"}
-              className="w-full bg-white dark:bg-charcoal/50 border border-earth/10 dark:border-white/10 rounded-[24px] p-5 text-lg font-black text-earth dark:text-ivory focus:outline-none focus:ring-2 focus:ring-teal/20 transition-all placeholder:text-earth-light/20 dark:placeholder:text-ivory/10"
+              className="w-full bg-white dark:bg-charcoal/50 border border-earth/10 dark:border-white/10 rounded-2xl p-4 text-base font-bold text-earth dark:text-ivory focus:outline-none focus:ring-2 focus:ring-teal/20 transition-all placeholder:text-earth-light/35 dark:placeholder:text-ivory/20"
             />
             <div className="flex justify-end pr-2">
               <span className={`text-[9px] font-black tracking-widest transition-colors ${title.length >= 55 ? 'text-coral' : title.length > 0 ? 'text-golden-dark dark:text-golden' : 'text-earth-light/30 dark:text-ivory/20'}`}>
@@ -191,7 +191,7 @@ export default function CustomPathCreate({ state, onSave, onBack, initialPath }:
               onChange={(e) => setDescription(e.target.value.substring(0, 180))}
               placeholder={isEs ? "¿De qué se trata esta Serie?" : "What is this Path about?"}
               rows={3}
-              className="w-full bg-white dark:bg-charcoal/50 border border-earth/10 dark:border-white/10 rounded-[24px] p-5 text-sm font-medium text-earth dark:text-ivory focus:outline-none focus:ring-2 focus:ring-teal/20 transition-all placeholder:text-earth-light/20 dark:placeholder:text-ivory/10 resize-none"
+              className="w-full bg-white dark:bg-charcoal/50 border border-earth/10 dark:border-white/10 rounded-2xl p-4 text-sm font-medium text-earth dark:text-ivory focus:outline-none focus:ring-2 focus:ring-teal/20 transition-all placeholder:text-earth-light/35 dark:placeholder:text-ivory/20 resize-none"
             />
             <div className="flex justify-end pr-2">
               <span className="text-[9px] font-black text-earth-light/30 dark:text-ivory/20 tracking-widest">{description.length}/180</span>
@@ -233,7 +233,7 @@ export default function CustomPathCreate({ state, onSave, onBack, initialPath }:
                     </p>
                   </div>
                   
-                  <div className="flex items-center gap-1 opacity-40 group-hover:opacity-100 transition-opacity">
+                  <div className="flex items-center gap-0.5 sm:gap-1 opacity-40 group-hover:opacity-100 transition-opacity shrink-0">
                     <button 
                       onClick={() => moveVerse(index, 'up')}
                       disabled={index === 0}
@@ -299,34 +299,19 @@ export default function CustomPathCreate({ state, onSave, onBack, initialPath }:
         </AnimatePresence>
       </div>
 
-      {/* Persistence Safety Prompt - Rebranded as Feature Note */}
-      <div className="mx-6 mb-24 px-6 py-5 bg-charcoal/40 dark:bg-charcoal/60 backdrop-blur-md border border-playful-purple/20 rounded-[32px] flex items-center gap-4 relative overflow-hidden group">
-        <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-[0.06] transition-opacity">
-          <Sparkles size={80} className="text-playful-purple" />
-        </div>
-        <div className="w-12 h-12 shrink-0 rounded-2xl bg-playful-purple/10 flex items-center justify-center text-playful-purple border border-playful-purple/20">
-          <span className="text-[9px] font-black uppercase tracking-widest text-center leading-none">
-            SERIE<br/>PERS
-          </span>
-        </div>
-        <p className="text-[11px] font-bold text-earth/60 dark:text-ivory/50 leading-relaxed">
-          {isEs 
-            ? "Crea planes de versículos para prédicas, clases, estudios o los pasajes que quieres llevar contigo." 
-            : "Build Scripture plans for sermons, classes, studies, or the verses you want to carry with you."
-          }
-        </p>
-      </div>
-
       {/* Save Button Floating */}
-      <div className="fixed bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-parchment dark:from-espresso to-transparent z-30">
+      <div 
+        className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-parchment dark:from-espresso via-parchment/85 dark:via-espresso/85 to-transparent z-30 pt-10"
+        style={{ paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom, 0px))" }}
+      >
         <button 
           onClick={handleFinalSave}
-          className="w-full h-16 bg-teal text-white rounded-[24px] shadow-2xl flex items-center justify-center gap-3 font-black uppercase tracking-[0.2em] hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
+          className="w-full h-12 bg-teal/10 hover:bg-teal/20 text-teal dark:text-teal-400 border border-teal/20 dark:border-teal-400/30 rounded-xl px-6 flex items-center justify-center gap-2 font-black uppercase tracking-widest text-xs transition-all disabled:opacity-50"
         >
-          <span className="text-lg">
+          <Save size={16} />
+          <span>
             {initialPath ? (isEs ? "Guardar cambios" : "Save Changes") : (isEs ? "Guardar Serie" : "Save Path")}
           </span>
-          <ChevronDown className="-rotate-90" size={20} />
         </button>
       </div>
 

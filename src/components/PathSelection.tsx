@@ -15,11 +15,12 @@ interface PathSelectionProps {
   onCreateCustom: () => void;
   onEditCustom: (path: CustomPath) => void;
   onDeleteCustom: (pathId: string) => void;
+  selectedPath: Path | CustomPath | null;
+  setSelectedPath: (path: Path | CustomPath | null) => void;
 }
 
-export default function PathSelection({ state, onSelectPath, onBack, onMemorize, onCreateCustom, onEditCustom, onDeleteCustom }: PathSelectionProps) {
+export default function PathSelection({ state, onSelectPath, onBack, onMemorize, onCreateCustom, onEditCustom, onDeleteCustom, selectedPath, setSelectedPath }: PathSelectionProps) {
   const isEs = state.primaryLanguage === "es";
-  const [selectedPath, setSelectedPath] = useState<Path | CustomPath | null>(null);
   const [flippedDay, setFlippedDay] = useState<number | null>(null);
   const [reviewDay, setReviewDay] = useState<number | null>(null);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
@@ -81,8 +82,33 @@ export default function PathSelection({ state, onSelectPath, onBack, onMemorize,
     return titleA.localeCompare(titleB);
   });
 
+  // Find the next path in sequence
+  const nextPath = useMemo(() => {
+    if (!selectedPath) return null;
+    const isCustom = 'type' in selectedPath && selectedPath.type === "custom";
+    if (isCustom) {
+      if (state.customPaths.length > 1) {
+        const idx = state.customPaths.findIndex(p => p.id === selectedPath.id);
+        if (idx !== -1) {
+          const nextIdx = (idx + 1) % state.customPaths.length;
+          return state.customPaths[nextIdx];
+        }
+      } else if (sortedPaths.length > 0) {
+        return sortedPaths[0];
+      }
+      return null;
+    } else {
+      const idx = sortedPaths.findIndex(p => p.id === selectedPath.id);
+      if (idx !== -1) {
+        const nextIdx = (idx + 1) % sortedPaths.length;
+        return sortedPaths[nextIdx];
+      }
+      return null;
+    }
+  }, [selectedPath, state.customPaths, sortedPaths]);
+
   if (selectedPath) {
-    const isCustom = 'verses' in selectedPath;
+    const isCustom = 'type' in selectedPath && selectedPath.type === "custom";
     const pathTitle = isCustom ? (selectedPath as CustomPath).title : (isEs ? (selectedPath as Path).titleEs : (selectedPath as Path).title);
     const pathDesc = isCustom ? (selectedPath as CustomPath).description : (isEs ? (selectedPath as Path).descriptionEs : (selectedPath as Path).description);
     const pathDuration = isCustom ? (selectedPath as CustomPath).verses.length : (selectedPath as Path).duration;
@@ -198,6 +224,21 @@ export default function PathSelection({ state, onSelectPath, onBack, onMemorize,
                       <h4 className="text-xl font-serif font-black text-ivory/60">
                         {pathTitle} — {isEs ? `Día ${reviewDay}` : `Day ${reviewDay}`}
                       </h4>
+                      {(reviewDayData as any)?.title && (
+                        <h4 className="text-lg font-serif font-bold text-white mt-2">
+                          {(reviewDayData as any).title}
+                        </h4>
+                      )}
+                      {(reviewDayData as any)?.theme && (
+                        <p className="text-xs font-serif italic text-teal-400/80">
+                          {(reviewDayData as any).theme}
+                        </p>
+                      )}
+                      {(reviewDayData as any)?.contextPassage && (
+                        <p className="text-xs text-ivory/40">
+                          {isEs ? "Lectura de contexto/adicional:" : "Context passage/additional reading:"} <span className="font-serif italic font-bold text-teal whitespace-nowrap">{(reviewDayData as any).contextPassage}</span>
+                        </p>
+                      )}
                     </div>
                     <button 
                       onClick={() => setReviewDay(null)}
@@ -236,7 +277,7 @@ export default function PathSelection({ state, onSelectPath, onBack, onMemorize,
                     )}
 
                     <div className="pt-4">
-                      <h5 className="text-lg font-serif font-black text-teal-400">
+                      <h5 className="text-lg font-serif font-black text-teal-400 whitespace-nowrap">
                         {getLocalizedBookName(currentReviewVerse.book, state.memorizeMode)} {currentReviewVerse.chapter}:{currentReviewVerse.verse}
                       </h5>
                     </div>
@@ -275,15 +316,36 @@ export default function PathSelection({ state, onSelectPath, onBack, onMemorize,
 
         {/* Detail Header */}
         <div className="space-y-6">
-          <button 
-            onClick={() => setSelectedPath(null)}
-            className="flex items-center gap-2 text-earth/50 dark:text-ivory/50 hover:text-teal transition-colors group"
-          >
-            <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
-            <span className="text-sm font-black uppercase tracking-widest">
-              {isEs ? "Todas las series" : "All Paths"}
-            </span>
-          </button>
+          <div className="flex items-center justify-between gap-4">
+            <button 
+              onClick={() => setSelectedPath(null)}
+              className="flex items-center gap-2 text-earth/50 dark:text-ivory/50 hover:text-teal transition-colors group"
+            >
+              <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
+              <span className="text-sm font-black uppercase tracking-widest">
+                {isEs ? "Todas las series" : "All Paths"}
+              </span>
+            </button>
+
+            {nextPath && (
+              <button 
+                onClick={() => setSelectedPath(nextPath)}
+                className="flex flex-col items-end text-right text-earth/50 dark:text-ivory/50 hover:text-teal transition-colors group shrink-0 animate-in fade-in slide-in-from-right-3 duration-500"
+              >
+                <div className="flex items-center gap-1">
+                  <span className="text-xs font-black uppercase tracking-widest">
+                    {isEs ? "Siguiente" : "Next Path"}
+                  </span>
+                  <ChevronRight size={16} className="group-hover:translate-x-0.5 transition-transform" />
+                </div>
+                <span className="text-[10px] text-earth-light/50 dark:text-lavender-muted/50 font-serif font-semibold max-w-[120px] sm:max-w-[200px] truncate">
+                  {'type' in nextPath && nextPath.type === "custom" 
+                    ? (nextPath as CustomPath).title 
+                    : (isEs ? (nextPath as Path).titleEs : (nextPath as Path).title)}
+                </span>
+              </button>
+            )}
+          </div>
 
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6">
             <div className="space-y-3 flex-1">
@@ -387,13 +449,15 @@ export default function PathSelection({ state, onSelectPath, onBack, onMemorize,
                           {isCompleted ? <Flower2 size={18} className="text-amber-600 dark:text-amber-400" /> : dayNum}
                         </div>
                         <div className="flex flex-col gap-0.5 overflow-hidden">
-                          <span className={`text-[9px] font-black uppercase tracking-[0.2em] ${
+                          <span className={`text-[9px] font-black uppercase tracking-[0.2em] flex items-center gap-1 flex-wrap ${
                             isCompleted ? "text-amber-600/60 dark:text-amber-400/60" : isActive ? "text-teal" : "text-earth-light/30"
                           }`}>
-                            {isEs ? `Día ${dayNum}` : `Day ${dayNum}`}
+                            {(dayData as any)?.title 
+                              ? <span>{isEs ? `Día ${dayNum}` : `Day ${dayNum}`} • <span className="whitespace-nowrap">{(dayData as any).reference}</span></span>
+                              : (isEs ? `Día ${dayNum}` : `Day ${dayNum}`)}
                           </span>
                           <span className={`font-serif font-bold text-base truncate ${isActive ? "text-teal-900 dark:text-teal-50" : isCompleted ? "text-earth/60 dark:text-ivory/60" : "text-earth dark:text-ivory"}`}>
-                            {dayData?.reference || (isEs ? "Versículo" : "Verse")}
+                            {(dayData as any)?.title || (dayData as any)?.reference ? <span className={!(dayData as any)?.title ? "whitespace-nowrap" : undefined}>{(dayData as any)?.title || (dayData as any)?.reference}</span> : (isEs ? "Versículo" : "Verse")}
                           </span>
                         </div>
                         {isActive && (
@@ -415,7 +479,7 @@ export default function PathSelection({ state, onSelectPath, onBack, onMemorize,
                       <div className={`w-full h-full p-4 rounded-[20px] border border-teal-400/20 bg-teal/10 dark:bg-teal-950/20 flex flex-col justify-center`}>
                         <div className="overflow-hidden">
                           <div className="flex items-center justify-between mb-1">
-                            <p className="text-[8px] font-black uppercase tracking-widest text-teal/60">
+                            <p className="text-[8px] font-black uppercase tracking-widest text-teal/60 whitespace-nowrap">
                               {dayData?.reference}
                             </p>
                             <RotateCw size={10} className="text-teal/40" />
@@ -564,7 +628,7 @@ export default function PathSelection({ state, onSelectPath, onBack, onMemorize,
                     </div>
 
                     <div className="flex-1 space-y-3 relative z-10 w-full mb-6 text-left">
-                      <h3 className="text-2xl font-serif font-black transition-colors leading-tight text-earth dark:text-ivory min-h-[4rem] line-clamp-2">
+                      <h3 className="text-xl sm:text-2xl font-serif font-black transition-colors leading-tight text-earth dark:text-ivory min-h-[4.5rem] sm:min-h-[4rem] line-clamp-2">
                         {path.title}
                       </h3>
                       <p className="text-sm text-earth-light/70 dark:text-lavender-muted/60 leading-relaxed line-clamp-2 min-h-[2.5rem]">
@@ -641,7 +705,7 @@ export default function PathSelection({ state, onSelectPath, onBack, onMemorize,
               </div>
 
               <div className="flex-1 space-y-3 relative z-10 w-full mb-6">
-                <h3 className="text-2xl font-serif font-black transition-colors leading-tight text-earth dark:text-ivory min-h-[4rem] line-clamp-2">
+                <h3 className="text-xl sm:text-2xl font-serif font-black transition-colors leading-tight text-earth dark:text-ivory min-h-[4.5rem] sm:min-h-[4rem] line-clamp-2">
                   {isEs ? path.titleEs : path.title}
                 </h3>
                 <p className="text-sm text-earth-light/70 dark:text-lavender-muted/60 leading-relaxed line-clamp-2 min-h-[2.5rem]">

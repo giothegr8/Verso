@@ -1007,7 +1007,7 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
 
                       {/* Revealed Reference Area */}
                       <div className="text-center">
-                        <h3 className="text-2xl sm:text-3xl font-serif font-black text-earth dark:text-ivory tracking-tight">
+                        <h3 className="text-2xl sm:text-3xl font-serif font-black text-earth dark:text-ivory tracking-tight whitespace-nowrap">
                           {(() => {
                             const parts = verse.book.split(' / ');
                             const esBook = parts[0];

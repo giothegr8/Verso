@@ -200,20 +200,27 @@ async function fetchVerseFromApi(reference: string, translation: string): Promis
   // Partial mapping back to Verse object
   const isSpanish = translation.includes('RVR') || translation.includes('NVI') || translation.includes('NBLA');
   
+  const initialEn: Record<Translation, string> = {
+    KJV: "", NIV: "", NASB: "", RVR1960: "", NVI: "", NBLA: ""
+  };
+  const initialEs: Record<Translation, string> = {
+    KJV: "", NIV: "", NASB: "", RVR1960: "", NVI: "", NBLA: ""
+  };
+
+  if (isSpanish) {
+    initialEs[translation as Translation] = result.text;
+  } else {
+    initialEn[translation as Translation] = result.text;
+  }
+
   return {
     id: `api-bible-${reference.replace(/\s+/g, '-')}-${translation}`,
     book: result.reference.split(' ')[0],
     chapter: 1, // API search doesn't always provide discrete chapter/verse in some endpoints
     verse: 1,
     text: {
-      en: {
-        [translation]: isSpanish ? "" : result.text,
-        KJV: "", NIV: "", NASB: "", RVR1960: "", NVI: "", NBLA: ""
-      },
-      es: {
-        [translation]: isSpanish ? result.text : "",
-        RVR1960: "", NVI: "", NBLA: "", KJV: "", NIV: "", NASB: ""
-      }
+      en: initialEn,
+      es: initialEs
     },
     copyright: result.copyright,
     source: "api-bible"

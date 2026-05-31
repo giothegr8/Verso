@@ -61,6 +61,9 @@ export interface PathDay {
   reference: string;
   contextNote?: string;
   status: "reference-only" | "full-text";
+  title?: string;
+  theme?: string;
+  contextPassage?: string;
 }
 
 export interface CustomPathVerse {

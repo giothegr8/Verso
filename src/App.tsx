@@ -33,7 +33,7 @@ import ProductTour from "./components/ProductTour";
 import PathSelection from "./components/PathSelection";
 import CustomPathCreate from "./components/CustomPathCreate";
 import VersoLogo from "./components/VersoLogo";
-import { CustomPath } from "./types";
+import { CustomPath, Path } from "./types";
 
 // Services
 import { captureUtmParams } from "./services/marketingService";
@@ -193,6 +193,7 @@ function AppInner() {
   const [showSettings, setShowSettings] = useState(false);
   const [showTour, setShowTour] = useState(false);
   const [editingPath, setEditingPath] = useState<CustomPath | null>(null);
+  const [selectedPath, setSelectedPath] = useState<Path | CustomPath | null>(null);
   const [currentTourStepId, setCurrentTourStepId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -565,6 +566,8 @@ function AppInner() {
               setActiveTab("create-path");
             }}
             onDeleteCustom={handleDeleteCustomPath}
+            selectedPath={selectedPath}
+            setSelectedPath={setSelectedPath}
           />
         );
       case "create-path":
@@ -692,7 +695,7 @@ function AppInner() {
             <NavButton id="nav-home" active={activeTab === 'home'} activeColor="text-playful-purple" onClick={() => setActiveTab('home')} icon={<HomeIcon size={22} />} label={state.primaryLanguage === 'es' ? 'Inicio' : 'Home'} />
             <NavButton id="nav-memorize" active={activeTab === 'memorize'} activeColor="text-gold" onClick={() => setActiveTab('memorize')} icon={<BookOpen size={22} />} label={state.primaryLanguage === 'es' ? 'Memorizar' : 'Memorize'} />
             <NavButton id="nav-flashcards" active={activeTab === 'flashcards'} activeColor="text-coral" onClick={() => setActiveTab('flashcards')} icon={<Layers size={22} />} label={state.primaryLanguage === 'es' ? 'Tarjetas' : 'Cards'} />
-            <NavButton id="nav-paths" active={activeTab === 'paths'} activeColor="text-sky-blue" onClick={() => setActiveTab('paths')} icon={<Compass size={22} />} label={state.primaryLanguage === 'es' ? 'Series' : 'Paths'} />
+            <NavButton id="nav-paths" active={activeTab === 'paths'} activeColor="text-sky-blue" onClick={() => { setSelectedPath(null); setEditingPath(null); setActiveTab('paths'); }} icon={<Compass size={22} />} label={state.primaryLanguage === 'es' ? 'Series' : 'Paths'} />
             <NavButton id="nav-saved" active={activeTab === 'saved'} activeColor="text-teal" onClick={() => setActiveTab('saved')} icon={<Sprout size={22} />} label={state.primaryLanguage === 'es' ? 'Guardados' : 'Saved'} />
           </nav>
         </div>

@@ -289,7 +289,7 @@ export default function Saved({ state, setState, onStartMemorizing }: SavedProps
                       <Sprout size={20} />
                     </motion.div>
                     <div className="space-y-1">
-                      <h3 className="text-2xl font-serif font-black text-earth dark:text-ivory tracking-tight">
+                      <h3 className="text-2xl font-serif font-black text-earth dark:text-ivory tracking-tight whitespace-nowrap">
                         {getLocalizedBookName(verse.book, state.memorizeMode)} {verse.chapter}:{verse.verse}
                       </h3>
                     </div>

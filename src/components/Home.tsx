@@ -451,124 +451,171 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
 
             <motion.div
               whileHover={{ scale: 1.01 }}
-              className="card bg-white dark:bg-charcoal p-6 sm:p-8 shadow-xl border-earth/10 dark:border-white/10 relative overflow-hidden group"
+              className="card bg-white dark:bg-charcoal p-6 sm:p-8 shadow-xl border border-earth/10 dark:border-white/10 relative overflow-hidden group"
             >
               {/* Path Watermark */}
               <div className="absolute -bottom-10 -right-10 p-12 opacity-[0.03] pointer-events-none group-hover:opacity-[0.06] transition-transform duration-700 group-hover:scale-110">
                 <Sprout size={180} className="text-teal" />
               </div>
-              
-              <div className="relative flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                <div className="flex-1 space-y-5">
-                    <div className="space-y-2">
-                      <h3 className="text-2xl sm:text-3xl font-serif font-black text-earth dark:text-ivory tracking-tight leading-tight">
-                        {isCustomPath ? (selectedPath as CustomPath).title : (isEs ? (selectedPath as Path).titleEs : (selectedPath as Path).title)}
-                      </h3>
-                      <div className="flex flex-col gap-4">
-                        <span className="text-[11px] font-black uppercase tracking-[0.15em] text-amber-500 dark:text-amber-400">
-                          {isEs ? `Día ${currentPathDayNum} de ${pathDuration}` : `Day ${currentPathDayNum} of ${pathDuration}`}
-                        </span>
-                        
-                        {/* Path Snail Trail */}
-                        <div className="flex flex-wrap items-center gap-2.5 pb-1">
-                          {Array.from({ length: pathDuration }).map((_, i) => {
-                            const dayNum = i + 1;
-                            const isCompleted = dayNum < currentPathDayNum;
-                            const isActive = dayNum === currentPathDayNum;
-                            
-                            return (
-                              <div key={i} className="relative flex items-center justify-center">
-                                <motion.div 
-                                  initial={false}
-                                  animate={{
-                                    scale: isActive ? 1.25 : 1,
-                                  }}
-                                  className={`w-2.5 h-2.5 rounded-full transition-all duration-500 ${
-                                    isCompleted 
-                                      ? "bg-amber-500/40" 
-                                      : isActive 
-                                        ? "bg-amber-100 dark:bg-amber-200 shadow-[0_0_15px_rgba(251,191,36,0.5)]" 
-                                        : "bg-earth/10 dark:bg-white/10"
-                                  }`}
-                                />
-                                {isActive && (
-                                  <motion.div 
-                                    className="absolute inset-0 rounded-full bg-amber-200/40"
-                                    initial={{ opacity: 0, scale: 1 }}
-                                    animate={{ opacity: [0, 0.5, 0], scale: [1, 2.5, 3.5] }}
-                                    transition={{ duration: 2.5, repeat: Infinity, ease: "easeOut" }}
-                                  />
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </div>
 
-                  {isPathDayComplete ? (
-                    <div className="space-y-2 pt-2">
-                      <h4 className="text-xl font-serif font-black text-teal dark:text-teal-400">
-                        {isEs ? "Lo hiciste bien hoy." : "You’ve done well today."}
-                      </h4>
-                      {nextPathDay && (
-                        <p className="text-sm text-earth-light/60 dark:text-lavender-muted/60">
-                          {isEs ? `Vuelve mañana para ${nextPathDay.reference}.` : `Come back tomorrow for ${nextPathDay.reference}.`}
-                        </p>
-                      )}
+              <div className="relative space-y-6">
+                {/* Header Metadata Section */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-earth/5 dark:border-white/5 pb-4">
+                  <div className="space-y-1">
+                    <h3 className="text-xl sm:text-2xl font-serif font-black text-earth dark:text-ivory tracking-tight leading-tight">
+                      {isCustomPath ? (selectedPath as CustomPath).title : (isEs ? (selectedPath as Path).titleEs : (selectedPath as Path).title)}
+                    </h3>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-black uppercase tracking-[0.15em] text-amber-500 dark:text-amber-400">
+                        {isEs ? `Día ${currentPathDayNum} de ${pathDuration}` : `Day ${currentPathDayNum} of ${pathDuration}`}
+                      </span>
                     </div>
-                  ) : (
-                    activePathVerse && (
-                      <div className="space-y-2 pt-2">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-earth-light/50 dark:text-lavender-muted/50">
-                          {isEs ? "Versículo de hoy:" : "Today's verse:"}
+                  </div>
+
+                  {/* Path Snail Trail */}
+                  <div className="flex flex-wrap items-center gap-2 pb-1 shrink-0">
+                    {Array.from({ length: pathDuration }).map((_, i) => {
+                      const dayNum = i + 1;
+                      const isCompleted = dayNum < currentPathDayNum;
+                      const isActive = dayNum === currentPathDayNum;
+                      
+                      return (
+                        <div key={i} className="relative flex items-center justify-center">
+                          <motion.div 
+                            initial={false}
+                            animate={{
+                              scale: isActive ? 1.25 : 1,
+                            }}
+                            className={`w-2 h-2 rounded-full transition-all duration-500 ${
+                              isCompleted 
+                                ? "bg-amber-500/45" 
+                                : isActive 
+                                  ? "bg-amber-500 shadow-[0_0_12px_rgba(245,158,11,0.6)]" 
+                                  : "bg-earth/10 dark:bg-white/10"
+                            }`}
+                          />
+                          {isActive && (
+                            <motion.div 
+                              className="absolute inset-0 rounded-full bg-amber-500/30"
+                              initial={{ opacity: 0, scale: 1 }}
+                              animate={{ opacity: [0, 0.6, 0], scale: [1, 2.5, 3.5] }}
+                              transition={{ duration: 2.5, repeat: Infinity, ease: "easeOut" }}
+                            />
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Body Content Section */}
+                {isPathDayComplete ? (
+                  <div className="space-y-2 pt-2">
+                    <div className="flex items-center gap-2.5 text-teal dark:text-teal-400">
+                      <div className="w-8 h-8 rounded-full bg-teal/10 flex items-center justify-center text-teal dark:text-teal-400">
+                        <CheckCircle2 size={16} />
+                      </div>
+                      <h4 className="text-lg font-serif font-black">
+                        {isEs ? "Día completado" : "Day completed"}
+                      </h4>
+                    </div>
+                    {nextPathDay && (
+                      <p className="text-sm text-earth-light/60 dark:text-lavender-muted/60">
+                        {isEs ? (
+                          <span>Vuelve mañana para <span className="font-serif italic font-bold text-amber-600 dark:text-amber-400 whitespace-nowrap">{nextPathDay.reference}</span>.</span>
+                        ) : (
+                          <span>Come back tomorrow for <span className="font-serif italic font-bold text-amber-500 dark:text-amber-400 whitespace-nowrap">{nextPathDay.reference}</span>.</span>
+                        )}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  activePathVerse && (
+                    <div className="space-y-4">
+                      <div className="space-y-1.5">
+                        {(currentPathDay as any)?.title && (
+                          <h4 className="text-lg sm:text-xl font-serif font-black text-amber-600 dark:text-amber-400 leading-tight">
+                            {(currentPathDay as any).title}
+                          </h4>
+                        )}
+                        {(currentPathDay as any)?.theme && (
+                          <p className="text-sm font-serif italic text-earth/70 dark:text-ivory/70 leading-relaxed">
+                            {(currentPathDay as any).theme}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Memorization Verse block */}
+                      <div className="p-4 bg-earth/[0.02] dark:bg-white/[0.02] rounded-2xl border border-earth/5 dark:border-white/5 space-y-2">
+                        <p className="text-[9px] font-black uppercase tracking-widest text-earth-light/40 dark:text-lavender-muted/40 leading-none">
+                          {isEs ? "Versículo de memorización:" : "Memory verse:"}
                         </p>
-                        <p className="text-lg sm:text-xl font-serif italic text-earth dark:text-ivory">
+                        <p className="text-base sm:text-lg font-serif italic font-bold text-earth dark:text-ivory leading-snug whitespace-nowrap overflow-x-auto scrollbar-thin">
                           {getLocalizedBookName(activePathVerse.book, state.memorizeMode)} {activePathVerse.chapter}:{activePathVerse.verse}
                         </p>
                       </div>
-                    )
-                  )}
-                </div>
 
-                <div className="flex items-center gap-3 w-full md:w-auto">
-                  {isPathDayComplete ? (
-                    <div className="flex items-center gap-2 px-6 py-3 bg-teal/10 text-teal rounded-full font-bold text-sm border border-teal/20 shadow-sm">
-                      <CheckCircle2 size={16} />
-                      <span className="lowercase">{isEs ? "hoy completado" : "today done"}</span>
-                    </div>
-                  ) : (
-                    <button 
-                      onClick={() => {
-                        if (activePathVerse) {
-                           if (currentVerse.id === activePathVerse.id) {
-                             const el = document.getElementById('votd-card');
-                             el?.scrollIntoView({ behavior: 'smooth' });
-                           } else {
-                             setState(s => ({ ...s, selectedVerseId: activePathVerse.id, activeSource: "path" }));
-                           }
-                        }
-                      }}
-                      className="flex-1 md:flex-none flex items-center justify-center gap-2.5 py-4 px-8 bg-teal/10 hover:bg-teal/20 text-teal dark:text-teal-400 rounded-full font-bold border border-teal/20 transition-all active:scale-95 text-sm tracking-tight shadow-sm"
-                    >
-                      <div className="w-1.5 h-1.5 rounded-full bg-amber-100 dark:bg-amber-200 shadow-[0_0_8px_rgba(251,191,36,0.4)]" />
-                      <span className="lowercase">
-                      {currentVerse.id === activePathVerse?.id 
-                        ? (isEs ? "ver el versículo" : "view the verse")
-                        : (isEs ? "ir al versículo" : "go to verse")}
-                      </span>
-                    </button>
-                  )}
-                  
-                      {!isPathDayComplete && (
-                        <button 
-                          onClick={onCompletePathDay}
-                          className="p-2.5 rounded-full border border-earth/5 dark:border-white/5 text-earth/20 dark:text-white/10 hover:text-teal hover:border-teal/30 hover:bg-teal/5 transition-all shadow-sm shrink-0"
-                          title={isEs ? "marcar como hecho" : "mark as complete"}
-                        >
-                          <CheckCircle2 size={18} />
-                        </button>
+                      {/* Metadata context section */}
+                      {(currentPathDay as any)?.contextPassage && (
+                        <div className="flex items-center gap-1.5 text-xs text-earth-light/60 dark:text-lavender-muted/60 bg-teal/[0.02] dark:bg-teal-950/[0.05] border border-teal/5 rounded-xl px-3 py-2 w-max max-w-full">
+                          <BookOpen size={13} className="text-teal/70 shrink-0" />
+                          <p className="truncate">
+                            {isEs ? "Lectura de contexto: " : "Context reading: "}
+                            <span className="font-serif italic font-bold text-teal whitespace-nowrap">{(currentPathDay as any).contextPassage}</span>
+                          </p>
+                        </div>
                       )}
+                    </div>
+                  )
+                )}
+
+                {/* Footer Actions Row */}
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 pt-4 border-t border-earth/5 dark:border-white/5">
+                  <div>
+                    {isPathDayComplete ? (
+                      <div className="inline-flex items-center gap-2 px-4 py-2 bg-teal/10 text-teal rounded-xl font-semibold text-xs border border-teal/20 shadow-sm uppercase tracking-wider">
+                        <CheckCircle2 size={14} />
+                        <span>{isEs ? "completado" : "completed"}</span>
+                      </div>
+                    ) : (
+                      <p className="text-[10px] font-bold text-earth-light/40 dark:text-lavender-muted/40 uppercase tracking-widest">
+                        {isEs ? "Listo para memorizar" : "Ready to memorize"}
+                      </p>
+                    )}
+                  </div>
+
+                  {!isPathDayComplete && (
+                    <div className="flex items-center gap-2.5">
+                      <button 
+                        onClick={() => {
+                          if (activePathVerse) {
+                             if (currentVerse.id === activePathVerse.id) {
+                               const el = document.getElementById('votd-card');
+                               el?.scrollIntoView({ behavior: 'smooth' });
+                             } else {
+                               setState(s => ({ ...s, selectedVerseId: activePathVerse.id, activeSource: "path" }));
+                             }
+                          }
+                        }}
+                        className="flex-1 sm:flex-none flex items-center justify-center gap-2 py-2.5 px-5 bg-teal/10 hover:bg-teal/20 text-teal dark:text-teal-400 rounded-xl font-black text-xs uppercase tracking-wider border border-teal/20 active:scale-95 transition-all shadow-sm"
+                      >
+                        <div className="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]" />
+                        <span>
+                          {currentVerse.id === activePathVerse?.id 
+                            ? (isEs ? "ver el versículo" : "view the verse")
+                            : (isEs ? "ir al versículo" : "go to verse")}
+                        </span>
+                      </button>
+
+                      <button 
+                        onClick={onCompletePathDay}
+                        className="p-2.5 rounded-xl border border-earth/10 dark:border-white/10 text-earth/40 dark:text-white/20 hover:text-teal hover:border-teal/30 hover:bg-teal/5 active:scale-95 transition-all shadow-sm shrink-0"
+                        title={isEs ? "marcar como hecho" : "mark as complete"}
+                      >
+                        <CheckCircle2 size={16} />
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             </motion.div>

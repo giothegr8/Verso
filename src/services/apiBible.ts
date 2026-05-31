@@ -175,25 +175,28 @@ async function fetchFallbackVerse(
       const parsed = parseReference(reference);
       if (parsed) {
         const denoBook = formatBookForDeno(parsed.book);
-        const url = `https://bible-api.deno.dev/api/read/rvr1960/${denoBook}/${parsed.chapter}/${parsed.verse}`;
+        const isNvi = versionId === BIBLE_VERSIONS.NVI;
+        const denoVersion = isNvi ? "nvi" : "rv1960";
+        const copyrightLabel = isNvi ? "Nueva Versión Internacional" : "Reina-Valera 1960";
+        
+        const url = `https://bible-api.deno.dev/api/read/${denoVersion}/${denoBook}/${parsed.chapter}/${parsed.verse}`;
         const response = await fetch(url);
         if (response.ok) {
           const data = await response.json();
-          if (data && typeof data.text === "string") {
+          if (data && typeof data.verse === "string") {
+            const formattedBook = parsed.book.charAt(0).toUpperCase() + parsed.book.slice(1);
             return {
-              text: data.text.trim(),
-              reference: `${data.book} ${data.chapter}:${data.vers}`,
-              copyright: "Reina-Valera 1960"
+              text: data.verse.trim(),
+              reference: `${formattedBook} ${parsed.chapter}:${parsed.verse}`,
+              copyright: copyrightLabel
             };
           } else if (data && Array.isArray(data)) {
-            const text = data.map((v: any) => v.text.trim()).join(" ");
-            const bookName = data[0]?.book || parsed.book;
-            const chap = data[0]?.chapter || parsed.chapter;
-            const verses = data.map((v: any) => v.vers).join("-");
+            const text = data.map((v: any) => (v.verse || "").trim()).join(" ");
+            const bookName = parsed.book.charAt(0).toUpperCase() + parsed.book.slice(1);
             return {
               text,
-              reference: `${bookName} ${chap}:${verses}`,
-              copyright: "Reina-Valera 1960"
+              reference: `${bookName} ${parsed.chapter}:${parsed.verse}`,
+              copyright: copyrightLabel
             };
           }
         }
@@ -201,6 +204,8 @@ async function fetchFallbackVerse(
     } catch (e) {
       console.warn("Spanish Fallback API failed:", e);
     }
+    // Spanish requests must not fall through to English!
+    return null;
   }
 
   // Common or English fallback (bible-api.com)
@@ -304,8 +309,10 @@ export async function getVerseFromApiBible(
   // 3. Fallback to keyless public APIs
   const fallbackResult = await fetchFallbackVerse(reference, versionId);
   if (fallbackResult) {
-    saveToCache(reference, versionId, fallbackResult);
-    return fallbackResult;
+    let cleanText = fallbackResult.text.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+    const cleanedResult = { ...fallbackResult, text: cleanText };
+    saveToCache(reference, versionId, cleanedResult);
+    return cleanedResult;
   }
 
   return null;
