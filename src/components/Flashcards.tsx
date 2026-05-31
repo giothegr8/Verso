@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { AppState, Verse } from "../types";
+import { loadVerseAndMerge } from "../services/bibleService";
 import { MOCK_VERSES, getVerseByDate } from "../constants";
 import { ChevronLeft, ChevronRight, RotateCcw, Sparkles, BookOpen, Brain, HelpCircle, Trophy, Star, Bookmark, CheckCircle2, ArrowRight, Flower2, Sprout, Compass, Layers } from "lucide-react";
 import { getValidatedVerse, getCurrentTranslationPair, getLocalizedBookName, getLocalDateString, getVerseLines, removeAccents, VERSE_LAYOUT } from "../utils/verseUtils";
@@ -91,6 +92,42 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
   } else {
     verse = votd;
   }
+
+  // Load missing verse text automatically on the fly
+  useEffect(() => {
+    if (!verse) return;
+    
+    const activePair = getCurrentTranslationPair(state);
+    const mode = state.memorizeMode;
+    
+    let needsEs = false;
+    let needsEn = false;
+    
+    if (mode === "es" || mode === "both") {
+      const txt = verse.text.es[activePair.es];
+      if (!txt || txt.toLowerCase().includes("coming soon") || txt.toLowerCase().includes("próximamente") || txt.toLowerCase().includes("proximamente")) {
+        needsEs = true;
+      }
+    }
+    
+    if (mode === "en" || mode === "both") {
+      const txt = verse.text.en[activePair.en];
+      if (!txt || txt.toLowerCase().includes("coming soon") || txt.toLowerCase().includes("próximamente") || txt.toLowerCase().includes("proximamente")) {
+        needsEn = true;
+      }
+    }
+    
+    if (needsEs || needsEn) {
+      const ref = `${verse.book} ${verse.chapter}:${verse.verse}`;
+      loadVerseAndMerge(ref, verse.id, state, setState);
+    }
+  }, [
+    verse?.id,
+    state.memorizeMode,
+    state.selectedTranslations?.es,
+    state.selectedTranslations?.en,
+    state.activeSource
+  ]);
 
   const { esText, enText, activePair } = useMemo(() => 
     getValidatedVerse(verse, state),

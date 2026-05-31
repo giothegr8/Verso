@@ -9,7 +9,7 @@ import { handleShare } from "../utils/shareUtils";
 import { AnimatePresence } from "motion/react";
 import ShareModal from "./ShareModal";
 import { PATHS } from "../constants";
-import { searchVerse } from "../services/bibleService";
+import { searchVerse, loadVerseAndMerge } from "../services/bibleService";
 
 interface HomeProps {
   state: AppState;
@@ -166,6 +166,11 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
         copyright: v.copyright
       };
     }
+    const ref = (currentPathDay as any).reference;
+    if (ref) {
+      const fromCustom = state.customVerses.find(v => v.id === `ref-${ref}`);
+      if (fromCustom) return fromCustom;
+    }
     return getVerseText({ reference: (currentPathDay as any).reference });
   };
 
@@ -203,6 +208,42 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
     default:
       currentVerse = votd;
   }
+
+  // Load missing verse text automatically on the fly
+  React.useEffect(() => {
+    if (!currentVerse) return;
+    
+    const activePair = getCurrentTranslationPair(state);
+    const mode = state.memorizeMode;
+    
+    let needsEs = false;
+    let needsEn = false;
+    
+    if (mode === "es" || mode === "both") {
+      const txt = currentVerse.text.es[activePair.es];
+      if (!txt || txt.toLowerCase().includes("coming soon") || txt.toLowerCase().includes("próximamente") || txt.toLowerCase().includes("proximamente")) {
+        needsEs = true;
+      }
+    }
+    
+    if (mode === "en" || mode === "both") {
+      const txt = currentVerse.text.en[activePair.en];
+      if (!txt || txt.toLowerCase().includes("coming soon") || txt.toLowerCase().includes("próximamente") || txt.toLowerCase().includes("proximamente")) {
+        needsEn = true;
+      }
+    }
+    
+    if (needsEs || needsEn) {
+      const ref = `${currentVerse.book} ${currentVerse.chapter}:${currentVerse.verse}`;
+      loadVerseAndMerge(ref, currentVerse.id, state, setState);
+    }
+  }, [
+    currentVerse?.id,
+    state.memorizeMode,
+    state.selectedTranslations?.es,
+    state.selectedTranslations?.en,
+    state.activeSource
+  ]);
 
   const isCustomMode = state.activeSource === "custom";
   const isVotd = currentVerse.id === votd.id && !isCustomMode;

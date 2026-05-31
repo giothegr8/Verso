@@ -21,7 +21,13 @@ export function validateVerseTranslation(verse: Verse | null, lang: "es" | "en",
   }
   
   const text = verse.text[lang][translation];
-  if (!text || text.trim() === "") {
+  if (
+    !text || 
+    text.trim() === "" || 
+    text.toLowerCase().includes("coming soon") || 
+    text.toLowerCase().includes("proximamente") || 
+    text.toLowerCase().includes("próximamente")
+  ) {
     return { 
       isValid: false, 
       error: lang === "es" 

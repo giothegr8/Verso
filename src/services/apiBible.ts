@@ -28,6 +28,9 @@ export const BIBLE_VERSIONS: Record<string, string> = {
   ASV: "06125ad3dfee5834-01",
   RVR1960: "592420522e16049f-01",
   NVI: "5da0108dbd6d3761-01",
+  NBLA: "c309477e163c81e9-01",
+  NASB: "301b5fa8dbd6c376-01",
+  NIV: "bba9f40182ba81d4-01",
   // Fallbacks
   en: "de4e12af7f895945-01", 
   es: "592420522e16049f-01"
@@ -165,7 +168,7 @@ async function fetchFallbackVerse(
   reference: string,
   versionId: string
 ): Promise<{ text: string; reference: string; copyright: string } | null> {
-  const isSpanish = versionId === BIBLE_VERSIONS.RVR1960 || versionId === BIBLE_VERSIONS.NVI || versionId === BIBLE_VERSIONS.es;
+  const isSpanish = versionId === BIBLE_VERSIONS.RVR1960 || versionId === BIBLE_VERSIONS.NVI || versionId === BIBLE_VERSIONS.NBLA || versionId === BIBLE_VERSIONS.es;
 
   if (isSpanish) {
     try {
@@ -240,20 +243,22 @@ export async function getVerseFromApiBible(
       const firstVerse = parsed.verse.split("-")[0];
       const verseId = `${usfmBook}.${parsed.chapter}.${firstVerse}`;
       try {
-        const response = await fetch(`/api/bible/verse?verseId=${verseId}`);
+        const response = await fetch(`/api/bible/verse?verseId=${verseId}&bibleId=${versionId}`);
         if (response.ok) {
-          const apiJson = await response.json();
-          if (apiJson && apiJson.data) {
-            const rawContent = apiJson.data.content || "";
-            // Remove HTML tags
-            let text = rawContent.replace(/<[^>]*>/g, "").trim();
-            // Remove leading verse numbers (e.g. "8 ") or class markers if any
-            text = text.replace(/^\d+\s+/, "").trim();
+          const payload = await response.json();
+          if (payload && payload.data) {
+            const rawContent = payload.data.content || "";
+            // Remove the verse number span if present (e.g. <span ...>8</span>)
+            let text = rawContent.replace(/<span[^>]*>\s*\d+\s*<\/span>/gi, "");
+            // Remove all other HTML tags safely
+            text = text.replace(/<[^>]*>/g, " ");
+            // Compact whitespace and trim
+            text = text.replace(/\s+/g, " ").trim();
             
             const result = {
               text: text,
-              reference: apiJson.data.reference || `${parsed.book} ${parsed.chapter}:${parsed.verse}`,
-              copyright: apiJson.data.copyright || "Provided by API.Bible"
+              reference: payload.data.reference || `${parsed.book} ${parsed.chapter}:${parsed.verse}`,
+              copyright: payload.data.copyright || "Provided by API.Bible"
             };
             saveToCache(reference, versionId, result);
             return result;

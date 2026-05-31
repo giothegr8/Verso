@@ -24,8 +24,8 @@ async function startServer() {
     }
 
     const baseUrl = process.env.API_BIBLE_BASE_URL || "https://api.scripture.api.bible/v1";
-    const defaultBibleId = process.env.DEFAULT_BIBLE_ID || "7142879509583d59-01";
-    const fetchUrl = `${baseUrl}/bibles/${defaultBibleId}/verses/${verseId}`;
+    const bibleId = req.query.bibleId || process.env.DEFAULT_BIBLE_ID || "7142879509583d59-01";
+    const fetchUrl = `${baseUrl}/bibles/${bibleId}/verses/${verseId}`;
 
     try {
       const response = await fetch(fetchUrl, {
