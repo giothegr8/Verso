@@ -30,19 +30,55 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
   const [searchResult, setSearchResult] = useState<Verse | null>(null);
   const [isSearching, setIsSearching] = useState(false);
   const [lookupError, setLookupError] = useState<string | null>(null);
+  const [suggestion, setSuggestion] = useState<string | null>(null);
   const [searchTranslation, setSearchTranslation] = useState<Translation | "">("");
   const isEs = state.primaryLanguage === "es";
+
+  const handleApplySuggestion = (sug: string) => {
+    setSearchQuery(sug);
+    setSuggestion(null);
+    setLookupError(null);
+    setTimeout(() => {
+      setIsSearching(true);
+      searchVerse(sug, searchTranslation || (isEs ? state.selectedTranslations.es : state.selectedTranslations.en))
+        .then((result) => {
+          if (result) {
+            setSearchResult(result);
+            setLookupError(null);
+          } else {
+            setLookupError(isEs ? "Versículo no encontrado. Prueba 'Juan 3:16'." : "Verse not found. Try 'John 3:16'.");
+            setSearchResult(null);
+          }
+        })
+        .catch((e: any) => {
+          if (e && e.message && e.message.startsWith("PARSE_ERROR:")) {
+            setLookupError(e.message.substring("PARSE_ERROR:".length));
+            if (e.suggestion) {
+              setSuggestion(e.suggestion);
+            }
+          } else {
+            setLookupError(isEs ? "Error al buscar." : "Error searching.");
+          }
+          setSearchResult(null);
+        })
+        .finally(() => {
+          setIsSearching(false);
+        });
+    }, 10);
+  };
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) {
       setLookupError(isEs ? "Escribe una cita bíblica primero." : "Enter a Bible reference first.");
       setSearchResult(null);
+      setSuggestion(null);
       return;
     }
     
     setIsSearching(true);
     setLookupError(null);
     setSearchResult(null);
+    setSuggestion(null);
     
     try {
       const translation = searchTranslation || (isEs ? state.selectedTranslations.es : state.selectedTranslations.en);
@@ -58,6 +94,9 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
     } catch (e: any) {
       if (e && e.message && e.message.startsWith("PARSE_ERROR:")) {
         setLookupError(e.message.substring("PARSE_ERROR:".length));
+        if (e.suggestion) {
+          setSuggestion(e.suggestion);
+        }
       } else {
         setLookupError(isEs ? "Error al buscar." : "Error searching.");
       }
@@ -1047,10 +1086,20 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
                 <motion.div 
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="p-3 rounded-xl bg-coral/10 border border-coral/20 flex items-center gap-2 text-[11px] font-bold text-coral"
+                  className="p-3 rounded-xl bg-coral/10 border border-coral/20 flex flex-col gap-2 text-[11px] font-bold text-coral"
                 >
-                  <AlertCircle size={14} />
-                  <span>{lookupError}</span>
+                  <div className="flex items-center gap-2">
+                    <AlertCircle size={14} />
+                    <span>{lookupError}</span>
+                  </div>
+                  {suggestion && (
+                    <button
+                      onClick={() => handleApplySuggestion(suggestion)}
+                      className="mt-1 px-3 py-1.5 self-start bg-coral/20 hover:bg-coral/30 border border-coral/30 rounded-lg text-[10px] uppercase tracking-wider text-coral font-black focus:outline-none transition-all cursor-pointer"
+                    >
+                      {isEs ? `¿Quisiste buscar "${suggestion}"?` : `Did you mean "${suggestion}"?`}
+                    </button>
+                  )}
                 </motion.div>
               )}
 

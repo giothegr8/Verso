@@ -112,6 +112,133 @@ export const BOOK_TO_USFM: Record<string, string> = {
   "apocalipsis": "REV", "revelation": "REV", "rev": "REV", "ap": "REV", "apo": "REV", "apoc": "REV"
 };
 
+// Maps USFM code to a canonical display name in English and Spanish
+export const CANONICAL_USFM_NAMES: Record<string, { en: string; es: string }> = {
+  GEN: { en: "Genesis", es: "Génesis" },
+  EXO: { en: "Exodus", es: "Éxodo" },
+  LEV: { en: "Leviticus", es: "Levítico" },
+  NUM: { en: "Numbers", es: "Números" },
+  DEU: { en: "Deuteronomy", es: "Deuteronomio" },
+  JOS: { en: "Joshua", es: "Josué" },
+  JDG: { en: "Judges", es: "Jueces" },
+  RUT: { en: "Ruth", es: "Rut" },
+  "1SA": { en: "1 Samuel", es: "1 Samuel" },
+  "2SA": { en: "2 Samuel", es: "2 Samuel" },
+  "1KI": { en: "1 Kings", es: "1 Reyes" },
+  "2KI": { en: "2 Kings", es: "2 Reyes" },
+  "1CH": { en: "1 Chronicles", es: "1 Crónicas" },
+  "2CH": { en: "2 Chronicles", es: "2 Crónicas" },
+  EZR: { en: "Ezra", es: "Esdras" },
+  NEH: { en: "Nehemiah", es: "Nehemías" },
+  EST: { en: "Esther", es: "Ester" },
+  JOB: { en: "Job", es: "Job" },
+  PSA: { en: "Psalms", es: "Salmos" },
+  PRO: { en: "Proverbs", es: "Proverbios" },
+  ECC: { en: "Ecclesiastes", es: "Eclesiastés" },
+  SNG: { en: "Song of Solomon", es: "Cantares" },
+  ISA: { en: "Isaiah", es: "Isaías" },
+  JER: { en: "Jeremiah", es: "Jeremías" },
+  LAM: { en: "Lamentations", es: "Lamentaciones" },
+  EZK: { en: "Ezekiel", es: "Ezequiel" },
+  DAN: { en: "Daniel", es: "Daniel" },
+  HOS: { en: "Hosea", es: "Oseas" },
+  JOL: { en: "Joel", es: "Joel" },
+  AMO: { en: "Amos", es: "Amós" },
+  OBA: { en: "Obadiah", es: "Abdías" },
+  JON: { en: "Jonah", es: "Jonás" },
+  MIC: { en: "Micah", es: "Miqueas" },
+  NAM: { en: "Nahum", es: "Nahúm" },
+  HAB: { en: "Habakkuk", es: "Habacuc" },
+  ZEP: { en: "Zephaniah", es: "Sofonías" },
+  HAG: { en: "Haggai", es: "Hageo" },
+  ZEC: { en: "Zechariah", es: "Zacarías" },
+  MAL: { en: "Malachi", es: "Malaquías" },
+  MAT: { en: "Matthew", es: "Mateo" },
+  MRK: { en: "Mark", es: "Marcos" },
+  LUK: { en: "Luke", es: "Lucas" },
+  JHN: { en: "John", es: "Juan" },
+  ACT: { en: "Acts", es: "Hechos" },
+  ROM: { en: "Romans", es: "Romanos" },
+  "1CO": { en: "1 Corinthians", es: "1 Corintios" },
+  "2CO": { en: "2 Corinthians", es: "2 Corintios" },
+  GAL: { en: "Galatians", es: "Gálatas" },
+  EPH: { en: "Ephesians", es: "Efesios" },
+  PHP: { en: "Philippians", es: "Filipenses" },
+  COL: { en: "Colossians", es: "Colosenses" },
+  "1TH": { en: "1 Thessalonians", es: "1 Tesalonicenses" },
+  "2TH": { en: "2 Thessalonians", es: "2 Tesalonicenses" },
+  "1TI": { en: "1 Timothy", es: "1 Timoteo" },
+  "2TI": { en: "2 Timothy", es: "2 Timoteo" },
+  TIT: { en: "Titus", es: "Tito" },
+  PHM: { en: "Philemon", es: "Filemón" },
+  HEB: { en: "Hebrews", es: "Hebreos" },
+  JAS: { en: "James", es: "Santiago" },
+  "1PE": { en: "1 Peter", es: "1 Pedro" },
+  "2PE": { en: "2 Peter", es: "2 Pedro" },
+  "1JN": { en: "1 John", es: "1 Juan" },
+  "2JN": { en: "2 John", es: "2 Juan" },
+  "3JN": { en: "3 John", es: "3 Juan" },
+  JUD: { en: "Jude", es: "Judas" },
+  REV: { en: "Revelation", es: "Apocalipsis" }
+};
+
+export function levenshtein(s1: string, s2: string): number {
+  if (s1 === s2) return 0;
+  if (s1.length === 0) return s2.length;
+  if (s2.length === 0) return s1.length;
+
+  const matrix = Array.from({ length: s1.length + 1 }, () => 
+    new Array(s2.length + 1).fill(0)
+  );
+
+  for (let i = 0; i <= s1.length; i++) matrix[i][0] = i;
+  for (let j = 0; j <= s2.length; j++) matrix[0][j] = j;
+
+  for (let i = 1; i <= s1.length; i++) {
+    for (let j = 1; j <= s2.length; j++) {
+      const cost = s1[i - 1] === s2[j - 1] ? 0 : 1;
+      matrix[i][j] = Math.min(
+        matrix[i - 1][j] + 1,
+        matrix[i][j - 1] + 1,
+        matrix[i - 1][j - 1] + cost
+      );
+    }
+  }
+
+  return matrix[s1.length][s2.length];
+}
+
+export function findSuggestedBook(userInput: string, isSpanish: boolean): string | null {
+  const cleanInput = userInput.toLowerCase().trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+  
+  if (cleanInput.length < 2) return null;
+
+  let bestMatch: string | null = null;
+  let bestScore = 0; // 0 to 1, higher is closer
+
+  for (const [key, usfm] of Object.entries(BOOK_TO_USFM)) {
+    // Only match against longer keys (at least 3 chars) to avoid suggesting small abbreviations
+    if (key.length < 3) continue;
+
+    const levDist = levenshtein(cleanInput, key);
+    const score = 1 - (levDist / Math.max(cleanInput.length, key.length));
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestMatch = usfm;
+    }
+  }
+
+  if (bestMatch && bestScore > 0.5) {
+    const names = CANONICAL_USFM_NAMES[bestMatch];
+    return isSpanish ? names.es : names.en;
+  }
+
+  return null;
+}
+
 export function preprocessReference(ref: string): string {
   if (!ref) return "";
   
@@ -274,12 +401,24 @@ export async function getVerseFromApiBible(
   reference: string, 
   versionId: string = BIBLE_VERSIONS.KJV
 ): Promise<{ text: string; reference: string; copyright: string } | null> {
-  // Check cache first
-  const cached = getFromCache(reference, versionId);
+  const parsed = parseReference(reference);
+  let refToUse = reference;
+  
+  if (parsed) {
+    const bookKey = parsed.book.toLowerCase().trim();
+    const usfmBook = BOOK_TO_USFM[bookKey];
+    if (usfmBook) {
+      const isSpanish = versionId === BIBLE_VERSIONS.RVR1960 || versionId === BIBLE_VERSIONS.NVI || versionId === BIBLE_VERSIONS.NBLA || versionId === BIBLE_VERSIONS.es;
+      const canonicalBookName = CANONICAL_USFM_NAMES[usfmBook]?.[isSpanish ? 'es' : 'en'] || parsed.book;
+      refToUse = `${canonicalBookName} ${parsed.chapter}:${parsed.verse}`;
+    }
+  }
+
+  // Check cache first using standardized refToUse
+  const cached = getFromCache(refToUse, versionId);
   if (cached) return cached;
 
   // 1. First try the secure proxy endpoint (no direct API.Bible call from frontend)
-  const parsed = parseReference(reference);
   if (parsed) {
     const bookKey = parsed.book.toLowerCase().trim();
     const usfmBook = BOOK_TO_USFM[bookKey];
@@ -301,10 +440,10 @@ export async function getVerseFromApiBible(
             
             const result = {
               text: text,
-              reference: payload.data.reference || `${parsed.book} ${parsed.chapter}:${parsed.verse}`,
+              reference: payload.data.reference || refToUse,
               copyright: payload.data.copyright || "Provided by API.Bible"
             };
-            saveToCache(reference, versionId, result);
+            saveToCache(refToUse, versionId, result);
             return result;
           }
         } else {
@@ -320,7 +459,7 @@ export async function getVerseFromApiBible(
   if (API_KEY) {
     try {
       // API.Bible search endpoint
-      const url = `${API_BASE}/bibles/${versionId}/search?query=${encodeURIComponent(reference)}`;
+      const url = `${API_BASE}/bibles/${versionId}/search?query=${encodeURIComponent(refToUse)}`;
       const response = await fetch(url, {
         headers: { "api-key": API_KEY }
       });
@@ -334,11 +473,11 @@ export async function getVerseFromApiBible(
             reference: verse.reference,
             copyright: data.meta?.fumsId ? "Provided by API.Bible" : "© Bible Translation Owner"
           };
-          saveToCache(reference, versionId, result);
+          saveToCache(refToUse, versionId, result);
           return result;
         }
       } else {
-        console.warn(`API.Bible returned status ${response.status} for ${reference}. Trying fallback...`);
+        console.warn(`API.Bible returned status ${response.status} for ${refToUse}. Trying fallback...`);
       }
     } catch (error) {
       console.warn("API.Bible Fetch Error, trying fallback...", error);
@@ -346,11 +485,11 @@ export async function getVerseFromApiBible(
   }
 
   // 3. Fallback to keyless public APIs
-  const fallbackResult = await fetchFallbackVerse(reference, versionId);
+  const fallbackResult = await fetchFallbackVerse(refToUse, versionId);
   if (fallbackResult) {
     let cleanText = fallbackResult.text.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
     const cleanedResult = { ...fallbackResult, text: cleanText };
-    saveToCache(reference, versionId, cleanedResult);
+    saveToCache(refToUse, versionId, cleanedResult);
     return cleanedResult;
   }
 

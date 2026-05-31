@@ -1,5 +1,5 @@
 import { Verse, AppState, Translation } from "../types";
-import { getVerseFromApiBible, BIBLE_VERSIONS, parseReference, BOOK_TO_USFM } from "./apiBible";
+import { getVerseFromApiBible, BIBLE_VERSIONS, parseReference, BOOK_TO_USFM, findSuggestedBook } from "./apiBible";
 
 /**
  * Bible Service
@@ -263,6 +263,18 @@ export async function searchVerse(reference: string, translation?: string): Prom
   const bookCleaned = parsed.book.toLowerCase().trim();
   const usfmBook = BOOK_TO_USFM[bookCleaned];
   if (!usfmBook) {
+    const suggestedBook = findSuggestedBook(parsed.book, !!isSpanish);
+    if (suggestedBook) {
+      const suggestedRef = `${suggestedBook} ${parsed.chapter}:${parsed.verse}`;
+      const err = new Error(
+        "PARSE_ERROR:" + (isSpanish 
+          ? `Libro bíblico no reconocido: "${parsed.book}". ¿Quisiste decir "${suggestedBook}"?` 
+          : `Unrecognized Bible book name: "${parsed.book}". Did you mean "${suggestedBook}"?`)
+      );
+      (err as any).suggestion = suggestedRef;
+      throw err;
+    }
+    
     throw new Error(
       "PARSE_ERROR:" + (isSpanish 
         ? `Libro bíblico no reconocido: "${parsed.book}". Intenta verificar la ortografía.` 

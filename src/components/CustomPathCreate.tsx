@@ -27,6 +27,7 @@ export default function CustomPathCreate({ state, onSave, onBack, initialPath }:
     isEs ? state.selectedTranslations.es : state.selectedTranslations.en
   );
   const [searchError, setSearchError] = useState<string | null>(null);
+  const [suggestion, setSuggestion] = useState<string | null>(null);
   const [showSearch, setShowSearch] = useState(false);
 
   useEffect(() => {
@@ -36,11 +37,62 @@ export default function CustomPathCreate({ state, onSave, onBack, initialPath }:
   // Validation
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  const handleApplySuggestion = (sug: string) => {
+    setSearchQuery(sug);
+    setSuggestion(null);
+    setSearchError(null);
+    
+    // Automatically trigger search
+    setTimeout(() => {
+      setIsSearching(true);
+      searchVerse(sug, searchTranslation)
+        .then((result) => {
+          if (result) {
+            const text = isEs ? result.text.es[searchTranslation] : result.text.en[searchTranslation];
+            const newVerse: CustomPathVerse = {
+              id: `custom-v-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              dayNumber: verses.length + 1,
+              reference: `${getLocalizedBookName(result.book, state.memorizeMode)} ${result.chapter}:${result.verse}`,
+              translation: searchTranslation,
+              text: text,
+              copyright: result.copyright,
+              source: "api-bible",
+              createdAt: new Date().toISOString()
+            };
+
+            if (verses.some(v => v.reference === newVerse.reference)) {
+              setLookupError(isEs ? "Este versículo ya está en tu Serie." : "This verse is already in your Path.");
+            } else {
+              setVerses([...verses, newVerse]);
+              setSearchQuery("");
+              setShowSearch(false);
+            }
+          } else {
+            setSearchError(isEs ? "Versículo no encontrado. Prueba 'Juan 3:16'." : "Verse not found. Try 'John 3:16'.");
+          }
+        })
+        .catch((e: any) => {
+          if (e && e.message && e.message.startsWith("PARSE_ERROR:")) {
+            setSearchError(e.message.substring("PARSE_ERROR:".length));
+            if (e.suggestion) {
+              setSuggestion(e.suggestion);
+            }
+          } else {
+            setSearchError(isEs ? "Error al buscar." : "Error searching.");
+          }
+        })
+        .finally(() => {
+          setIsSearching(false);
+        });
+    }, 10);
+  };
+
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
     
     setIsSearching(true);
     setSearchError(null);
+    setSuggestion(null);
     
     try {
       const translation = searchTranslation || (isEs ? state.selectedTranslations.es : state.selectedTranslations.en);
@@ -75,6 +127,9 @@ export default function CustomPathCreate({ state, onSave, onBack, initialPath }:
     } catch (e: any) {
       if (e && e.message && e.message.startsWith("PARSE_ERROR:")) {
         setSearchError(e.message.substring("PARSE_ERROR:".length));
+        if (e.suggestion) {
+          setSuggestion(e.suggestion);
+        }
       } else {
         setSearchError(isEs ? "Error al buscar." : "Error searching.");
       }
@@ -403,9 +458,19 @@ export default function CustomPathCreate({ state, onSave, onBack, initialPath }:
                   </div>
 
                   {searchError && (
-                    <div className="p-4 bg-coral/10 rounded-2xl flex items-center gap-3 text-coral border border-coral/20">
-                      <AlertCircle size={18} />
-                      <p className="text-sm font-bold">{searchError}</p>
+                    <div className="p-4 bg-coral/10 rounded-2xl flex flex-col gap-2 text-coral border border-coral/20">
+                      <div className="flex items-center gap-3">
+                        <AlertCircle size={18} />
+                        <p className="text-sm font-bold">{searchError}</p>
+                      </div>
+                      {suggestion && (
+                        <button
+                          onClick={() => handleApplySuggestion(suggestion)}
+                          className="mt-1 px-3 py-1.5 self-start bg-coral/20 hover:bg-coral/30 border border-coral/30 rounded-lg text-[10px] uppercase tracking-wider text-coral font-black focus:outline-none transition-all cursor-pointer"
+                        >
+                          {isEs ? `¿Quisiste buscar "${suggestion}"?` : `Did you mean "${suggestion}"?`}
+                        </button>
+                      )}
                     </div>
                   )}
 
