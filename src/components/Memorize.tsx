@@ -1449,66 +1449,64 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
     <div id="memorize-content" className="flex-1 flex flex-col pt-4 pb-12">
       {/* Top Section - Premium Header (Refined Size) */}
       <div className="px-6 sm:px-12 mb-8 sm:mb-10 flex-shrink-0">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="space-y-2 sm:space-y-3">
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-2">
-                <div className="w-2.5 h-2.5 rounded-full bg-amber-500 dark:bg-gold animate-pulse" />
-                <span className="text-[12px] sm:text-[13px] font-black uppercase tracking-[0.3em] text-amber-600 dark:text-gold leading-none">
-                  {state.primaryLanguage === 'es' ? 'MEMORIZA' : 'MEMORIZE'}
-                </span>
-              </div>
-              
-              {state.memorizeMode === 'both' && (
-                <span className="bg-teal/10 dark:bg-teal/20 text-[10px] sm:text-[11px] font-black uppercase tracking-[0.2em] px-3 py-1 rounded-full text-teal dark:text-teal-400 border border-teal/20">
-                  {activeLanguage === 'es' 
-                    ? (state.primaryLanguage === 'es' ? 'Español' : 'Spanish')
-                    : (state.primaryLanguage === 'es' ? 'Inglés' : 'English')}
-                </span>
-              )}
+        <div className="space-y-2 sm:space-y-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2">
+              <div className="w-2.5 h-2.5 rounded-full bg-amber-500 dark:bg-gold animate-pulse" />
+              <span className="text-[12px] sm:text-[13px] font-black uppercase tracking-[0.3em] text-amber-600 dark:text-gold leading-none">
+                {state.primaryLanguage === 'es' ? 'MEMORIZA' : 'MEMORIZE'}
+              </span>
             </div>
             
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-serif font-black text-earth dark:text-ivory tracking-tight leading-tight">
+            {state.memorizeMode === 'both' && (
+              <span className="bg-teal/10 dark:bg-teal/20 text-[10px] sm:text-[11px] font-black uppercase tracking-[0.2em] px-3 py-1 rounded-full text-teal dark:text-teal-400 border border-teal/20">
+                {activeLanguage === 'es' 
+                  ? (state.primaryLanguage === 'es' ? 'Español' : 'Spanish')
+                  : (state.primaryLanguage === 'es' ? 'Inglés' : 'English')}
+              </span>
+            )}
+          </div>
+          
+          <div className="flex flex-row items-center justify-between gap-4 w-full">
+            <h2 className="text-2xl sm:text-4xl lg:text-5xl font-serif font-black text-earth dark:text-ivory tracking-tight leading-tight">
               {getLocalizedBookName(verse.book, activeLanguage)} {verse.chapter}:{verse.verse}
             </h2>
             
-            <motion.p 
-              key={`${stage}-${state.primaryLanguage}`}
-              initial={{ opacity: 0, y: 5 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="text-sm sm:text-base text-earth-light/70 dark:text-lavender-muted/70 font-medium tracking-tight antialiased"
-            >
-              {state.primaryLanguage === 'es' 
-                ? (
-                  stage === 1 ? 'Léelo en voz alta, todavía no tienes que escribir' :
-                  stage === 2 ? 'Léelo en voz alta una vez más' :
-                  stage === 3 ? 'Respira profundo. Di las palabras en voz alta' :
-                  stage === 4 ? 'Una última lectura antes de escribir' :
-                  'Ahora escribe lo que recuerdas'
-                )
-                : (
-                  stage === 1 ? 'Read it out loud, no typing yet' :
-                  stage === 2 ? 'Read it out loud once more' :
-                  stage === 3 ? 'Take a breath. Speak the words out loud' :
-                  stage === 4 ? 'One last read before you type' :
-                  'Now type what you remember'
-                )
-              }
-            </motion.p>
-          </div>
-          
-          {/* Progress Indicator */}
-          <div className="flex items-center gap-6 mt-2 sm:mt-0">
-            <div className="flex flex-col items-center sm:items-end">
-              <span className="text-[9px] font-black uppercase tracking-widest text-earth-light/40 dark:text-lavender-muted/30 mb-0.5">
+            {/* Progress Indicator */}
+            <div className="flex items-center gap-1.5 flex-shrink-0 bg-amber-500/5 dark:bg-amber-200/5 px-2.5 py-1 rounded-full border border-amber-500/10 dark:border-amber-200/10">
+              <span className="text-[10px] font-black uppercase tracking-widest text-earth-light/40 dark:text-lavender-muted/30">
                 {state.primaryLanguage === 'es' ? 'Paso' : 'Step'}
               </span>
-              <div className="flex items-baseline gap-1">
-                <span className="text-3xl sm:text-4xl font-serif font-black text-amber-600 dark:text-amber-200/90 lining-nums">{stage}</span>
-                <span className="text-sm text-earth-light/40 dark:text-ivory/20 font-black">/ 5</span>
+              <div className="flex items-baseline gap-0.5">
+                <span className="text-xl sm:text-2xl font-serif font-black text-amber-600 dark:text-amber-200/90 lining-nums">{stage}</span>
+                <span className="text-xs text-earth-light/40 dark:text-ivory/20 font-black">/ 5</span>
               </div>
             </div>
           </div>
+          
+          <motion.p 
+            key={`${stage}-${state.primaryLanguage}`}
+            initial={{ opacity: 0, y: 5 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-sm sm:text-base text-earth-light/70 dark:text-lavender-muted/70 font-medium tracking-tight antialiased"
+          >
+            {state.primaryLanguage === 'es' 
+              ? (
+                stage === 1 ? 'Léelo en voz alta, todavía no tienes que escribir' :
+                stage === 2 ? 'Léelo en voz alta una vez más' :
+                stage === 3 ? 'Respira profundo. Di las palabras en voz alta' :
+                stage === 4 ? 'Una última lectura antes de escribir' :
+                'Ahora escribe lo que recuerdas'
+              )
+              : (
+                stage === 1 ? 'Read it out loud, no typing yet' :
+                stage === 2 ? 'Read it out loud once more' :
+                stage === 3 ? 'Take a breath. Speak the words out loud' :
+                stage === 4 ? 'One last read before you type' :
+                'Now type what you remember'
+              )
+            }
+          </motion.p>
         </div>
         
         {/* Dotted Progress Indicator - Organic Seed Trail */}
@@ -2013,9 +2011,23 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                 <div className="min-w-[85px] sm:min-w-[115px] flex justify-start">
                   <button
                     disabled={stage === 5}
-                    onPointerDown={() => setIsRevealed(true)}
-                    onPointerUp={() => setIsRevealed(false)}
-                    onPointerLeave={() => setIsRevealed(false)}
+                    onPointerDown={(e) => {
+                      if (e.pointerType === "touch") {
+                        setIsRevealed(v => !v);
+                      } else {
+                        setIsRevealed(true);
+                      }
+                    }}
+                    onPointerUp={(e) => {
+                      if (e.pointerType !== "touch") {
+                        setIsRevealed(false);
+                      }
+                    }}
+                    onPointerLeave={(e) => {
+                      if (e.pointerType !== "touch") {
+                        setIsRevealed(false);
+                      }
+                    }}
                     className={`p-2.5 rounded-full transition-all duration-300 border flex items-center justify-center shadow-md active:scale-90 ${
                       stage === 5
                         ? 'bg-transparent border-earth/5 dark:border-white/5 text-earth/10 dark:text-ivory/10 cursor-not-allowed'

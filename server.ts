@@ -11,6 +11,50 @@ async function startServer() {
 
   app.use(express.json());
 
+  // API.Bible proxy endpoint
+  app.get("/api/bible/verse", async (req, res) => {
+    const verseId = req.query.verseId;
+    if (!verseId || typeof verseId !== "string") {
+      return res.status(400).json({ error: "Missing verseId parameter" });
+    }
+
+    const apiKey = process.env.API_BIBLE_KEY || process.env.VITE_API_BIBLE_KEY;
+    if (!apiKey) {
+      return res.status(400).json({ error: "Missing API_BIBLE_KEY" });
+    }
+
+    const baseUrl = process.env.API_BIBLE_BASE_URL || "https://api.scripture.api.bible/v1";
+    const defaultBibleId = process.env.DEFAULT_BIBLE_ID || "7142879509583d59-01";
+    const fetchUrl = `${baseUrl}/bibles/${defaultBibleId}/verses/${verseId}`;
+
+    try {
+      const response = await fetch(fetchUrl, {
+        headers: {
+          "api-key": apiKey,
+          "Accept": "application/json"
+        }
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        try {
+          const errorJson = JSON.parse(errorText);
+          return res.status(response.status).json(errorJson);
+        } catch {
+          return res.status(response.status).json({ 
+            error: `API.Bible returned status ${response.status}`,
+            details: errorText 
+          });
+        }
+      }
+
+      const data = await response.json();
+      return res.json(data);
+    } catch (error: any) {
+      return res.status(500).json({ error: error.message || "Failed to fetch from API.Bible" });
+    }
+  });
+
   // Reminder Registration Endpoint
   app.post("/api/reminders/register", async (req, res) => {
     try {

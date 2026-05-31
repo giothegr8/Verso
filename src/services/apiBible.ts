@@ -3,7 +3,8 @@
  * Handles verse fetching, caching, and copyright.
  */
 
-const API_KEY = (import.meta as any).env.VITE_API_BIBLE_KEY;
+// @ts-ignore
+const API_KEY = import.meta.env.VITE_API_BIBLE_KEY || (import.meta as any).env?.VITE_API_BIBLE_KEY;
 const API_BASE = "https://api.scripture.api.bible/v1";
 
 // Cache settings
@@ -30,6 +31,82 @@ export const BIBLE_VERSIONS: Record<string, string> = {
   // Fallbacks
   en: "de4e12af7f895945-01", 
   es: "592420522e16049f-01"
+};
+
+const BOOK_TO_USFM: Record<string, string> = {
+  // Pentateuch
+  "genesis": "GEN",
+  "exodo": "EXO", "exodus": "EXO",
+  "levitico": "LEV", "leviticus": "LEV",
+  "numeros": "NUM", "numbers": "NUM",
+  "deuteronomio": "DEU", "deuteronomy": "DEU",
+  // Historical
+  "josue": "JOS", "joshua": "JOS",
+  "jueces": "JDG", "judges": "JDG",
+  "rut": "RUT", "ruth": "RUT",
+  "1 samuel": "1SA", "1samuel": "1SA", "1-samuel": "1SA",
+  "2 samuel": "2SA", "2samuel": "2SA", "2-samuel": "2SA",
+  "1 reyes": "1KI", "1kings": "1KI", "1-kings": "1KI",
+  "2 reyes": "2KI", "2kings": "2KI", "2-kings": "2KI",
+  "1 cronicas": "1CH", "1chronicles": "1CH", "1-cronicas": "1CH", "1-chronicles": "1CH",
+  "2 cronicas": "2CH", "2chronicles": "2CH", "2-cronicas": "2CH", "2-chronicles": "2CH",
+  "esdras": "EZR", "ezra": "EZR",
+  "nehemias": "NEH", "nehemiah": "NEH",
+  "ester": "EST", "esther": "EST",
+  // Poetic
+  "job": "JOB",
+  "salmos": "PSA", "salmo": "PSA", "psalms": "PSA", "psalm": "PSA",
+  "proverbios": "PRO", "proverbs": "PRO",
+  "eclesiastes": "ECC", "ecclesiastes": "ECC",
+  "cantares": "SNG", "cantares de salomon": "SNG", "song of solomon": "SNG", "song of songs": "SNG",
+  // Major Prophets
+  "isaias": "ISA", "isaiah": "ISA",
+  "jeremias": "JER", "jeremiah": "JER",
+  "lamentaciones": "LAM", "lamentations": "LAM",
+  "ezequiel": "EZK", "ezekiel": "EZK",
+  "daniel": "DAN",
+  // Minor Prophets
+  "oseas": "HOS", "hosea": "HOS",
+  "joel": "JOL",
+  "amos": "AMO",
+  "abdias": "OBA", "obadiah": "OBA",
+  "jonas": "JON", "jonah": "JON",
+  "miqueas": "MIC", "micah": "MIC",
+  "nahum": "NAM",
+  "habacuc": "HAB", "habakkuk": "HAB",
+  "sofonias": "ZEP", "zephaniah": "ZEP",
+  "hageo": "HAG", "haggai": "HAG",
+  "zacarias": "ZEC", "zechariah": "ZEC",
+  "malaquias": "MAL", "malachi": "MAL",
+  // Gospels & Acts
+  "mateo": "MAT", "matthew": "MAT",
+  "marcos": "MRK", "mark": "MRK",
+  "lucas": "LUK", "luke": "LUK",
+  "juan": "JHN", "john": "JHN",
+  "hechos": "ACT", "hechos de los apostoles": "ACT", "acts": "ACT", "acts of the apostles": "ACT",
+  // Epistles
+  "romanos": "ROM", "romans": "ROM",
+  "1 corintios": "1CO", "1corintios": "1CO", "1-corintios": "1CO", "1 corinthians": "1CO", "1-corinthians": "1CO",
+  "2 corintios": "2CO", "2corintios": "2CO", "2-corintios": "2CO", "2 corinthians": "2CO", "2-corinthians": "2CO",
+  "galatas": "GAL", "galatians": "GAL",
+  "efesios": "EPH", "ephesians": "EPH",
+  "filipenses": "PHP", "philippians": "PHP",
+  "colosenses": "COL", "colossians": "COL",
+  "1 tesalonicenses": "1TH", "1tesalonicenses": "1TH", "1-tesalonicenses": "1TH", "1 thessalonians": "1TH", "1-thessalonians": "1TH",
+  "2 tesalonicenses": "2TH", "2tesalonicenses": "2TH", "2-tesalonicenses": "2TH", "2 thessalonians": "2TH", "2-thessalonians": "2TH",
+  "1 timoteo": "1TI", "1timoteo": "1TI", "1-timoteo": "1TI", "1 timothy": "1TI", "1-timothy": "1TI",
+  "2 timoteo": "2TI", "2timoteo": "2TI", "2-timoteo": "2TI", "2 timothy": "2TI", "2-timothy": "2TI",
+  "tito": "TIT", "titus": "TIT",
+  "filemon": "PHM", "philemon": "PHM",
+  "hebreos": "HEB", "hebrews": "HEB",
+  "santiago": "JAS", "james": "JAS",
+  "1 pedro": "1PE", "1pedro": "1PE", "1-pedro": "1PE", "1 peter": "1PE", "1-peter": "1PE",
+  "2 pedro": "2PE", "2pedro": "2PE", "2-pedro": "2PE", "2 peter": "2PE", "2-peter": "2PE",
+  "1 juan": "1JN", "1juan": "1JN", "1-juan": "1JN", "1 john": "1JN", "1-john": "1JN",
+  "2 juan": "2JN", "2juan": "2JN", "2-juan": "2JN", "2 john": "2JN", "2-john": "2JN",
+  "3 juan": "3JN", "3juan": "3JN", "3-juan": "3JN", "3 john": "3JN", "3-john": "3JN",
+  "judas": "JUD", "jude": "JUD",
+  "apocalipsis": "REV", "revelation": "REV"
 };
 
 function parseReference(ref: string) {
@@ -154,6 +231,43 @@ export async function getVerseFromApiBible(
   const cached = getFromCache(reference, versionId);
   if (cached) return cached;
 
+  // 1. First try the secure proxy endpoint (no direct API.Bible call from frontend)
+  const parsed = parseReference(reference);
+  if (parsed) {
+    const bookKey = parsed.book.toLowerCase().trim();
+    const usfmBook = BOOK_TO_USFM[bookKey];
+    if (usfmBook) {
+      const firstVerse = parsed.verse.split("-")[0];
+      const verseId = `${usfmBook}.${parsed.chapter}.${firstVerse}`;
+      try {
+        const response = await fetch(`/api/bible/verse?verseId=${verseId}`);
+        if (response.ok) {
+          const apiJson = await response.json();
+          if (apiJson && apiJson.data) {
+            const rawContent = apiJson.data.content || "";
+            // Remove HTML tags
+            let text = rawContent.replace(/<[^>]*>/g, "").trim();
+            // Remove leading verse numbers (e.g. "8 ") or class markers if any
+            text = text.replace(/^\d+\s+/, "").trim();
+            
+            const result = {
+              text: text,
+              reference: apiJson.data.reference || `${parsed.book} ${parsed.chapter}:${parsed.verse}`,
+              copyright: apiJson.data.copyright || "Provided by API.Bible"
+            };
+            saveToCache(reference, versionId, result);
+            return result;
+          }
+        } else {
+          console.warn(`Proxy returned status ${response.status} for ${verseId}. Trying fallback...`);
+        }
+      } catch (error) {
+        console.warn("Proxy Fetch Error, trying fallback...", error);
+      }
+    }
+  }
+
+  // 2. Direct fallback to search endpoint if API_KEY is local (e.g. dev workspace)
   if (API_KEY) {
     try {
       // API.Bible search endpoint
@@ -180,11 +294,9 @@ export async function getVerseFromApiBible(
     } catch (error) {
       console.warn("API.Bible Fetch Error, trying fallback...", error);
     }
-  } else {
-    console.log("VITE_API_BIBLE_KEY is missing. Trying fallback...");
   }
 
-  // Fallback to keyless public APIs
+  // 3. Fallback to keyless public APIs
   const fallbackResult = await fetchFallbackVerse(reference, versionId);
   if (fallbackResult) {
     saveToCache(reference, versionId, fallbackResult);
