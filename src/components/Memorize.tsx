@@ -145,33 +145,104 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
     localStorage.setItem(attemptsKeyEn, attemptsEn.toString());
   }, [attemptsEn, attemptsKeyEn]);
 
-  const [userInputEs, setUserInputEs] = useState<string[]>([]);
-  const [userInputEn, setUserInputEn] = useState<string[]>([]);
-  const [cursorIndexEs, setCursorIndexEs] = useState(0);
-  const [cursorIndexEn, setCursorIndexEn] = useState(0);
-  const [clueCountEs, setClueCountEs] = useState(0);
-  const [clueCountEn, setClueCountEn] = useState(0);
-  const [revealedIndicesEs, setRevealedIndicesEs] = useState<number[]>([]);
-  const [revealedIndicesEn, setRevealedIndicesEn] = useState<number[]>([]);
-  const [isWrongEs, setIsWrongEs] = useState(false);
-  const [isWrongEn, setIsWrongEn] = useState(false);
-  const [hasSubmittedEs, setHasSubmittedEs] = useState(false);
-  const [hasSubmittedEn, setHasSubmittedEn] = useState(false);
-  const [incorrectIndicesEs, setIncorrectIndicesEs] = useState<number[]>([]);
-  const [incorrectIndicesEn, setIncorrectIndicesEn] = useState<number[]>([]);
-  const [submittedWrongCharsEs, setSubmittedWrongCharsEs] = useState<Record<number, string>>({});
-  const [submittedWrongCharsEn, setSubmittedWrongCharsEn] = useState<Record<number, string>>({});
-  const [isCorrectEs, setIsCorrectEs] = useState(false);
-  const [isCorrectEn, setIsCorrectEn] = useState(false);
-  const [didFailFlowEs, setDidFailFlowEs] = useState(false);
-  const [didFailFlowEn, setDidFailFlowEn] = useState(false);
+  const typingStateKey = `memorize_typing_state_${verse.id}_${state.memorizeMode}_${activePair?.es || 'RVR1960'}_${activePair?.en || 'KJV'}`;
+
+  const savedTypingState = useMemo(() => {
+    try {
+      const stored = localStorage.getItem(typingStateKey);
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  }, [typingStateKey]);
+
+  const [userInputEs, setUserInputEs] = useState<string[]>(() => savedTypingState?.userInputEs || []);
+  const [userInputEn, setUserInputEn] = useState<string[]>(() => savedTypingState?.userInputEn || []);
+  const [cursorIndexEs, setCursorIndexEs] = useState(() => savedTypingState?.cursorIndexEs || 0);
+  const [cursorIndexEn, setCursorIndexEn] = useState(() => savedTypingState?.cursorIndexEn || 0);
+  const [clueCountEs, setClueCountEs] = useState(() => savedTypingState?.clueCountEs || 0);
+  const [clueCountEn, setClueCountEn] = useState(() => savedTypingState?.clueCountEn || 0);
+  const [revealedIndicesEs, setRevealedIndicesEs] = useState<number[]>(() => savedTypingState?.revealedIndicesEs || []);
+  const [revealedIndicesEn, setRevealedIndicesEn] = useState<number[]>(() => savedTypingState?.revealedIndicesEn || []);
+  const [isWrongEs, setIsWrongEs] = useState(() => savedTypingState?.isWrongEs || false);
+  const [isWrongEn, setIsWrongEn] = useState(() => savedTypingState?.isWrongEn || false);
+  const [hasSubmittedEs, setHasSubmittedEs] = useState(() => savedTypingState?.hasSubmittedEs || false);
+  const [hasSubmittedEn, setHasSubmittedEn] = useState(() => savedTypingState?.hasSubmittedEn || false);
+  const [incorrectIndicesEs, setIncorrectIndicesEs] = useState<number[]>(() => savedTypingState?.incorrectIndicesEs || []);
+  const [incorrectIndicesEn, setIncorrectIndicesEn] = useState<number[]>(() => savedTypingState?.incorrectIndicesEn || []);
+  const [submittedWrongCharsEs, setSubmittedWrongCharsEs] = useState<Record<number, string>>(() => savedTypingState?.submittedWrongCharsEs || {});
+  const [submittedWrongCharsEn, setSubmittedWrongCharsEn] = useState<Record<number, string>>(() => savedTypingState?.submittedWrongCharsEn || {});
+  const [isCorrectEs, setIsCorrectEs] = useState(() => savedTypingState?.isCorrectEs || false);
+  const [isCorrectEn, setIsCorrectEn] = useState(() => savedTypingState?.isCorrectEn || false);
+  const [didFailFlowEs, setDidFailFlowEs] = useState(() => savedTypingState?.didFailFlowEs || false);
+  const [didFailFlowEn, setDidFailFlowEn] = useState(() => savedTypingState?.didFailFlowEn || false);
   const [feedback, setFeedback] = useState<string | null>(null);
 
   const [activeLanguage, setActiveLanguage] = useState<'es' | 'en'>(() => {
+    if (savedTypingState?.activeLanguage) return savedTypingState.activeLanguage;
     if (state.memorizeMode === 'en') return 'en';
     if (state.memorizeMode === 'es') return 'es';
     return state.primaryLanguage === 'en' ? 'en' : 'es';
   });
+
+  const [bilingualPass, setBilingualPass] = useState(() => savedTypingState?.bilingualPass || 1);
+
+  // Persist current typing/recall state on modification to remain robust to browser reloads
+  useEffect(() => {
+    const stateObj = {
+      bilingualPass,
+      activeLanguage,
+      userInputEs,
+      userInputEn,
+      cursorIndexEs,
+      cursorIndexEn,
+      clueCountEs,
+      clueCountEn,
+      revealedIndicesEs,
+      revealedIndicesEn,
+      isWrongEs,
+      isWrongEn,
+      hasSubmittedEs,
+      hasSubmittedEn,
+      incorrectIndicesEs,
+      incorrectIndicesEn,
+      submittedWrongCharsEs,
+      submittedWrongCharsEn,
+      isCorrectEs,
+      isCorrectEn,
+      didFailFlowEs,
+      didFailFlowEn,
+    };
+    try {
+      localStorage.setItem(typingStateKey, JSON.stringify(stateObj));
+    } catch (e) {
+      console.warn("Failed to save typing state", e);
+    }
+  }, [
+    typingStateKey,
+    bilingualPass,
+    activeLanguage,
+    userInputEs,
+    userInputEn,
+    cursorIndexEs,
+    cursorIndexEn,
+    clueCountEs,
+    clueCountEn,
+    revealedIndicesEs,
+    revealedIndicesEn,
+    isWrongEs,
+    isWrongEn,
+    hasSubmittedEs,
+    hasSubmittedEn,
+    incorrectIndicesEs,
+    incorrectIndicesEn,
+    submittedWrongCharsEs,
+    submittedWrongCharsEn,
+    isCorrectEs,
+    isCorrectEn,
+    didFailFlowEs,
+    didFailFlowEn,
+  ]);
 
   const attempts = activeLanguage === 'es' ? attemptsEs : attemptsEn;
   const isWrong = activeLanguage === 'es' ? isWrongEs : isWrongEn;
@@ -240,7 +311,6 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  const [bilingualPass, setBilingualPass] = useState(1);
   const [showHalfwayTransition, setShowHalfwayTransition] = useState(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
@@ -689,12 +759,13 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
         else localStorage.removeItem(attemptsKeyEn);
         setShowHalfwayTransition(true);
       } else {
+        // Clear attempts and typing state on level exit
+        localStorage.removeItem(attemptsKeyEs);
+        localStorage.removeItem(attemptsKeyEn);
+        localStorage.removeItem(typingStateKey);
+        
         // Success Persistence Fix: Save verse when successfully completed
         if (!isAnyPartFailed) {
-          // Clear attempts on success
-          localStorage.removeItem(attemptsKeyEs);
-          localStorage.removeItem(attemptsKeyEn);
-          
           setState(s => ({
             ...s,
             savedVerses: s.savedVerses.includes(verse.id) ? s.savedVerses : [...s.savedVerses, verse.id],
@@ -792,6 +863,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
     // Clear attempts on intentional reset
     localStorage.removeItem(attemptsKeyEs);
     localStorage.removeItem(attemptsKeyEn);
+    localStorage.removeItem(typingStateKey);
     
     setStage(1);
     setIsRevealed(false);
@@ -2048,26 +2120,46 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                 <div className="min-w-[85px] sm:min-w-[115px] flex justify-start">
                   <button
                     disabled={stage === 5}
+                    tabIndex={stage === 5 ? -1 : 0}
+                    aria-disabled={stage === 5}
                     onPointerDown={(e) => {
-                      if (e.pointerType === "touch") {
+                      if (stage === 5) return;
+                      e.preventDefault();
+                      if (e.pointerType === "touch" || e.pointerType === "pen") {
                         setIsRevealed(v => !v);
                       } else {
                         setIsRevealed(true);
                       }
                     }}
                     onPointerUp={(e) => {
-                      if (e.pointerType !== "touch") {
+                      if (stage === 5) return;
+                      e.preventDefault();
+                      if (e.pointerType !== "touch" && e.pointerType !== "pen") {
                         setIsRevealed(false);
                       }
                     }}
                     onPointerLeave={(e) => {
-                      if (e.pointerType !== "touch") {
+                      if (stage === 5) return;
+                      e.preventDefault();
+                      if (e.pointerType !== "touch" && e.pointerType !== "pen") {
                         setIsRevealed(false);
                       }
                     }}
-                    className={`p-2.5 rounded-full transition-all duration-300 border flex items-center justify-center shadow-md active:scale-90 ${
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                    }}
+                    style={{
+                      WebkitTouchCallout: "none",
+                      WebkitUserSelect: "none",
+                      MozUserSelect: "none",
+                      msUserSelect: "none",
+                      userSelect: "none",
+                      touchAction: "manipulation",
+                    } as React.CSSProperties}
+                    className={`p-2.5 rounded-full transition-all duration-300 border flex items-center justify-center shadow-md active:scale-90 select-none ${
                       stage === 5
-                        ? 'bg-transparent border-earth/5 dark:border-white/5 text-earth/10 dark:text-ivory/10 cursor-not-allowed'
+                        ? 'bg-transparent border-earth/5 dark:border-white/5 text-earth/10 dark:text-ivory/10 cursor-not-allowed pointer-events-none opacity-40'
                         : isRevealed 
                           ? 'bg-playful-purple text-white border-playful-purple scale-110 shadow-lg shadow-playful-purple/20' 
                           : 'bg-white dark:bg-charcoal text-earth/40 dark:text-ivory/40 border-earth/10 dark:border-white/10 hover:text-playful-purple hover:border-playful-purple/30'

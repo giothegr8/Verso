@@ -192,7 +192,9 @@ function AppInner() {
     return INITIAL_STATE;
   });
 
-  const [activeTab, setActiveTab] = useState("home");
+  const [activeTab, setActiveTab] = useState(() => {
+    return localStorage.getItem("verso_active_tab") || "home";
+  });
   const [showSettings, setShowSettings] = useState(false);
   const [showTour, setShowTour] = useState(false);
   const [editingPath, setEditingPath] = useState<CustomPath | null>(null);
@@ -210,6 +212,10 @@ function AppInner() {
       console.error("[App] Failed to save state to localStorage:", e);
     }
   }, [state]);
+
+  useEffect(() => {
+    localStorage.setItem("verso_active_tab", activeTab);
+  }, [activeTab]);
 
   // Streak & Votd Daily Update Logic
   useEffect(() => {
