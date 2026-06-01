@@ -312,6 +312,7 @@ function AppInner() {
   }, [state.selectedTranslations.es, state.selectedTranslations.en, state.memorizeMode]);
 
   const startMemorizing = (verseId: string, source: "daily" | "path" | "custom" | "extra" | "saved" = "daily") => {
+    localStorage.removeItem(`memorize_failed_${verseId}`);
     setState(s => ({ 
       ...s, 
       selectedVerseId: verseId,

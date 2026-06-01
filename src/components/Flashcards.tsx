@@ -153,7 +153,8 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
   }, [verse.id, state.selectedTranslations.es, state.selectedTranslations.en, state.memorizeMode]);
 
   useEffect(() => {
-    if (isCompleted) {
+    const isFailedSession = localStorage.getItem(`memorize_failed_${verse.id}`) === "true";
+    if (isCompleted && !isFailedSession) {
       const duration = 4 * 1000;
       const animationEnd = Date.now() + duration;
       // Richer blue/teal palette for "full bloom" water
@@ -185,7 +186,7 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
       
       frame();
     }
-  }, [isCompleted]);
+  }, [isCompleted, verse.id]);
 
   const onFlip = () => {
     if (isFlipped && (isCorrect || attemptsLeft === 0)) {
@@ -197,32 +198,36 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
   const handleComplete = () => {
     setIsCompleted(true);
     
-    const today = getLocalDateString();
+    const isFailedSession = localStorage.getItem(`memorize_failed_${verse.id}`) === "true";
     
-    // Mark as completed in global state
-    setState(s => {
-      const isAlreadyCompleted = s.progress.completedVerses.includes(verse.id);
+    if (!isFailedSession) {
       const today = getLocalDateString();
-      let newLastCompletedDailyVerseDate = s.progress.lastCompletedDailyVerseDate;
+      
+      // Mark as completed in global state
+      setState(s => {
+        const isAlreadyCompleted = s.progress.completedVerses.includes(verse.id);
+        const today = getLocalDateString();
+        let newLastCompletedDailyVerseDate = s.progress.lastCompletedDailyVerseDate;
 
-      // Track if this was the daily verse
-      if (verse.id === votd.id) {
-        newLastCompletedDailyVerseDate = today;
-      }
-
-      return {
-        ...s,
-        progress: {
-          ...s.progress,
-          totalMemorized: isAlreadyCompleted ? s.progress.totalMemorized : s.progress.totalMemorized + 1,
-          completedVerses: isAlreadyCompleted ? s.progress.completedVerses : [...s.progress.completedVerses, verse.id],
-          lastCompletedDailyVerseDate: newLastCompletedDailyVerseDate,
+        // Track if this was the daily verse
+        if (verse.id === votd.id) {
+          newLastCompletedDailyVerseDate = today;
         }
-      };
-    });
 
-    // Notify parent if completion handler exists
-    if (onComplete) onComplete();
+        return {
+          ...s,
+          progress: {
+            ...s.progress,
+            totalMemorized: isAlreadyCompleted ? s.progress.totalMemorized : s.progress.totalMemorized + 1,
+            completedVerses: isAlreadyCompleted ? s.progress.completedVerses : [...s.progress.completedVerses, verse.id],
+            lastCompletedDailyVerseDate: newLastCompletedDailyVerseDate,
+          }
+        };
+      });
+
+      // Notify parent if completion handler exists
+      if (onComplete) onComplete();
+    }
   };
 
   const showBilingual = state.memorizeMode === 'both';
@@ -561,6 +566,7 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
   }, [userInputEs, userInputEn, esRef, enRef, state.memorizeMode, revealedIndices, isCorrect, attemptsLeft]);
 
   if (isCompleted) {
+    const isFailedSession = localStorage.getItem(`memorize_failed_${verse.id}`) === "true";
     return (
       <motion.div 
         className="h-full flex flex-col items-center justify-center text-center space-y-10 py-12"
@@ -570,19 +576,26 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
       >
         <div className="relative">
           <motion.div 
-            className="w-40 h-40 bg-amber-50 dark:bg-amber-950/20 rounded-[48px] flex items-center justify-center shadow-2xl shadow-amber-500/10 border border-amber-200/50 dark:border-amber-500/20"
-            animate={{ 
+            className={`w-40 h-40 ${isFailedSession ? 'bg-sky-blue/10 dark:bg-sky-blue/5 border border-sky-blue/20' : 'bg-amber-50 dark:bg-amber-950/20 shadow-2xl shadow-amber-500/10 border border-amber-200/50 dark:border-amber-500/20'} rounded-[48px] flex items-center justify-center`}
+            animate={isFailedSession ? {
+              scale: [1, 1.02, 1],
+              y: [0, -3, 0]
+            } : { 
               rotate: [0, 5, -5, 5, 0], 
               scale: [1, 1.05, 1],
               y: [0, -8, 0]
             }}
             transition={{ duration: 4, repeat: Infinity }}
           >
-            <Flower2 size={80} className="text-amber-500 dark:text-amber-400" strokeWidth={1.2} />
+            {isFailedSession ? (
+              <Brain size={80} className="text-sky-blue" strokeWidth={1.2} />
+            ) : (
+              <Flower2 size={80} className="text-amber-500 dark:text-amber-400" strokeWidth={1.2} />
+            )}
           </motion.div>
           
           {/* Animated "Pollen/Dust" stars in warm tones */}
-          {[...Array(8)].map((_, i) => (
+          {!isFailedSession && [...Array(8)].map((_, i) => (
             <motion.div
               key={i}
               className="absolute top-1/2 left-1/2"
@@ -608,7 +621,10 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
             transition={{ delay: 0.3 }}
             className="text-6xl sm:text-8xl font-serif font-black text-earth dark:text-ivory tracking-tighter"
           >
-            {state.primaryLanguage === 'es' ? '¡Increíble!' : 'Incredible!'}
+            {isFailedSession 
+              ? (state.primaryLanguage === 'es' ? 'Práctica' : 'Practice')
+              : (state.primaryLanguage === 'es' ? '¡Increíble!' : 'Incredible!')
+            }
           </motion.h2>
           <motion.p 
             initial={{ y: 20, opacity: 0 }}
@@ -617,12 +633,20 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
             className="text-xl text-earth-light dark:text-lavender-muted font-medium max-w-sm mx-auto flex flex-col items-center gap-2"
           >
             <span>
-              {state.primaryLanguage === 'es' 
-                ? 'Has guardado su Palabra en tu corazón.' 
-                : 'You’ve stored His Word in your heart.'}
+              {isFailedSession 
+                ? (state.primaryLanguage === 'es' 
+                    ? 'Cita correcta. Te falta dominar el texto del versículo para memorizarlo por completo.' 
+                    : 'Reference correct. Keep practicing the text of the verse to fully memorize and complete it.')
+                : (state.primaryLanguage === 'es' 
+                    ? 'Has guardado su Palabra en tu corazón.' 
+                    : 'You’ve stored His Word in your heart.')
+              }
             </span>
             <span className="text-sm font-black text-playful-purple dark:text-plum uppercase tracking-widest mt-2">
-              {state.primaryLanguage === 'es' ? 'Un versículo por día.' : 'One verse a day.'}
+              {isFailedSession 
+                ? (state.primaryLanguage === 'es' ? 'Sigue intentándolo' : 'Keep practicing')
+                : (state.primaryLanguage === 'es' ? 'Un versículo por día.' : 'One verse a day.')
+              }
             </span>
           </motion.p>
         </div>
@@ -648,16 +672,29 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
               <span className="text-lg font-bold tracking-tight lowercase">{state.primaryLanguage === 'es' ? 'repetir' : 'repeat'}</span>
             </motion.button>
             
-            <motion.button 
-              initial={{ x: 20, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              transition={{ delay: 0.6 }}
-              onClick={onGoToSaved}
-              className="w-full bg-teal/10 hover:bg-teal/20 text-teal dark:text-teal-400 border border-teal/20 shadow-sm rounded-full flex items-center justify-center gap-3 py-4 px-8 transition-all hover:scale-[1.01] active:scale-95 group"
-            >
-              <Sprout size={18} className="text-teal dark:text-teal-400" />
-              <span className="font-bold tracking-tight lowercase">{state.primaryLanguage === 'es' ? 'ver guardados' : 'view saved'}</span>
-            </motion.button>
+            {isFailedSession ? (
+              <motion.button 
+                initial={{ x: 20, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                transition={{ delay: 0.6 }}
+                onClick={() => onMemorize(verse.id)}
+                className="w-full bg-teal text-white hover:bg-teal-600 rounded-full flex items-center justify-center gap-3 py-4 px-8 transition-all hover:scale-[1.01] active:scale-95 group shadow-lg shadow-teal/20"
+              >
+                <Brain size={18} />
+                <span className="font-bold tracking-tight lowercase">{state.primaryLanguage === 'es' ? 'intentar memorizar texto' : 'try memorizing text'}</span>
+              </motion.button>
+            ) : (
+              <motion.button 
+                initial={{ x: 20, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                transition={{ delay: 0.6 }}
+                onClick={onGoToSaved}
+                className="w-full bg-teal/10 hover:bg-teal/20 text-teal dark:text-teal-400 border border-teal/20 shadow-sm rounded-full flex items-center justify-center gap-3 py-4 px-8 transition-all hover:scale-[1.01] active:scale-95 group"
+              >
+                <Sprout size={18} className="text-teal dark:text-teal-400" />
+                <span className="font-bold tracking-tight lowercase">{state.primaryLanguage === 'es' ? 'ver guardados' : 'view saved'}</span>
+              </motion.button>
+            )}
           </div>
         </div>
       </motion.div>
@@ -1110,7 +1147,9 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
                 {isCorrect ? <CheckCircle2 size={24} /> : <BookOpen size={24} />}
                 <span className="text-lg font-bold tracking-tight lowercase">
                   {isCorrect 
-                    ? (state.primaryLanguage === 'es' ? 'versículo memorizado' : 'verse memorized')
+                    ? (localStorage.getItem(`memorize_failed_${verse.id}`) === "true"
+                        ? (state.primaryLanguage === 'es' ? 'terminar práctica' : 'finish practice')
+                        : (state.primaryLanguage === 'es' ? 'versículo memorizado' : 'verse memorized'))
                     : (state.primaryLanguage === 'es' ? 'repasar versículo' : 'review verse')}
                 </span>
                 {hasReviewed && !isFlipped && (

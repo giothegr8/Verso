@@ -176,6 +176,13 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
   const [isCorrectEn, setIsCorrectEn] = useState(() => savedTypingState?.isCorrectEn || false);
   const [didFailFlowEs, setDidFailFlowEs] = useState(() => savedTypingState?.didFailFlowEs || false);
   const [didFailFlowEn, setDidFailFlowEn] = useState(() => savedTypingState?.didFailFlowEn || false);
+  const [sessionFailed, setSessionFailed] = useState(() => {
+    try {
+      return localStorage.getItem(`memorize_failed_${verse.id}`) === "true";
+    } catch {
+      return false;
+    }
+  });
   const [feedback, setFeedback] = useState<string | null>(null);
 
   const [activeLanguage, setActiveLanguage] = useState<'es' | 'en'>(() => {
@@ -258,9 +265,9 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
     ? (isCorrectEs && isCorrectEn) 
     : (state.memorizeMode === 'es' ? isCorrectEs : isCorrectEn);
 
-  const isAnyPartFailed = state.memorizeMode === 'both'
+  const isAnyPartFailed = (state.memorizeMode === 'both'
     ? (didFailFlowEs || didFailFlowEn)
-    : (state.memorizeMode === 'es' ? didFailFlowEs : didFailFlowEn);
+    : (state.memorizeMode === 'es' ? didFailFlowEs : didFailFlowEn)) || sessionFailed;
 
   const activeClueCount = activeLanguage === 'es' ? clueCountEs : clueCountEn;
   const activeAttempts = activeLanguage === 'es' ? attemptsEs : attemptsEn;
@@ -766,6 +773,11 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
         
         // Success Persistence Fix: Save verse when successfully completed
         if (!isAnyPartFailed) {
+          try {
+            localStorage.setItem(`memorize_failed_${verse.id}`, "false");
+          } catch (e) {
+            console.error(e);
+          }
           setState(s => ({
             ...s,
             savedVerses: s.savedVerses.includes(verse.id) ? s.savedVerses : [...s.savedVerses, verse.id],
@@ -775,6 +787,12 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
               completedVerses: s.progress.completedVerses.includes(verse.id) ? s.progress.completedVerses : [...s.progress.completedVerses, verse.id]
             }
           }));
+        } else {
+          try {
+            localStorage.setItem(`memorize_failed_${verse.id}`, "true");
+          } catch (e) {
+            console.error(e);
+          }
         }
         setIsAlmostDone(true);
       }
@@ -864,6 +882,8 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
     localStorage.removeItem(attemptsKeyEs);
     localStorage.removeItem(attemptsKeyEn);
     localStorage.removeItem(typingStateKey);
+    localStorage.removeItem(`memorize_failed_${verse.id}`);
+    setSessionFailed(false);
     
     setStage(1);
     setIsRevealed(false);
@@ -1138,16 +1158,34 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
       }
       
       // Auto-focus input on failure so user can type immediately
+      if (inputRef.current) {
+        try {
+          inputRef.current.focus({ preventScroll: true });
+          inputRef.current.setSelectionRange(1, 1);
+        } catch (e) {
+          console.warn("Sync focus failed", e);
+        }
+      }
       setTimeout(() => {
         if (inputRef.current) {
-          inputRef.current.focus();
-          inputRef.current.setSelectionRange(1, 1);
+          try {
+            inputRef.current.focus({ preventScroll: true });
+            inputRef.current.setSelectionRange(1, 1);
+          } catch (e) {
+            console.warn("Async focus failed", e);
+          }
         }
-      }, 50);
+      }, 30);
 
       if (nextAttempts >= 3) {
         if (activeLanguage === 'es') setDidFailFlowEs(true);
         else setDidFailFlowEn(true);
+        setSessionFailed(true);
+        try {
+          localStorage.setItem(`memorize_failed_${verse.id}`, "true");
+        } catch (e) {
+          console.error(e);
+        }
 
         setFeedback(state.primaryLanguage === 'es' ? "Se acabaron los intentos. Revelando texto..." : "Out of attempts. Revealing text...");
         setTimeout(() => {
@@ -1401,8 +1439,8 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
           >
             {isAnyPartFailed 
               ? (state.primaryLanguage === 'es' 
-                  ? 'Puedes seguir e intentar el próximo paso, o repasar este versículo desde el principio.' 
-                  : 'You can keep going and try the next step, or review this verse from the beginning.')
+                  ? 'No has logrado memorizar todo el texto del versículo. Por favor, inténtalo de nuevo para desbloquear el reto de la cita bíblica.' 
+                  : 'You did not successfully memorize the verse text. Please try again to unlock the citation challenge.')
               : (state.primaryLanguage === 'es' 
                   ? 'Texto completo. Ahora falta el último paso: la cita bíblica.' 
                   : 'Text complete. Now for the final step: the citation.')
@@ -1422,51 +1460,46 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
 
         <div className="w-full max-w-sm space-y-8 px-6">
           <div className="flex flex-col items-center gap-6">
-            <motion.button 
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.5 }}
-              onClick={() => onGoToFlashcards?.(verse.id)} 
-              className={`w-full ${
-                isAnyPartFailed 
-                  ? 'bg-earth/10 dark:bg-white/5 text-earth dark:text-ivory border border-earth/10 dark:border-white/10' 
-                  : 'bg-teal/10 hover:bg-teal/20 text-teal dark:text-teal-400 border border-teal/20 shadow-sm'
-              } rounded-full flex items-center justify-center gap-3 py-4 px-8 hover:scale-[1.01] active:scale-95 transition-all group`}
-            >
-              <Layers size={20} className={isAnyPartFailed ? 'text-earth/40 dark:text-ivory/40' : 'text-teal dark:text-teal-400'} />
-              <span className="text-sm sm:text-base font-bold tracking-tight lowercase">
-                {isAnyPartFailed 
-                  ? (state.primaryLanguage === 'es' ? 'continuar' : 'continue')
-                  : (state.primaryLanguage === 'es' ? 'Reto: Cita bíblica' : 'Challenge: Citation')
-                }
-              </span>
-            </motion.button>
-            
-            {isAnyPartFailed ? (
-              <motion.button 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.7 }}
-                onClick={reset}
-                className="w-full bg-teal/10 hover:bg-teal/20 text-teal dark:text-teal-400 border border-teal/20 shadow-sm rounded-full flex items-center justify-center gap-3 py-4 px-8 transition-all hover:scale-[1.01] active:scale-95 group"
-              >
-                <RotateCcw size={18} />
-                <span className="text-sm font-bold tracking-tight lowercase">
-                  {state.primaryLanguage === 'es' ? 'repasar de nuevo' : 'review again'}
-                </span>
-              </motion.button>
+            {!isAnyPartFailed ? (
+              <>
+                <motion.button 
+                  initial={{ y: 20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 0.5 }}
+                  onClick={() => onGoToFlashcards?.(verse.id)} 
+                  className="w-full bg-teal/10 hover:bg-teal/20 text-teal dark:text-teal-400 border border-teal/20 shadow-sm rounded-full flex items-center justify-center gap-3 py-4 px-8 hover:scale-[1.01] active:scale-95 transition-all group"
+                >
+                  <Layers size={20} className="text-teal dark:text-teal-400" />
+                  <span className="text-sm sm:text-base font-bold tracking-tight lowercase">
+                    {state.primaryLanguage === 'es' ? 'Reto: Cita bíblica' : 'Challenge: Citation'}
+                  </span>
+                </motion.button>
+                
+                <motion.button 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.7 }}
+                  onClick={() => setIsAlmostDone(false)}
+                  className="text-xs font-black uppercase tracking-[0.2em] text-earth-light/40 dark:text-ivory/40 hover:text-teal dark:hover:text-teal-400 transition-colors py-2 flex items-center gap-2 group"
+                >
+                  <span>{state.primaryLanguage === 'es' ? '← Volver al texto' : '← Back to text'}</span>
+                  <div className="relative w-4 h-4 opacity-40 group-hover:opacity-100 transition-opacity">
+                    <Star size={16} fill="currentColor" className="text-gold" />
+                  </div>
+                </motion.button>
+              </>
             ) : (
               <motion.button 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.7 }}
-                onClick={() => setIsAlmostDone(false)}
-                className="text-xs font-black uppercase tracking-[0.2em] text-earth-light/40 dark:text-ivory/40 hover:text-teal dark:hover:text-teal-400 transition-colors py-2 flex items-center gap-2 group"
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.5 }}
+                onClick={reset}
+                className="w-full bg-teal text-white hover:bg-teal-600 rounded-full flex items-center justify-center gap-3 py-4 px-8 shadow-lg shadow-teal/20 hover:scale-[1.01] active:scale-95 transition-all group"
               >
-                <span>{state.primaryLanguage === 'es' ? '← Volver al texto' : '← Back to text'}</span>
-                <div className="relative w-4 h-4 opacity-40 group-hover:opacity-100 transition-opacity">
-                  <Star size={16} fill="currentColor" className="text-gold" />
-                </div>
+                <RotateCcw size={18} />
+                <span className="text-sm sm:text-base font-bold tracking-tight lowercase">
+                  {state.primaryLanguage === 'es' ? 'intentar de nuevo' : 'try again'}
+                </span>
               </motion.button>
             )}
           </div>
@@ -1523,8 +1556,8 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
             <p className="text-earth-light dark:text-lavender-muted max-w-xs mx-auto leading-relaxed">
               {currentPassFailed
                 ? (state.primaryLanguage === 'es' 
-                    ? 'Puedes seguir e intentar el próximo paso, o repasar este versículo desde el principio.' 
-                    : 'You can keep going and try the next step, or review this verse from the beginning.')
+                    ? 'No se puede avanzar tras un intento fallido. Por favor, intenta memorizar el versículo desde el principio.' 
+                    : 'You cannot proceed after a failed attempt. Please try memorizing the verse from the beginning.')
                 : (state.primaryLanguage === 'es' 
                     ? `Ya memorizaste este versículo en ${activeLanguage === 'es' ? 'español' : 'inglés'}. Sigue con la versión en ${isEnNext ? 'inglés' : 'español'}.`
                     : `You’ve memorized this verse in ${activeLanguage === 'es' ? 'Spanish' : 'English'}. Keep going with the ${isEnNext ? 'English' : 'Spanish'} version.`
@@ -1535,18 +1568,19 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
         </div>
 
         <div className="w-full max-w-[280px] px-6 space-y-4">
-          <button 
-            onClick={handleHalfwayContinue}
-            className={`w-full ${currentPassFailed ? 'bg-earth dark:bg-charcoal' : 'bg-playful-purple'} text-white rounded-[24px] py-5 font-bold shadow-xl shadow-playful-purple/20 hover:scale-[1.02] active:scale-95 transition-all lowercase`}
-          >
-            {state.primaryLanguage === 'es' ? 'continuar' : 'continue'}
-          </button>
-          {currentPassFailed && (
+          {!currentPassFailed ? (
             <button 
-              onClick={reset}
+              onClick={handleHalfwayContinue}
               className="w-full bg-playful-purple text-white rounded-[24px] py-5 font-bold shadow-xl shadow-playful-purple/20 hover:scale-[1.02] active:scale-95 transition-all lowercase"
             >
-              {state.primaryLanguage === 'es' ? 'repasar de nuevo' : 'review again'}
+              {state.primaryLanguage === 'es' ? 'continuar' : 'continue'}
+            </button>
+          ) : (
+            <button 
+              onClick={reset}
+              className="w-full bg-teal text-white rounded-[24px] py-5 font-bold shadow-xl shadow-teal/20 hover:scale-[1.02] active:scale-95 transition-all lowercase"
+            >
+              {state.primaryLanguage === 'es' ? 'intentar de nuevo' : 'try again'}
             </button>
           )}
         </div>
@@ -1934,6 +1968,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                       }
                     }
                   } else if (e.key === 'Enter') {
+                    e.preventDefault();
                     handleCheck();
                   }
                 }}
@@ -2256,7 +2291,24 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                       setHasSubmittedEn(false);
                       setIsWrongEn(false);
                     }
-                    setTimeout(() => inputRef.current?.focus(), 0);
+                    if (inputRef.current) {
+                      try {
+                        inputRef.current.focus({ preventScroll: true });
+                        inputRef.current.setSelectionRange(1, 1);
+                      } catch (e) {
+                        console.warn("Click refocus failed", e);
+                      }
+                    }
+                    setTimeout(() => {
+                      if (inputRef.current) {
+                        try {
+                          inputRef.current.focus({ preventScroll: true });
+                          inputRef.current.setSelectionRange(1, 1);
+                        } catch (e) {
+                          console.warn("Async click refocus failed", e);
+                        }
+                      }
+                    }, 30);
                   } else {
                     handleCheck();
                   }
