@@ -194,6 +194,9 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
 
   const [bilingualPass, setBilingualPass] = useState(() => savedTypingState?.bilingualPass || 1);
 
+  const celebratedHalfwayRef = useRef<string>("");
+  const celebratedAlmostDoneRef = useRef<string>("");
+
   // Persist current typing/recall state on modification to remain robust to browser reloads
   useEffect(() => {
     const stateObj = {
@@ -292,6 +295,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
 
   // Measure card height on mount, stage change, or verse change to ensure stability
   useEffect(() => {
+    setCardHeight(null);
     if (cardRef.current && (stage === 1 || stage === 4)) {
       // Small timeout to allow content to settle and fonts to render
       const timer = setTimeout(() => {
@@ -654,37 +658,70 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
 
   useEffect(() => {
     if (isAlmostDone && isOverallSuccess) {
-      // Water-based burst using blue/teal shades
-      const duration = 2 * 1000;
-      const animationEnd = Date.now() + duration;
-      const colors = ['#0ea5e9', '#38bdf8', '#7dd3fc', '#e0f2fe'];
+      if (state.memorizeMode === 'both') {
+        const halfwayKey = `second_${verse.id}_${activeLanguage}`;
+        if (celebratedAlmostDoneRef.current !== halfwayKey) {
+          celebratedAlmostDoneRef.current = halfwayKey;
+          confetti({
+            particleCount: 50,
+            spread: 60,
+            origin: { y: 0.6 },
+            colors: ['#0d9488', '#2dd4bf', '#a7f3d0'], // Teal/mint palette
+            ticks: 200,
+            gravity: 1.2
+          });
+        }
+      } else {
+        // Water-based burst using blue/teal shades for single language mode complete
+        const duration = 2 * 1000;
+        const animationEnd = Date.now() + duration;
+        const colors = ['#0ea5e9', '#38bdf8', '#7dd3fc', '#e0f2fe'];
 
-      const frame = () => {
-        const timeLeft = animationEnd - Date.now();
+        const frame = () => {
+          const timeLeft = animationEnd - Date.now();
 
-        if (timeLeft <= 0) return;
+          if (timeLeft <= 0) return;
 
-        const particleCount = 10 * (timeLeft / duration);
+          const particleCount = 10 * (timeLeft / duration);
+          
+          confetti({
+            particleCount,
+            startVelocity: 30,
+            spread: 360,
+            origin: { x: Math.random(), y: Math.random() - 0.2 },
+            colors: colors,
+            shapes: ['circle'],
+            gravity: 0.8,
+            scalar: 0.7,
+            drift: 0,
+            ticks: 100
+          });
+
+          requestAnimationFrame(frame);
+        };
         
-        confetti({
-          particleCount,
-          startVelocity: 30,
-          spread: 360,
-          origin: { x: Math.random(), y: Math.random() - 0.2 },
-          colors: colors,
-          shapes: ['circle'],
-          gravity: 0.8,
-          scalar: 0.7,
-          drift: 0,
-          ticks: 100
-        });
-
-        requestAnimationFrame(frame);
-      };
-      
-      frame();
+        frame();
+      }
     }
-  }, [isAlmostDone, isOverallSuccess]);
+  }, [isAlmostDone, isOverallSuccess, state.memorizeMode, activeLanguage, verse.id]);
+
+  useEffect(() => {
+    const isFailedSession = activeLanguage === 'es' ? didFailFlowEs : didFailFlowEn;
+    if (showHalfwayTransition && !isFailedSession) {
+      const halfwayKey = `halfway_${verse.id}_${activeLanguage}`;
+      if (celebratedHalfwayRef.current !== halfwayKey) {
+        celebratedHalfwayRef.current = halfwayKey;
+        confetti({
+          particleCount: 50,
+          spread: 60,
+          origin: { y: 0.6 },
+          colors: ['#0d9488', '#2dd4bf', '#a7f3d0'], // Teal/mint palette
+          ticks: 200,
+          gravity: 1.2
+        });
+      }
+    }
+  }, [showHalfwayTransition, activeLanguage, didFailFlowEs, didFailFlowEn, verse.id]);
 
   if (!verse || (!esText && !enText)) {
     return (
@@ -805,30 +842,38 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
     setShowHalfwayTransition(false);
     setDidFailFlowEs(false);
     setDidFailFlowEn(false);
+    
     // Switch to the OTHER language
-    setActiveLanguage(prev => prev === 'es' ? 'en' : 'es');
+    const nextLang = activeLanguage === 'es' ? 'en' : 'es';
+    setActiveLanguage(nextLang);
     setIsRevealed(false);
-    setAttemptsEs(0);
-    setAttemptsEn(0);
-    setUserInputEs([]);
-    setUserInputEn([]);
-    setSubmittedWrongCharsEs({});
-    setSubmittedWrongCharsEn({});
-    setClueCountEs(0);
-    setClueCountEn(0);
-    setIsWrongEs(false);
-    setIsWrongEn(false);
-    setHasSubmittedEs(false);
-    setHasSubmittedEn(false);
-    setIncorrectIndicesEs([]);
-    setIncorrectIndicesEn([]);
-    setIsCorrectEs(false);
-    setIsCorrectEn(false);
+    
+    // Only reset state for the coming language.
+    // The language they just finished was completed successfully, so we must keep its states!
+    if (nextLang === 'es') {
+      setAttemptsEs(0);
+      setUserInputEs([]);
+      setSubmittedWrongCharsEs({});
+      setClueCountEs(0);
+      setIsWrongEs(false);
+      setHasSubmittedEs(false);
+      setIncorrectIndicesEs([]);
+      setIsCorrectEs(false);
+      setRevealedIndicesEs([]);
+      setCursorIndexEs(0);
+    } else {
+      setAttemptsEn(0);
+      setUserInputEn([]);
+      setSubmittedWrongCharsEn({});
+      setClueCountEn(0);
+      setIsWrongEn(false);
+      setHasSubmittedEn(false);
+      setIncorrectIndicesEn([]);
+      setIsCorrectEn(false);
+      setRevealedIndicesEn([]);
+      setCursorIndexEn(0);
+    }
     setFeedback(null);
-    setRevealedIndicesEs([]);
-    setRevealedIndicesEn([]);
-    setCursorIndexEs(0);
-    setCursorIndexEn(0);
   };
 
   const prevStage = () => {
@@ -878,6 +923,90 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
   };
 
   const reset = () => {
+    // If we're in both-languages mode, check if we can perform a partial retry
+    if (state.memorizeMode === 'both') {
+      const enPassed = isCorrectEn && !didFailFlowEn;
+      const esPassed = isCorrectEs && !didFailFlowEs;
+      
+      if (enPassed && !esPassed) {
+        // English completed successfully, Spanish failed or incomplete. Only retry Spanish!
+        localStorage.removeItem(attemptsKeyEs);
+        setSessionFailed(false);
+        try {
+          localStorage.setItem(`memorize_failed_${verse.id}`, "false");
+        } catch {}
+        
+        setStage(1);
+        setIsRevealed(false);
+        setIsAlmostDone(false);
+        setShowHalfwayTransition(false);
+        setBilingualPass(2);
+        setActiveLanguage('es');
+        
+        setDidFailFlowEs(false);
+        setAttemptsEs(0);
+        setUserInputEs([]);
+        setSubmittedWrongCharsEs({});
+        setClueCountEs(0);
+        setIsWrongEs(false);
+        setHasSubmittedEs(false);
+        setIncorrectIndicesEs([]);
+        setFeedback(null);
+        setRevealedIndicesEs([]);
+        setCursorIndexEs(0);
+        
+        setState(s => ({
+          ...s,
+          progress: {
+            ...s.progress,
+            verseStages: {
+              ...s.progress.verseStages,
+              [verse.id]: 1
+            }
+          }
+        }));
+        return;
+      } else if (esPassed && !enPassed) {
+        // Spanish completed successfully, English failed or incomplete. Only retry English!
+        localStorage.removeItem(attemptsKeyEn);
+        setSessionFailed(false);
+        try {
+          localStorage.setItem(`memorize_failed_${verse.id}`, "false");
+        } catch {}
+        
+        setStage(1);
+        setIsRevealed(false);
+        setIsAlmostDone(false);
+        setShowHalfwayTransition(false);
+        setBilingualPass(2);
+        setActiveLanguage('en');
+        
+        setDidFailFlowEn(false);
+        setAttemptsEn(0);
+        setUserInputEn([]);
+        setSubmittedWrongCharsEn({});
+        setClueCountEn(0);
+        setIsWrongEn(false);
+        setHasSubmittedEn(false);
+        setIncorrectIndicesEn([]);
+        setFeedback(null);
+        setRevealedIndicesEn([]);
+        setCursorIndexEn(0);
+        
+        setState(s => ({
+          ...s,
+          progress: {
+            ...s.progress,
+            verseStages: {
+              ...s.progress.verseStages,
+              [verse.id]: 1
+            }
+          }
+        }));
+        return;
+      }
+    }
+
     // Clear attempts on intentional reset
     localStorage.removeItem(attemptsKeyEs);
     localStorage.removeItem(attemptsKeyEn);
@@ -1424,11 +1553,17 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.3 }}
-            className="text-4xl font-serif font-black text-earth dark:text-ivory"
+            className="text-3xl sm:text-4xl font-serif font-black text-earth dark:text-ivory leading-tight text-center"
           >
             {isAnyPartFailed 
               ? (state.primaryLanguage === 'es' ? 'Todavía no' : 'Not quite yet')
-              : (state.primaryLanguage === 'es' ? '¡Ya casi!' : "You're almost there!")
+              : (state.memorizeMode === 'both'
+                  ? (activeLanguage === 'es'
+                      ? (state.primaryLanguage === 'es' ? '¡Buen trabajo! — Español memorizado' : 'Great job — Spanish locked in!')
+                      : (state.primaryLanguage === 'es' ? '¡Excelente! — Inglés memorizado' : 'Nice — English locked in!')
+                    )
+                  : (state.primaryLanguage === 'es' ? '¡Ya casi!' : "You're almost there!")
+                )
             }
           </motion.h2>
           <motion.p 
@@ -1441,9 +1576,14 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
               ? (state.primaryLanguage === 'es' 
                   ? 'No has logrado memorizar todo el texto del versículo. Por favor, inténtalo de nuevo para desbloquear el reto de la cita bíblica.' 
                   : 'You did not successfully memorize the verse text. Please try again to unlock the citation challenge.')
-              : (state.primaryLanguage === 'es' 
-                  ? 'Texto completo. Ahora falta el último paso: la cita bíblica.' 
-                  : 'Text complete. Now for the final step: the citation.')
+              : (state.memorizeMode === 'both'
+                  ? (state.primaryLanguage === 'es' 
+                      ? 'Ambos idiomas listos. Ya casi. Ahora falta el último paso: la cita bíblica.' 
+                      : 'Both languages locked in. Almost there. Now for the final step: the citation.')
+                  : (state.primaryLanguage === 'es' 
+                      ? 'Texto completo. Ahora falta el último paso: la cita bíblica.' 
+                      : 'Text complete. Now for the final step: the citation.')
+                )
             }
           </motion.p>
           {!isAnyPartFailed && (
@@ -1538,29 +1678,31 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
         </div>
 
         <div className="space-y-4 px-8">
-          <h2 className="text-4xl font-serif font-black text-earth dark:text-ivory">
+          <h2 className="text-3xl sm:text-4xl font-serif font-black text-earth dark:text-ivory leading-tight">
             {currentPassFailed 
               ? (state.primaryLanguage === 'es' ? 'Todavía no' : 'Not quite yet')
-              : (state.primaryLanguage === 'es' ? '¡Vas muy bien!' : "You’re doing great!")
+              : (activeLanguage === 'es'
+                  ? (state.primaryLanguage === 'es' ? '¡Buen trabajo! — Español memorizado' : 'Great job — Spanish locked in!')
+                  : (state.primaryLanguage === 'es' ? '¡Excelente! — Inglés memorizado' : 'Nice — English locked in!')
+                )
             }
           </h2>
           <div className="space-y-2">
             {!currentPassFailed && (
               <p className="text-xl font-bold text-playful-purple dark:text-plum">
                 {state.primaryLanguage === 'es' 
-                  ? (isEnNext ? 'Ahora en inglés' : 'Ahora en español')
-                  : (isEnNext ? 'Now in English' : 'Now in Spanish')
-                }
+                  ? 'Ya casi. Un idioma completado.' 
+                  : 'Almost there. One language down.'}
               </p>
             )}
-            <p className="text-earth-light dark:text-lavender-muted max-w-xs mx-auto leading-relaxed">
+            <p className="text-earth-light dark:text-lavender-muted max-w-xs mx-auto leading-relaxed animate-pulse">
               {currentPassFailed
                 ? (state.primaryLanguage === 'es' 
                     ? 'No se puede avanzar tras un intento fallido. Por favor, intenta memorizar el versículo desde el principio.' 
                     : 'You cannot proceed after a failed attempt. Please try memorizing the verse from the beginning.')
                 : (state.primaryLanguage === 'es' 
-                    ? `Ya memorizaste este versículo en ${activeLanguage === 'es' ? 'español' : 'inglés'}. Sigue con la versión en ${isEnNext ? 'inglés' : 'español'}.`
-                    : `You’ve memorized this verse in ${activeLanguage === 'es' ? 'Spanish' : 'English'}. Keep going with the ${isEnNext ? 'English' : 'Spanish'} version.`
+                    ? `Sigue con la versión en ${isEnNext ? 'inglés' : 'español'}.`
+                    : `Keep going with the ${isEnNext ? 'English' : 'Spanish'} version.`
                   )
               }
             </p>

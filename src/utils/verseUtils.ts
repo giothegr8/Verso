@@ -1,4 +1,5 @@
 import { AppState, TranslationPair, TRANSLATION_PAIRS, Verse, Translation } from "../types";
+import { BOOK_TO_USFM, CANONICAL_USFM_NAMES } from "../services/apiBible";
 
 /**
  * Gets the current translation pair based on the app state.
@@ -107,13 +108,31 @@ export function getValidatedVerse(verse: Verse | null, state: AppState): {
  * Gets the localized book name based on the memorize mode.
  */
 export function getLocalizedBookName(book: string, mode: "es" | "en" | "both"): string {
-  const parts = book.split(' / ');
+  if (!book) return "";
+  
+  const parts = book.split(' / ').map(p => p.trim());
+  let usfm: string | null = null;
+  
+  for (const p of [...parts, book]) {
+    const key = p.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    if (BOOK_TO_USFM && BOOK_TO_USFM[key]) {
+      usfm = BOOK_TO_USFM[key];
+      break;
+    }
+  }
+
+  if (usfm && CANONICAL_USFM_NAMES && CANONICAL_USFM_NAMES[usfm]) {
+    const canonical = CANONICAL_USFM_NAMES[usfm];
+    if (mode === 'es') return canonical.es;
+    if (mode === 'en') return canonical.en;
+    return `${canonical.es} / ${canonical.en}`;
+  }
+
   const esBook = parts[0];
   const enBook = parts[1] || parts[0];
-  
   if (mode === 'es') return esBook;
   if (mode === 'en') return enBook;
-  return book; // Return both for 'both' mode
+  return book;
 }
 
 /**

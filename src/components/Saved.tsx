@@ -75,8 +75,9 @@ export default function Saved({ state, setState, onStartMemorizing }: SavedProps
   const onNativeShare = async (elementId?: string) => {
     if (!selectedVerseForShare) return;
     const { esText, enText } = getValidatedVerse(selectedVerseForShare, state);
-    const title = `Verso: ${selectedVerseForShare.book} ${selectedVerseForShare.chapter}:${selectedVerseForShare.verse}`;
-    const text = `${selectedVerseForShare.book} ${selectedVerseForShare.chapter}:${selectedVerseForShare.verse}\n\n${esText ? `ES: ${esText}\n` : ''}${enText ? `EN: ${enText}` : ''}\n\nShared via Verso`;
+    const locBook = getLocalizedBookName(selectedVerseForShare.book, state.memorizeMode);
+    const title = `Verso: ${locBook} ${selectedVerseForShare.chapter}:${selectedVerseForShare.verse}`;
+    const text = `${locBook} ${selectedVerseForShare.chapter}:${selectedVerseForShare.verse}\n\n${esText ? `ES: ${esText}\n` : ''}${enText ? `EN: ${enText}` : ''}\n\nShared via Verso`;
     const url = window.location.href;
 
     await handleShare(title, text, url, (msg) => {

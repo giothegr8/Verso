@@ -299,8 +299,9 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
   };
 
   const onNativeShare = async (elementId?: string) => {
-    const title = `Verso: ${currentVerse.book} ${currentVerse.chapter}:${currentVerse.verse}`;
-    const text = `${currentVerse.book} ${currentVerse.chapter}:${currentVerse.verse}\n\n${esText ? `ES: ${esText}\n` : ''}${enText ? `EN: ${enText}` : ''}\n\nShared via Verso`;
+    const locBook = getLocalizedBookName(currentVerse.book, state.memorizeMode);
+    const title = `Verso: ${locBook} ${currentVerse.chapter}:${currentVerse.verse}`;
+    const text = `${locBook} ${currentVerse.chapter}:${currentVerse.verse}\n\n${esText ? `ES: ${esText}\n` : ''}${enText ? `EN: ${enText}` : ''}\n\nShared via Verso`;
     const url = window.location.href;
 
     await handleShare(title, text, url, (msg) => {

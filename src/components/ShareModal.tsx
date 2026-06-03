@@ -146,7 +146,7 @@ export default function ShareModal({ isOpen, onClose, verse, state, onNativeShar
                         transformOrigin: 'top left'
                       }
                     });
-                    const reference = `${verse.book} ${verse.chapter}:${verse.verse}`;
+                    const reference = `${getLocalizedBookName(verse.book, state.memorizeMode)} ${verse.chapter}:${verse.verse}`;
                     const slug = reference
                       .toLowerCase()
                       .trim()
