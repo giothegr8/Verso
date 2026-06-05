@@ -75,7 +75,7 @@ export default function Saved({ state, setState, onStartMemorizing }: SavedProps
   const onNativeShare = async (elementId?: string) => {
     if (!selectedVerseForShare) return;
     const { esText, enText } = getValidatedVerse(selectedVerseForShare, state);
-    const locBook = getLocalizedBookName(selectedVerseForShare.book, state.memorizeMode);
+    const locBook = getLocalizedBookName(selectedVerseForShare.book, state.primaryLanguage === 'es' ? 'es' : 'en');
     const title = `Verso: ${locBook} ${selectedVerseForShare.chapter}:${selectedVerseForShare.verse}`;
     const text = `${locBook} ${selectedVerseForShare.chapter}:${selectedVerseForShare.verse}\n\n${esText ? `ES: ${esText}\n` : ''}${enText ? `EN: ${enText}` : ''}\n\nShared via Verso`;
     const url = window.location.href;
@@ -297,7 +297,7 @@ export default function Saved({ state, setState, onStartMemorizing }: SavedProps
                     </motion.div>
                     <div className="space-y-1">
                       <h3 className="text-2xl font-serif font-black text-earth dark:text-ivory tracking-tight whitespace-nowrap">
-                        {getLocalizedBookName(verse.book, state.memorizeMode)} {verse.chapter}:{verse.verse}
+                        {getLocalizedBookName(verse.book, state.primaryLanguage === 'es' ? 'es' : 'en')} {verse.chapter}:{verse.verse}
                       </h3>
                     </div>
                   </div>

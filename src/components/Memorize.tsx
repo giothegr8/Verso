@@ -1795,7 +1795,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
           
           <div className="flex flex-row items-center justify-between gap-4 w-full">
             <h2 className="text-2xl sm:text-4xl lg:text-5xl font-serif font-black text-earth dark:text-ivory tracking-tight leading-tight whitespace-nowrap">
-              {getLocalizedBookName(verse.book, activeLanguage)} {verse.chapter}:{verse.verse}
+              {getLocalizedBookName(verse.book, state.primaryLanguage === 'es' ? 'es' : 'en')} {verse.chapter}:{verse.verse}
             </h2>
             
             {/* Progress Indicator */}

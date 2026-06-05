@@ -549,9 +549,33 @@ function AppInner() {
     const isCustom = pathId.startsWith('custom-path-');
     
     setState(s => {
-      const saved = isCustom 
+      let saved = isCustom 
         ? (s.customPathProgress?.savedProgress || {})[pathId] || { currentDay: 1, completedDays: [] }
         : (s.pathProgress?.savedProgress || {})[pathId] || { currentDay: 1, completedDays: [] };
+        
+      if (isCustom) {
+        const customPathObj = s.customPaths.find(p => p.id === pathId);
+        if (customPathObj) {
+          const totalDays = customPathObj.verses.length;
+          const filteredCompleted = (saved.completedDays || []).filter(d => d <= totalDays);
+          
+          let computedDay = 1;
+          for (let d = 1; d <= totalDays; d++) {
+            if (!filteredCompleted.includes(d)) {
+              computedDay = d;
+              break;
+            }
+          }
+          if (filteredCompleted.length === totalDays && totalDays > 0) {
+            computedDay = totalDays;
+          }
+          
+          saved = {
+            currentDay: computedDay,
+            completedDays: filteredCompleted
+          };
+        }
+      }
       
       const isPathFullyCompleted = isCustom 
         ? (s.customPathProgress?.completedPathIds || []).includes(pathId)
@@ -692,11 +716,50 @@ function AppInner() {
         ? s.customPaths.map(p => p.id === path.id ? path : p)
         : [...s.customPaths, path];
         
+      const savedProgress = s.customPathProgress.savedProgress || {};
+      const currentSaved = savedProgress[path.id] || { currentDay: 1, completedDays: [] };
+      const filteredCompletedDays = (currentSaved.completedDays || []).filter(d => d <= path.verses.length);
+      
+      let computedDay = 1;
+      for (let d = 1; d <= path.verses.length; d++) {
+        if (!filteredCompletedDays.includes(d)) {
+          computedDay = d;
+          break;
+        }
+      }
+      if (filteredCompletedDays.length === path.verses.length && path.verses.length > 0) {
+        computedDay = path.verses.length;
+      }
+      
+      const updatedSavedProgress = {
+        ...savedProgress,
+        [path.id]: {
+          currentDay: computedDay,
+          completedDays: filteredCompletedDays
+        }
+      };
+      
+      const isCurrentlyActive = s.customPathProgress.selectedPathId === path.id;
+      
+      const isCompleted = filteredCompletedDays.length === path.verses.length && path.verses.length > 0;
+      const completedPathIds = s.customPathProgress.completedPathIds || [];
+      const updatedCompletedPathIds = isCompleted 
+        ? (completedPathIds.includes(path.id) ? completedPathIds : [...completedPathIds, path.id])
+        : completedPathIds.filter(id => id !== path.id);
+        
       return {
         ...s,
-        customPaths: newPaths
+        customPaths: newPaths,
+        customPathProgress: {
+          ...s.customPathProgress,
+          currentDay: isCurrentlyActive ? computedDay : s.customPathProgress.currentDay,
+          completedPathIds: updatedCompletedPathIds,
+          savedProgress: updatedSavedProgress
+        }
       };
     });
+    
+    setSelectedPath(path);
     setEditingPath(null);
     handleSetActiveTab("paths");
   };

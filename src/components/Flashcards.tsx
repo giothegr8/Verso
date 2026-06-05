@@ -1047,14 +1047,7 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
                       {/* Revealed Reference Area */}
                       <div className="text-center">
                         <h3 className="text-2xl sm:text-3xl font-serif font-black text-earth dark:text-ivory tracking-tight whitespace-nowrap">
-                          {(() => {
-                            const parts = verse.book.split(' / ');
-                            const esBook = parts[0];
-                            const enBook = parts[1] || parts[0];
-                            if (state.memorizeMode === 'es') return esBook;
-                            if (state.memorizeMode === 'en') return enBook;
-                            return state.primaryLanguage === 'es' ? `${esBook} / ${enBook}` : `${enBook} / ${esBook}`;
-                          })()} {verse.chapter}:{verse.verse}
+                          {getLocalizedBookName(verse.book, state.primaryLanguage === 'es' ? 'es' : 'en')} {verse.chapter}:{verse.verse}
                         </h3>
                         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-sky-blue mt-1">
                           {state.memorizeMode === 'both' 

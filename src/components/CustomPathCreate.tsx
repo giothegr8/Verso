@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { AppState, CustomPath, CustomPathVerse, Translation, TRANSLATION_DETAILS } from "../types";
 import { ArrowLeft, Plus, Search, Loader2, X, ChevronUp, ChevronDown, Trash2, Save, AlertCircle, Info, BookOpen, Sparkles } from "lucide-react";
 import { searchVerse } from "../services/bibleService";
-import { getLocalizedBookName } from "../utils/verseUtils";
+import { getLocalizedBookName, formatReferenceForLocale } from "../utils/verseUtils";
 import VersoLogo from "./VersoLogo";
 
 interface CustomPathCreateProps {
@@ -52,7 +52,7 @@ export default function CustomPathCreate({ state, onSave, onBack, initialPath }:
             const newVerse: CustomPathVerse = {
               id: `custom-v-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
               dayNumber: verses.length + 1,
-              reference: `${getLocalizedBookName(result.book, state.memorizeMode)} ${result.chapter}:${result.verse}`,
+              reference: `${getLocalizedBookName(result.book, state.primaryLanguage === 'es' ? 'es' : 'en')} ${result.chapter}:${result.verse}`,
               translation: searchTranslation,
               text: text,
               copyright: result.copyright,
@@ -105,7 +105,7 @@ export default function CustomPathCreate({ state, onSave, onBack, initialPath }:
         const newVerse: CustomPathVerse = {
           id: `custom-v-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           dayNumber: verses.length + 1,
-          reference: `${getLocalizedBookName(result.book, state.memorizeMode)} ${result.chapter}:${result.verse}`,
+          reference: `${getLocalizedBookName(result.book, state.primaryLanguage === 'es' ? 'es' : 'en')} ${result.chapter}:${result.verse}`,
           translation: translation as Translation,
           text: text,
           copyright: result.copyright,
@@ -291,7 +291,7 @@ export default function CustomPathCreate({ state, onSave, onBack, initialPath }:
                   </div>
                   <div className="flex-1 overflow-hidden">
                     <p className="font-serif font-black text-earth dark:text-ivory leading-tight truncate">
-                      {v.reference}
+                      {formatReferenceForLocale(v.reference, isEs ? 'es' : 'en')}
                     </p>
                     <p className="text-[10px] text-earth-light/60 dark:text-lavender-muted/60 lowercase italic truncate">
                       {v.text ? (v.text.length > 40 ? v.text.substring(0, 40) + '...' : v.text) : (isEs ? "Vista previa no disponible" : "Preview unavailable")}

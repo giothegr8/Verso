@@ -4,7 +4,7 @@ import { MOCK_VERSES, getVerseByDate } from "../constants";
 import { getVerseText, getFallbackMessage } from "../utils/verseProvider";
 import { Globe, Play, Flame, Trophy, Sparkles, Languages, BookOpen, History, AlertCircle, Share2, Star, X, Sprout, Compass, ChevronRight, CheckCircle2, Search, Loader2, Flower2 } from "lucide-react";
 import React, { useState } from "react";
-import { getCurrentTranslationPair, getValidatedVerse, getLocalizedBookName, getLocalDateString, VERSE_LAYOUT } from "../utils/verseUtils";
+import { getCurrentTranslationPair, getValidatedVerse, getLocalizedBookName, getLocalDateString, VERSE_LAYOUT, getLocalizedPathDay, formatReferenceForLocale } from "../utils/verseUtils";
 import { handleShare } from "../utils/shareUtils";
 import { AnimatePresence } from "motion/react";
 import ShareModal from "./ShareModal";
@@ -189,15 +189,21 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
   const nextPathDayNum = currentPathDayNum < pathDuration ? currentPathDayNum + 1 : null;
   
   const currentPathDay = selectedPath 
-    ? ('days' in selectedPath 
-        ? selectedPath.days[currentPathDayNum - 1] 
-        : selectedPath.verses.find(v => v.dayNumber === currentPathDayNum)) 
+    ? getLocalizedPathDay(
+        'days' in selectedPath 
+          ? selectedPath.days[currentPathDayNum - 1] 
+          : selectedPath.verses.find(v => v.dayNumber === currentPathDayNum),
+        isEs
+      )
     : null;
     
   const nextPathDay = selectedPath && nextPathDayNum 
-    ? ('days' in selectedPath 
-        ? selectedPath.days[nextPathDayNum - 1] 
-        : selectedPath.verses.find(v => v.dayNumber === nextPathDayNum)) 
+    ? getLocalizedPathDay(
+        'days' in selectedPath 
+          ? selectedPath.days[nextPathDayNum - 1] 
+          : selectedPath.verses.find(v => v.dayNumber === nextPathDayNum),
+        isEs
+      )
     : null;
   
   const getPathVerse = () => {
@@ -316,7 +322,7 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
   };
 
   const onNativeShare = async (elementId?: string) => {
-    const locBook = getLocalizedBookName(currentVerse.book, state.memorizeMode);
+    const locBook = getLocalizedBookName(currentVerse.book, state.primaryLanguage === 'es' ? 'es' : 'en');
     const title = `Verso: ${locBook} ${currentVerse.chapter}:${currentVerse.verse}`;
     const text = `${locBook} ${currentVerse.chapter}:${currentVerse.verse}\n\n${esText ? `ES: ${esText}\n` : ''}${enText ? `EN: ${enText}` : ''}\n\nShared via Verso`;
     const url = window.location.href;
@@ -593,9 +599,9 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
                     {nextPathDay && (
                       <p className="text-sm text-earth-light/60 dark:text-lavender-muted/60">
                         {isEs ? (
-                          <span>Vuelve mañana para <span className="font-serif italic font-bold text-amber-600 dark:text-amber-400 whitespace-nowrap">{nextPathDay.reference}</span>.</span>
+                          <span>Vuelve mañana para <span className="font-serif italic font-bold text-amber-600 dark:text-amber-400 whitespace-nowrap">{formatReferenceForLocale(nextPathDay.reference, 'es')}</span>.</span>
                         ) : (
-                          <span>Come back tomorrow for <span className="font-serif italic font-bold text-amber-500 dark:text-amber-400 whitespace-nowrap">{nextPathDay.reference}</span>.</span>
+                          <span>Come back tomorrow for <span className="font-serif italic font-bold text-amber-500 dark:text-amber-400 whitespace-nowrap">{formatReferenceForLocale(nextPathDay.reference, 'en')}</span>.</span>
                         )}
                       </p>
                     )}
@@ -622,7 +628,7 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
                           {isEs ? "Versículo de memorización:" : "Memory verse:"}
                         </p>
                         <p className="text-base sm:text-lg font-serif italic font-bold text-earth dark:text-ivory leading-snug whitespace-nowrap overflow-x-auto scrollbar-thin">
-                          {getLocalizedBookName(activePathVerse.book, state.memorizeMode)} {activePathVerse.chapter}:{activePathVerse.verse}
+                          {getLocalizedBookName(activePathVerse.book, state.primaryLanguage === 'es' ? 'es' : 'en')} {activePathVerse.chapter}:{activePathVerse.verse}
                         </p>
                       </div>
 
@@ -632,7 +638,7 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
                           <BookOpen size={13} className="text-teal/70 shrink-0" />
                           <p className="truncate">
                             {isEs ? "Lectura de contexto: " : "Context reading: "}
-                            <span className="font-serif italic font-bold text-teal whitespace-nowrap">{(currentPathDay as any).contextPassage}</span>
+                            <span className="font-serif italic font-bold text-teal whitespace-nowrap">{formatReferenceForLocale((currentPathDay as any).contextPassage, isEs ? 'es' : 'en')}</span>
                           </p>
                         </div>
                       )}
@@ -819,7 +825,7 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
                 <div className="flex flex-col sm:flex-row justify-between items-center sm:items-end gap-6 sm:gap-0 pt-6 border-t border-earth/5 dark:border-white/5">
                   <div className="space-y-1 text-center sm:text-left">
                     <h3 className="text-xl sm:text-2xl font-serif font-black text-earth dark:text-ivory tracking-tight">
-                      {getLocalizedBookName(currentVerse.book, state.memorizeMode)} {currentVerse.chapter}:{currentVerse.verse}
+                      {getLocalizedBookName(currentVerse.book, state.primaryLanguage === 'es' ? 'es' : 'en')} {currentVerse.chapter}:{currentVerse.verse}
                     </h3>
                     <p className="text-[10px] font-black uppercase tracking-widest text-earth-light/60 dark:text-lavender-muted/60">
                       {isCustomMode
@@ -967,7 +973,7 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
                 <div className="space-y-8">
                   {(state.memorizeMode === 'es' || state.memorizeMode === 'both') && (
                     <div className="space-y-4">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-playful-purple/80 dark:text-plum/80">
+                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-playful-purple/80 dark:text-plum/80">
                         {esDetail.name}
                       </span>
                       {esText ? (
@@ -1009,7 +1015,7 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
                 <div className="flex flex-col sm:flex-row justify-between items-center sm:items-end gap-6 sm:gap-0 pt-6 border-t border-earth/5 dark:border-white/5">
                   <div className="space-y-1 text-center sm:text-left">
                     <h3 className="text-xl sm:text-2xl font-serif font-black text-earth dark:text-ivory tracking-tight">
-                      {getLocalizedBookName(currentVerse.book, state.memorizeMode)} {currentVerse.chapter}:{currentVerse.verse}
+                      {getLocalizedBookName(currentVerse.book, state.primaryLanguage === 'es' ? 'es' : 'en')} {currentVerse.chapter}:{currentVerse.verse}
                     </h3>
                     <p className="text-[10px] font-black uppercase tracking-widest text-earth-light/60 dark:text-lavender-muted/60">
                       {isCustomMode
@@ -1144,7 +1150,7 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
                   <div className="flex justify-between items-start">
                     <div className="space-y-1">
                       <h4 className="text-lg font-serif font-black text-earth dark:text-ivory">
-                        {getLocalizedBookName(searchResult.book, state.memorizeMode)} {searchResult.chapter}:{searchResult.verse}
+                        {getLocalizedBookName(searchResult.book, state.primaryLanguage === 'es' ? 'es' : 'en')} {searchResult.chapter}:{searchResult.verse}
                       </h4>
                       <p className="text-[10px] font-black uppercase tracking-widest text-playful-purple/60">
                         {isEs ? "Versículo encontrado" : "Verse found"}

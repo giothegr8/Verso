@@ -62,7 +62,9 @@ export interface PathDay {
   contextNote?: string;
   status: "reference-only" | "full-text";
   title?: string;
+  titleEs?: string;
   theme?: string;
+  themeEs?: string;
   contextPassage?: string;
 }
 

@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { AppState, Path, Translation, TRANSLATION_DETAILS, Verse, CustomPath, CustomPathVerse } from "../types";
 import { PATHS, MOCK_VERSES } from "../constants";
 import { ArrowLeft, Compass, Clock, ChevronRight, Sprout, CheckCircle2, Lock, Flower2, RotateCw, BookOpen, RotateCcw, X, Share2, Sparkles, Trash2, Plus } from "lucide-react";
-import { getCurrentTranslationPair, getLocalizedBookName, getValidatedVerse } from "../utils/verseUtils";
+import { getCurrentTranslationPair, getLocalizedBookName, getValidatedVerse, getLocalizedPathDay, formatReferenceForLocale } from "../utils/verseUtils";
 import { handleShare } from "../utils/shareUtils";
 import ShareModal from "./ShareModal";
 
@@ -114,9 +114,12 @@ export default function PathSelection({ state, onSelectPath, onBack, onMemorize,
     const pathDuration = isCustom ? (selectedPath as CustomPath).verses.length : (selectedPath as Path).duration;
 
     const reviewDayData = reviewDay !== null 
-      ? (isCustom 
-          ? (selectedPath as CustomPath).verses.find(v => v.dayNumber === reviewDay)
-          : (selectedPath as Path).days?.find(d => d.day === reviewDay)) 
+      ? getLocalizedPathDay(
+          isCustom 
+            ? (selectedPath as CustomPath).verses.find(v => v.dayNumber === reviewDay)
+            : (selectedPath as Path).days?.find(d => d.day === reviewDay),
+          isEs
+        )
       : null;
     
     const { esText, enText, esError, enError } = currentReviewVerse 
@@ -189,7 +192,7 @@ export default function PathSelection({ state, onSelectPath, onBack, onMemorize,
             verse={currentReviewVerse}
             state={state}
             onNativeShare={async (elementId) => {
-              const locBook = getLocalizedBookName(currentReviewVerse.book, state.memorizeMode);
+              const locBook = getLocalizedBookName(currentReviewVerse.book, state.primaryLanguage === 'es' ? 'es' : 'en');
               const title = `Verso: ${locBook} ${currentReviewVerse.chapter}:${currentReviewVerse.verse}`;
               const text = `${locBook} ${currentReviewVerse.chapter}:${currentReviewVerse.verse}\n\nShared via Verso`;
               await handleShare(title, text, window.location.href, () => {}, elementId);
@@ -279,7 +282,7 @@ export default function PathSelection({ state, onSelectPath, onBack, onMemorize,
 
                     <div className="pt-4">
                       <h5 className="text-lg font-serif font-black text-teal-400 whitespace-nowrap">
-                        {getLocalizedBookName(currentReviewVerse.book, state.memorizeMode)} {currentReviewVerse.chapter}:{currentReviewVerse.verse}
+                        {getLocalizedBookName(currentReviewVerse.book, state.primaryLanguage === 'es' ? 'es' : 'en')} {currentReviewVerse.chapter}:{currentReviewVerse.verse}
                       </h5>
                     </div>
                   </div>
@@ -397,9 +400,10 @@ export default function PathSelection({ state, onSelectPath, onBack, onMemorize,
           <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
             {Array.from({ length: pathDuration }).map((_, i) => {
               const dayNum = i + 1;
-              const dayData = isCustom 
+              const rawDayData = isCustom 
                 ? (selectedPath as CustomPath).verses.find(v => v.dayNumber === dayNum)
                 : (selectedPath as Path).days?.find(d => d.day === dayNum);
+              const dayData = getLocalizedPathDay(rawDayData, isEs);
               
               // Robust completion detection
               const pathSaved = isCustom 
@@ -454,11 +458,11 @@ export default function PathSelection({ state, onSelectPath, onBack, onMemorize,
                             isCompleted ? "text-amber-600/60 dark:text-amber-400/60" : isActive ? "text-teal" : "text-earth-light/30"
                           }`}>
                             {(dayData as any)?.title 
-                              ? <span>{isEs ? `Día ${dayNum}` : `Day ${dayNum}`} • <span className="whitespace-nowrap">{(dayData as any).reference}</span></span>
+                              ? <span>{isEs ? `Día ${dayNum}` : `Day ${dayNum}`} • <span className="whitespace-nowrap">{formatReferenceForLocale((dayData as any).reference, isEs ? 'es' : 'en')}</span></span>
                               : (isEs ? `Día ${dayNum}` : `Day ${dayNum}`)}
                           </span>
                           <span className={`font-serif font-bold text-base truncate ${isActive ? "text-teal-900 dark:text-teal-50" : isCompleted ? "text-earth/60 dark:text-ivory/60" : "text-earth dark:text-ivory"}`}>
-                            {(dayData as any)?.title || (dayData as any)?.reference ? <span className={!(dayData as any)?.title ? "whitespace-nowrap" : undefined}>{(dayData as any)?.title || (dayData as any)?.reference}</span> : (isEs ? "Versículo" : "Verse")}
+                            {(dayData as any)?.title || (dayData as any)?.reference ? <span className={!(dayData as any)?.title ? "whitespace-nowrap" : undefined}>{(dayData as any)?.title || formatReferenceForLocale((dayData as any)?.reference, isEs ? 'es' : 'en')}</span> : (isEs ? "Versículo" : "Verse")}
                           </span>
                         </div>
                         {isActive && (
@@ -481,7 +485,7 @@ export default function PathSelection({ state, onSelectPath, onBack, onMemorize,
                         <div className="overflow-hidden">
                           <div className="flex items-center justify-between mb-1">
                             <p className="text-[8px] font-black uppercase tracking-widest text-teal/60 whitespace-nowrap">
-                              {dayData?.reference}
+                              {formatReferenceForLocale(dayData?.reference || '', isEs ? 'es' : 'en')}
                             </p>
                             <RotateCw size={10} className="text-teal/40" />
                           </div>
