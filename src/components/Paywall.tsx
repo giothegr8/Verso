@@ -297,7 +297,7 @@ export default function Paywall({ state, onSubscribe, onClose, isDismissible = f
           <button 
             disabled={isProcessing}
             onClick={handleSubscribe}
-            className={`w-full h-12 sm:h-14 rounded-2xl shadow-xl flex items-center justify-center transition-all px-6 ${isProcessing ? 'bg-earth/10 text-earth/20 dark:bg-white/5 dark:text-white/10 cursor-wait border-none' : 'bg-playful-purple text-ivory dark:text-white hover:bg-playful-purple/95 shadow-[0_0_20px_rgba(109,40,217,0.15)] active:scale-[0.98]'}`}
+            className={`w-full h-12 sm:h-14 rounded-2xl shadow-xl flex items-center justify-center transition-all px-6 ${isProcessing ? 'bg-earth/10 text-earth/20 dark:bg-white/5 dark:text-white/10 cursor-wait border-none' : 'bg-playful-purple/5 border-2 border-playful-purple/30 text-playful-purple hover:bg-playful-purple/10 shadow-[0_0_20px_rgba(109,40,217,0.1)] active:scale-95'}`}
           >
             {isProcessing ? (
               <Loader2 size={18} className="animate-spin text-earth/40 dark:text-white/40" />
