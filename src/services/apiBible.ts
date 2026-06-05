@@ -10,7 +10,7 @@ const API_BASE = "https://api.scripture.api.bible/v1";
 // Cache settings
 const CACHE_KEY = "verso_bible_cache";
 const CACHE_MAX_ITEMS = 500;
-const CACHE_EXPIRY_DAYS = 14;
+const CACHE_EXPIRY_DAYS = 30;
 
 interface CachedVerse {
   content: string;
