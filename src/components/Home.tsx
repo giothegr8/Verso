@@ -17,7 +17,7 @@ interface HomeProps {
   onStartMemorizing: (verseId: string) => void;
   onGetAnotherVerse: () => void;
   onGoToSaved: () => void;
-  onGoToPaths: () => void;
+  onGoToPaths: (path?: Path | CustomPath) => void;
   onCompletePathDay: () => void;
 }
 
@@ -31,8 +31,25 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
   const [isSearching, setIsSearching] = useState(false);
   const [lookupError, setLookupError] = useState<string | null>(null);
   const [suggestion, setSuggestion] = useState<string | null>(null);
-  const [searchTranslation, setSearchTranslation] = useState<Translation | "">("");
+  const [searchTranslation, setSearchTranslation] = useState<Translation | " font-bold uppercase py-2" | "">("");
   const isEs = state.primaryLanguage === "es";
+
+  // Safety confirmation and undo completion states
+  const [isConfirmingComplete, setIsConfirmingComplete] = useState(false);
+  const [showUndoToast, setShowUndoToast] = useState(false);
+  const [prevProgressSnapshot, setPrevProgressSnapshot] = useState<{
+    pathProgress: any;
+    customPathProgress: any;
+  } | null>(null);
+
+  React.useEffect(() => {
+    if (showUndoToast) {
+      const timer = setTimeout(() => {
+        setShowUndoToast(false);
+      }, 8000);
+      return () => clearTimeout(timer);
+    }
+  }, [showUndoToast]);
 
   const handleApplySuggestion = (sug: string) => {
     setSearchQuery(sug);
@@ -486,7 +503,7 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
                 </h2>
               </div>
               <button 
-                onClick={onGoToPaths}
+                onClick={() => onGoToPaths()}
                 className="text-[10px] font-black uppercase tracking-widest text-teal hover:underline"
               >
                 {isEs ? "Ver series" : "View all"}
@@ -494,8 +511,10 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
             </div>
 
             <motion.div
-              whileHover={{ scale: 1.01 }}
-              className="card bg-white dark:bg-charcoal p-6 sm:p-8 shadow-xl border border-earth/10 dark:border-white/10 relative overflow-hidden group"
+              whileHover={{ scale: 1.015 }}
+              whileTap={{ scale: 0.995 }}
+              onClick={() => onGoToPaths(selectedPath)}
+              className="card bg-white dark:bg-charcoal p-6 sm:p-8 shadow-xl border border-earth/10 dark:border-white/10 relative overflow-hidden group cursor-pointer text-left transition-all duration-300 hover:shadow-2xl"
             >
               {/* Path Watermark */}
               <div className="absolute -bottom-10 -right-10 p-12 opacity-[0.03] pointer-events-none group-hover:opacity-[0.06] transition-transform duration-700 group-hover:scale-110">
@@ -639,7 +658,8 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
                   {!isPathDayComplete && (
                     <div className="flex items-center gap-2.5">
                       <button 
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation();
                           if (activePathVerse) {
                              if (currentVerse.id === activePathVerse.id) {
                                const el = document.getElementById('votd-card');
@@ -660,7 +680,10 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
                       </button>
 
                       <button 
-                        onClick={onCompletePathDay}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIsConfirmingComplete(true);
+                        }}
                         className="p-2.5 rounded-xl border border-earth/10 dark:border-white/10 text-earth/40 dark:text-white/20 hover:text-teal hover:border-teal/30 hover:bg-teal/5 active:scale-95 transition-all shadow-sm shrink-0"
                         title={isEs ? "marcar como hecho" : "mark as complete"}
                       >
@@ -843,7 +866,7 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
             <motion.button
               whileHover={{ scale: 1.01 }}
               whileTap={{ scale: 0.99 }}
-              onClick={onGoToPaths}
+              onClick={() => onGoToPaths()}
               className="w-full card bg-white dark:bg-charcoal p-8 shadow-xl border-earth/10 dark:border-white/10 relative overflow-hidden group cursor-pointer text-left"
             >
               <div className="relative space-y-4">
@@ -1158,6 +1181,106 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
           </div>
         </motion.div>
       </div>
+
+      {/* Confirmation Modal */}
+      <AnimatePresence>
+        {isConfirmingComplete && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-6">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsConfirmingComplete(false)}
+              className="absolute inset-0 bg-espresso/85 backdrop-blur-md"
+            />
+            
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="relative w-full max-w-sm bg-white dark:bg-charcoal p-6 sm:p-8 rounded-[36px] shadow-2xl border border-earth/15 dark:border-white/15 text-center space-y-6 z-10"
+            >
+              {/* Elegant Icon at Top */}
+              <div className="mx-auto w-12 h-12 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-500">
+                <CheckCircle2 size={24} />
+              </div>
+
+              <div className="space-y-2">
+                <h3 className="text-xl font-serif font-black text-earth dark:text-ivory leading-tight">
+                  {isEs ? "¿Marcar este día como completado?" : "Mark this day complete?"}
+                </h3>
+                <p className="text-sm font-medium text-earth-light/70 dark:text-lavender-muted/70 leading-relaxed">
+                  {isEs ? "Solo marca esto como completado si terminaste de memorizar el versículo de hoy." : "Only mark this complete if you finished memorizing today’s verse."}
+                </p>
+              </div>
+
+              <div className="flex flex-col gap-2 pt-2">
+                <button
+                  onClick={() => {
+                    // Snapshot the progress before completing (deep copy)
+                    setPrevProgressSnapshot({
+                      pathProgress: JSON.parse(JSON.stringify(state.pathProgress)),
+                      customPathProgress: JSON.parse(JSON.stringify(state.customPathProgress))
+                    });
+                    onCompletePathDay();
+                    setIsConfirmingComplete(false);
+                    setShowUndoToast(true);
+                  }}
+                  className="w-full py-3 bg-amber-500 hover:bg-amber-600 dark:bg-amber-500 dark:hover:bg-amber-600 text-white font-black text-xs uppercase tracking-wider rounded-2xl active:scale-98 transition-all shadow-md shadow-amber-500/20"
+                >
+                  {isEs ? "Marcar hoy completado" : "Mark complete"}
+                </button>
+                <button
+                  onClick={() => setIsConfirmingComplete(false)}
+                  className="w-full py-3 hover:bg-earth/5 dark:hover:bg-white/5 text-earth/50 dark:text-ivory/50 font-bold text-xs uppercase tracking-wider rounded-2xl transition-all"
+                >
+                  {isEs ? "Cancelar" : "Cancel"}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Undo Toast notification */}
+      <AnimatePresence>
+        {showUndoToast && (
+          <div className="fixed bottom-32 left-1/2 -translate-x-1/2 z-50 w-full max-w-sm px-6">
+            <motion.div
+              initial={{ opacity: 0, y: 50, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -20, scale: 0.9 }}
+              className="flex items-center justify-between gap-4 px-5 py-4 bg-espresso dark:bg-charcoal border border-earth/20 dark:border-white/10 rounded-2xl shadow-2xl text-white dark:text-ivory text-sm font-semibold"
+            >
+              <span>{isEs ? "Día marcado como completado." : "Day marked complete."}</span>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => {
+                    if (prevProgressSnapshot) {
+                      setState(s => ({
+                        ...s,
+                        pathProgress: prevProgressSnapshot.pathProgress,
+                        customPathProgress: prevProgressSnapshot.customPathProgress
+                      }));
+                    }
+                    setShowUndoToast(false);
+                    setPrevProgressSnapshot(null);
+                  }}
+                  className="text-amber-500 hover:text-amber-400 font-extrabold uppercase text-xs tracking-widest underline decoration-2 underline-offset-2 shrink-0"
+                >
+                  {isEs ? "Deshacer" : "Undo"}
+                </button>
+                <button 
+                  onClick={() => setShowUndoToast(false)}
+                  className="p-1 hover:bg-white/10 dark:hover:bg-white/5 rounded-full text-white/50 hover:text-white shrink-0 transition-colors"
+                >
+                  <X size={15} />
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
     </motion.div>
   );

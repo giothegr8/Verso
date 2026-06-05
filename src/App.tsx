@@ -202,6 +202,14 @@ function AppInner() {
       setState(s => ({ ...s, activeAttempt: null }));
     }
   };
+  const handleGoToPaths = (path?: Path | CustomPath) => {
+    if (path) {
+      setSelectedPath(path);
+    } else {
+      setSelectedPath(null);
+    }
+    handleSetActiveTab("paths");
+  };
   const [showSettings, setShowSettings] = useState(false);
   const [showTour, setShowTour] = useState(false);
   const [editingPath, setEditingPath] = useState<CustomPath | null>(null);
@@ -720,7 +728,7 @@ function AppInner() {
           onStartMemorizing={(id) => startMemorizing(id, state.activeSource)} 
           onGetAnotherVerse={getAnotherVerse} 
           onGoToSaved={() => handleSetActiveTab('saved')} 
-          onGoToPaths={() => handleSetActiveTab('paths')}
+          onGoToPaths={(path) => handleGoToPaths(path)}
           onCompletePathDay={handleCompletePathDay}
         />
       );
