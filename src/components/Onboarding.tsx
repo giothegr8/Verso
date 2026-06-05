@@ -414,7 +414,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 ) : curr.pathSub}
               </p>
             </div>
-            <div className="grid grid-cols-2 gap-3 max-h-[45vh] overflow-y-auto px-2 custom-scrollbar">
+            <div className="grid grid-cols-2 gap-3 max-h-[180px] sm:max-h-[45vh] overflow-y-auto px-2 custom-scrollbar">
               {[...PATHS]
                 .sort((a, b) => {
                   const titleA = appLanguage === 'es' ? (a.titleEs || a.title) : a.title;
@@ -802,10 +802,10 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-[100] bg-parchment dark:bg-espresso flex flex-col items-center justify-center transition-colors duration-500 overflow-hidden">
+    <div className="fixed inset-0 z-[100] bg-parchment dark:bg-espresso flex flex-col items-center justify-start transition-colors duration-500 overflow-y-auto pt-safe pb-safe">
       {step < 13 && renderProgress()}
       
-      <div className={`w-full ${step === 13 ? 'h-full' : 'max-w-md h-full'} flex flex-col items-center justify-center p-6 relative overflow-y-auto`}>
+      <div className={`w-full ${step === 13 ? 'h-full' : 'max-w-md min-h-full'} flex flex-col items-center justify-between p-4 sm:p-6 relative pb-10 sm:pb-12`}>
         <AnimatePresence mode="wait">
           {isPreparing ? (
             <motion.div 
@@ -813,7 +813,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="flex-1 flex items-center justify-center w-full"
+              className="flex-1 flex flex-col items-center justify-center w-full min-h-0 py-4"
             >
                {renderStep()}
             </motion.div>
@@ -824,9 +824,9 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.4 }}
-              className={`flex-1 flex items-center justify-center w-full ${step === 13 ? '' : 'py-10'}`}
+              className={`flex-1 flex flex-col items-center justify-center w-full min-h-0 ${step === 13 ? '' : 'py-4 sm:py-8'}`}
             >
-              <div className="w-full h-full flex items-center justify-center">
+              <div className="w-full flex flex-col items-center justify-center min-h-0">
                 {renderStep()}
               </div>
             </motion.div>

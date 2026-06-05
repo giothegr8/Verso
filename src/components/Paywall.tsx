@@ -51,8 +51,8 @@ const PLANS = [
     trialEn: '3-day free trial',
     trialEs: '3 días de prueba gratis',
     hasTrial: true,
-    breakdownEn: '$9.33 / month',
-    breakdownEs: '$9.33 / mes'
+    breakdownEn: '$9.33/month',
+    breakdownEs: '$9.33/mes'
   },
   { 
     id: 'verso_annual_7999', 
@@ -68,8 +68,8 @@ const PLANS = [
     trialEn: '3-day free trial',
     trialEs: '3 días de prueba gratis',
     hasTrial: true,
-    breakdownEn: '$6.67 / month',
-    breakdownEs: '$6.67 / mes'
+    breakdownEn: '$6.67/month',
+    breakdownEs: '$6.67/mes'
   },
 ];
 
@@ -89,7 +89,7 @@ export default function Paywall({ state, onSubscribe, onClose, isDismissible = f
     if (planId === 'verso_monthly_1199') {
       return isSpanish ? "CONTINUAR CON PLAN MENSUAL" : "CONTINUE WITH MONTHLY";
     }
-    return isSpanish ? "COMENZAR PRUEBA GRATIS" : "START FREE TRIAL";
+    return isSpanish ? "COMENZAR PRUEBA GRATIS de 3 Días" : "Start 3-Day Free Trial";
   };
 
   const handleSubscribe = async () => {
@@ -111,11 +111,11 @@ export default function Paywall({ state, onSubscribe, onClose, isDismissible = f
   };
 
   return (
-    <div className="fixed inset-0 z-[100] bg-parchment dark:bg-espresso overflow-y-auto custom-scrollbar flex flex-col justify-start items-center py-6 sm:py-12 px-4 sm:px-6 pb-12 sm:pb-16">
+    <div className="fixed inset-0 z-[100] bg-parchment dark:bg-espresso overflow-y-auto custom-scrollbar flex flex-col justify-start items-center py-4 sm:py-12 px-4 sm:px-6 pb-safe pt-safe">
       <motion.div 
         initial={{ opacity: 0, y: 25 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-xl bg-white/85 dark:bg-charcoal/85 backdrop-blur-xl rounded-[40px] shadow-2xl border border-earth/10 dark:border-white/10 overflow-hidden my-auto py-2"
+        className="w-full max-w-xl bg-white/85 dark:bg-charcoal/85 backdrop-blur-xl rounded-[40px] shadow-2xl border border-earth/10 dark:border-white/10 overflow-hidden my-4 sm:my-auto py-2"
       >
         <div className="p-6 sm:p-10 space-y-6 relative">
           {isDismissible && onClose && (
@@ -219,7 +219,7 @@ export default function Paywall({ state, onSubscribe, onClose, isDismissible = f
                           
                           {(isSpanish ? plan.breakdownEs : plan.breakdownEn) && (
                             <p className="text-xs font-bold text-teal dark:text-teal-400">
-                              {isSpanish ? plan.breakdownEs : plan.breakdownEn} {isSpanish ? "equivalente" : "equivalent"}
+                              {isSpanish ? plan.breakdownEs : plan.breakdownEn}
                             </p>
                           )}
                           
