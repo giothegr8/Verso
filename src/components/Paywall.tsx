@@ -84,6 +84,7 @@ const PLANS = [
 export default function Paywall({ state, onSubscribe, onClose, isDismissible = false }: PaywallProps) {
   const isSpanish = state.primaryLanguage === "es";
   const [selectedPlanId, setSelectedPlanId] = useState(PLANS.find(p => p.default)?.id || PLANS[PLANS.length - 1].id);
+  const [showOtherPlans, setShowOtherPlans] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
   const selectedPlan = PLANS.find(p => p.id === selectedPlanId);
@@ -198,33 +199,40 @@ export default function Paywall({ state, onSubscribe, onClose, isDismissible = f
             {/* Pricing Selector */}
             <div className="space-y-4 max-w-md mx-auto w-full">
               <div className="grid grid-cols-1 gap-2.5">
-                {PLANS.map((plan) => {
+                {PLANS.filter(p => showOtherPlans || p.id === 'verso_quarterly_2999' || p.id === 'verso_annual_7999').map((plan) => {
                   const isSelected = selectedPlanId === plan.id;
+                  const hasBanner = (isSpanish ? plan.labelEs : plan.labelEn) || (isSpanish ? plan.savingsEs : plan.savingsEn);
+                  const topLabel = isSpanish ? plan.labelEs : plan.labelEn;
+                  const topSavings = isSpanish ? plan.savingsEs : plan.savingsEn;
+
                   return (
                     <button
                       key={plan.id}
                       onClick={() => handlePlanSelect(plan.id)}
-                      className={`p-4 rounded-2xl border-2 text-left transition-colors duration-150 flex justify-between items-center ${
+                      className={`relative text-left transition-colors duration-150 flex justify-between items-center overflow-hidden w-full border-2 rounded-2xl ${
+                        hasBanner ? 'pt-7 pb-3.5 px-4' : 'py-3.5 px-4'
+                      } ${
                         isSelected 
-                          ? 'border-playful-purple bg-playful-purple/5 shadow-md scale-[1.01]' 
-                          : 'border-earth/10 dark:border-white/10 bg-white dark:bg-charcoal/50 hover:border-playful-purple/30 hover:scale-[1.005]'
+                          ? 'border-playful-purple bg-playful-purple/5 shadow-md' 
+                          : 'border-earth/10 dark:border-white/10 bg-white dark:bg-charcoal/50 hover:border-playful-purple/30'
                       }`}
                     >
+                      {hasBanner && (
+                        <div className={`absolute top-0 left-0 right-0 h-5 px-4 flex justify-between items-center text-[8px] font-black uppercase tracking-[0.15em] text-white ${
+                          plan.id === 'verso_quarterly_2999' 
+                            ? 'bg-playful-purple' 
+                            : 'bg-teal'
+                        }`}>
+                          <span>{topLabel}</span>
+                          <span>{topSavings}</span>
+                        </div>
+                      )}
+
                       <div className="space-y-1 pr-2 flex-grow">
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <span className="text-xs sm:text-sm font-bold text-earth dark:text-ivory uppercase tracking-widest">
                             {isSpanish ? plan.nameEs : plan.nameEn}
                           </span>
-                          {(isSpanish ? plan.labelEs : plan.labelEn) && (
-                            <span className="px-1.5 py-0.5 bg-playful-purple text-white text-[8px] font-black uppercase tracking-widest rounded-full">
-                              {isSpanish ? plan.labelEs : plan.labelEn}
-                            </span>
-                          )}
-                          {(isSpanish ? plan.savingsEs : plan.savingsEn) && (
-                            <span className="px-1.5 py-0.5 bg-teal text-white text-[8px] font-black uppercase tracking-widest rounded-full">
-                              {isSpanish ? plan.savingsEs : plan.savingsEn}
-                            </span>
-                          )}
                         </div>
                         
                         <div className="space-y-0.5">
@@ -239,7 +247,7 @@ export default function Paywall({ state, onSubscribe, onClose, isDismissible = f
                           )}
                           
                           {plan.hasTrial && (isSpanish ? plan.trialEs : plan.trialEn) && (
-                            <p className="text-[11px] sm:text-xs font-medium text-[#4a4a4a] dark:text-lavender-muted font-serif italic">
+                            <p className="text-[11px] sm:text-xs font-medium text-[#a0a0a0] dark:text-lavender-muted font-serif italic">
                               {isSpanish ? plan.trialEs : plan.trialEn}
                             </p>
                           )}
@@ -257,6 +265,16 @@ export default function Paywall({ state, onSubscribe, onClose, isDismissible = f
                   );
                 })}
               </div>
+
+              {!showOtherPlans && (
+                <button 
+                  type="button"
+                  onClick={() => setShowOtherPlans(true)}
+                  className="py-1 text-[11px] font-black uppercase tracking-[0.14em] text-teal hover:text-playful-purple transition-all duration-150 text-center mx-auto block"
+                >
+                  {isSpanish ? "Ver otros planes" : "See other plans"}
+                </button>
+              )}
             </div>
 
             {/* Restore Purchase */}

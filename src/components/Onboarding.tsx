@@ -320,13 +320,13 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
     switch(step) {
       case 1: // LANGUAGE
         return (
-          <div className="space-y-6 sm:space-y-10 w-full animate-in fade-in duration-700 text-center">
-            <div className="flex justify-center mb-2">
+          <div className="space-y-5 sm:space-y-8 w-full animate-in fade-in duration-700 text-center">
+            <div className="flex justify-center mb-1">
               <VersoLogo size="lg" showText={true} variant="onboarding" />
             </div>
             
-            <div className="space-y-3">
-              <div className="space-y-1">
+            <div className="space-y-2">
+              <div className="space-y-0.5">
                 <h1 className="text-2xl sm:text-3xl font-serif font-black text-earth dark:text-ivory tracking-tight leading-tight">Choose your language</h1>
                 <p className="text-base sm:text-lg font-serif italic text-earth-light/90 dark:text-lavender-muted/90">Elige tu idioma</p>
               </div>
@@ -335,7 +335,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 gap-2.5 max-w-sm mx-auto w-full px-2">
+            <div className="grid grid-cols-1 gap-2.5 max-w-xs mx-auto w-full px-2">
               {[
                 { id: 'en', label: 'English', sub: 'Inglés' },
                 { id: 'es', label: 'Español', sub: 'Spanish' }
@@ -343,14 +343,14 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 <button 
                   key={opt.id}
                   onClick={() => setAppLanguage(opt.id as "en" | "es")}
-                  className={`p-4 sm:p-5 rounded-[20px] sm:rounded-[24px] border-2 transition-all flex justify-between items-center text-left ${appLanguage === opt.id ? 'border-teal bg-teal/10 shadow-[0_0_15px_rgba(13,148,136,0.15)] scale-[1.01]' : 'border-earth/10 dark:border-white/10 bg-white dark:bg-charcoal/50 hover:border-teal/30 hover:scale-[1.005]'}`}
+                  className={`p-3.5 sm:p-5 rounded-2xl border-2 transition-colors flex justify-between items-center text-left ${appLanguage === opt.id ? 'border-teal bg-teal/10 shadow-[0_4px_15px_rgba(13,148,136,0.12)]' : 'border-earth/10 dark:border-white/10 bg-white dark:bg-charcoal/50 hover:border-teal/30'}`}
                 >
                   <div className="text-left">
-                    <p className="text-base sm:text-lg font-black text-earth dark:text-ivory">{opt.label}</p>
-                    <p className="text-[8px] sm:text-[9px] font-black uppercase tracking-widest text-[#4a4a4a] dark:text-ivory/30">{opt.sub}</p>
+                    <p className="text-base font-black text-earth dark:text-ivory leading-tight">{opt.label}</p>
+                    <p className="text-[8px] font-black uppercase tracking-widest text-[#a0a0a0] dark:text-ivory/30">{opt.sub}</p>
                   </div>
-                  <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 flex items-center justify-center transition-all ${appLanguage === opt.id ? 'bg-teal border-teal text-white' : 'border-earth/20 dark:border-white/20'}`}>
-                    {appLanguage === opt.id && <Check size={10} className="sm:size-[12px]" strokeWidth={4} />}
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${appLanguage === opt.id ? 'bg-teal border-teal text-white' : 'border-earth/20 dark:border-white/20'}`}>
+                    {appLanguage === opt.id && <Check size={10} strokeWidth={4} />}
                   </div>
                 </button>
               ))}
@@ -362,22 +362,22 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
         return (
           <div className="text-center space-y-6 sm:space-y-12 w-full animate-in fade-in slide-in-from-bottom-8 duration-1000">
             <VersoLogo size="xl" showText={true} variant="onboarding" />
-            <div className="space-y-2 sm:space-y-3">
-              <h3 className="text-xl sm:text-2xl font-serif font-black text-earth dark:text-ivory leading-tight">{curr.welcomeHead}</h3>
-              <p className="text-base sm:text-lg font-serif italic text-earth-light/90 dark:text-lavender-muted/90 leading-relaxed px-4 max-w-[280px] sm:max-w-sm mx-auto">{curr.welcomeSub}</p>
+            <div className="space-y-2.5 sm:space-y-3">
+              <h3 className="text-xl sm:text-2xl font-serif font-black text-earth dark:text-ivory leading-tight text-balance">{curr.welcomeHead}</h3>
+              <p className="text-base sm:text-lg font-serif italic text-earth-light/90 dark:text-lavender-muted/90 leading-relaxed px-4 max-w-sm mx-auto text-balance">{curr.welcomeSub}</p>
             </div>
           </div>
         );
 
       case 3: // MEM MODE
         return (
-          <div className="space-y-6 sm:space-y-10 w-full animate-in fade-in duration-700">
-            <div className="text-center space-y-2 sm:space-y-3">
-              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gold/10 rounded-2xl flex items-center justify-center mx-auto text-gold mb-2 sm:mb-4">
+          <div className="space-y-5 sm:space-y-8 w-full animate-in fade-in duration-700">
+            <div className="text-center space-y-2">
+              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gold/10 rounded-2xl flex items-center justify-center mx-auto text-gold mb-1">
                 <BookOpen size={24} className="sm:size-[28px]" />
               </div>
               <h2 className="text-xl sm:text-3xl font-serif font-black text-earth dark:text-ivory tracking-tight">{curr.memTitle}</h2>
-              <div className="space-y-1">
+              <div className="space-y-0.5">
                 <p className="text-xs sm:text-sm font-medium text-earth-light/90 dark:text-lavender-muted/90 px-6">{curr.memSub}</p>
                 <p className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-earth-light/90 dark:text-ivory/20">{curr.memHelper}</p>
               </div>
@@ -387,11 +387,11 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 <button 
                   key={opt.id}
                   onClick={() => setMemMode(opt.id as LanguageMode)}
-                  className={`p-4 sm:p-5 rounded-[20px] sm:rounded-[24px] border-2 transition-all flex justify-between items-center ${memMode === opt.id ? 'border-teal bg-teal/10 shadow-[0_0_15px_rgba(13,148,136,0.1)]' : 'border-earth/10 dark:border-white/10 bg-white dark:bg-charcoal/50 hover:border-teal/30'}`}
+                  className={`p-3.5 sm:p-5 rounded-2xl border-2 transition-colors flex justify-between items-center ${memMode === opt.id ? 'border-teal bg-teal/10 shadow-[0_4px_15px_rgba(13,148,136,0.12)]' : 'border-earth/10 dark:border-white/10 bg-white dark:bg-charcoal/50 hover:border-teal/30'}`}
                 >
                   <span className="text-sm sm:text-lg font-black text-earth dark:text-ivory">{opt.label}</span>
-                  <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 flex items-center justify-center transition-all ${memMode === opt.id ? 'bg-teal border-teal text-white' : 'border-earth/20 dark:border-white/20'}`}>
-                    {memMode === opt.id && <Check size={10} className="sm:size-[12px]" strokeWidth={4} />}
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${memMode === opt.id ? 'bg-teal border-teal text-white' : 'border-earth/20 dark:border-white/20'}`}>
+                    {memMode === opt.id && <Check size={10} strokeWidth={4} />}
                   </div>
                 </button>
               ))}
@@ -401,20 +401,20 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
 
       case 4: // PATH
         return (
-          <div className="space-y-6 sm:space-y-10 w-full animate-in fade-in duration-700">
-            <div className="text-center space-y-2 sm:space-y-3">
-              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-teal/10 rounded-2xl flex items-center justify-center mx-auto text-teal mb-2 sm:mb-4">
+          <div className="space-y-5 sm:space-y-8 w-full animate-in fade-in duration-700">
+            <div className="text-center space-y-2">
+              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-teal/10 rounded-2xl flex items-center justify-center mx-auto text-teal mb-1">
                 <Compass size={24} className="sm:size-[28px]" />
               </div>
-              <h2 className="text-xl sm:text-3xl font-serif font-black text-earth dark:text-ivory tracking-tight max-w-[280px] sm:max-w-sm mx-auto leading-tight">{curr.pathTitle}</h2>
-              <p className="text-xs sm:text-base font-medium text-earth-light/90 dark:text-lavender-muted/90 px-4 max-w-sm mx-auto balance-text">
-                {appLanguage === 'es' ? (
-                  <>
-                    Elige una Serie de versículos<br />
-                    para acompañar tu Versículo Diario.
-                  </>
-                ) : curr.pathSub}
-              </p>
+              <h2 className="text-xl sm:text-3xl font-serif font-black text-earth dark:text-ivory tracking-tight max-w-sm mx-auto leading-tight text-balance">{curr.pathTitle}</h2>
+              <div className="space-y-1.5 px-4">
+                <p className="text-xs sm:text-base font-medium text-earth-light/90 dark:text-lavender-muted/90 max-w-sm mx-auto text-balance">
+                  {appLanguage === 'es' ? 'Elige una Serie de versículos para acompañar tu Versículo Diario.' : curr.pathSub}
+                </p>
+                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-teal max-w-[320px] mx-auto leading-normal text-balance">
+                  {curr.pathHelper}
+                </p>
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-2 sm:gap-3 px-2">
               {[...PATHS]
@@ -427,11 +427,11 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 <button 
                   key={p.id}
                   onClick={() => setSelectedPathId(p.id)}
-                  className={`p-3 sm:p-4 rounded-[16px] sm:rounded-[20px] border-2 transition-all flex flex-col justify-between items-start text-left gap-2 sm:gap-3 ${selectedPathId === p.id ? 'border-teal bg-teal/10 shadow-[0_0_10px_rgba(13,148,136,0.1)]' : 'border-earth/10 dark:border-white/10 bg-white dark:bg-charcoal/50 hover:border-teal/30'}`}
+                  className={`p-3 sm:p-4 rounded-2xl border-2 transition-colors flex flex-col justify-between items-start text-left gap-2 sm:gap-3 ${selectedPathId === p.id ? 'border-teal bg-teal/10 shadow-[0_4px_10px_rgba(13,148,136,0.1)]' : 'border-earth/10 dark:border-white/10 bg-white dark:bg-charcoal/50 hover:border-teal/30'}`}
                 >
                   <span className="text-[11px] sm:text-sm font-black text-earth dark:text-ivory leading-tight line-clamp-2">{appLanguage === 'es' ? p.titleEs : p.title}</span>
-                  <div className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${selectedPathId === p.id ? 'bg-teal border-teal text-white' : 'border-earth/20 dark:border-white/20'}`}>
-                    {selectedPathId === p.id && <Check size={8} className="sm:size-[10px]" strokeWidth={4} />}
+                  <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${selectedPathId === p.id ? 'bg-teal border-teal text-white' : 'border-earth/20 dark:border-white/20'}`}>
+                    {selectedPathId === p.id && <Check size={8} strokeWidth={4} />}
                   </div>
                 </button>
               ))}
@@ -441,9 +441,9 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
 
       case 5: // RHYTHM
         return (
-          <div className="space-y-6 sm:space-y-10 w-full animate-in fade-in duration-700">
-            <div className="text-center space-y-2 sm:space-y-3">
-              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-teal/10 rounded-2xl flex items-center justify-center mx-auto text-teal mb-2 sm:mb-4">
+          <div className="space-y-5 sm:space-y-8 w-full animate-in fade-in duration-700">
+            <div className="text-center space-y-1.5">
+              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-teal/10 rounded-2xl flex items-center justify-center mx-auto text-teal mb-1">
                 <Activity size={24} className="sm:size-[28px]" />
               </div>
               <h2 className="text-xl sm:text-3xl font-serif font-black text-earth dark:text-ivory tracking-tight">{curr.rhythmTitle}</h2>
@@ -454,11 +454,11 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 <button 
                   key={opt.id}
                   onClick={() => setRhythm(opt.id as DailyRhythm)}
-                  className={`p-4 sm:p-5 rounded-[20px] sm:rounded-[24px] border-2 transition-all flex justify-between items-center ${rhythm === opt.id ? 'border-teal bg-teal/10 shadow-[0_0_15px_rgba(13,148,136,0.1)]' : 'border-earth/10 dark:border-white/10 bg-white dark:bg-charcoal/50 hover:border-teal/30'}`}
+                  className={`p-3.5 sm:p-5 rounded-2xl border-2 transition-colors flex justify-between items-center ${rhythm === opt.id ? 'border-teal bg-teal/10 shadow-[0_4px_15px_rgba(13,148,136,0.12)]' : 'border-earth/10 dark:border-white/10 bg-white dark:bg-charcoal/50 hover:border-teal/30'}`}
                 >
                   <span className="text-sm sm:text-lg font-black text-earth dark:text-ivory">{opt.label}</span>
-                  <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 flex items-center justify-center transition-all ${rhythm === opt.id ? 'bg-teal border-teal text-white' : 'border-earth/20 dark:border-white/20'}`}>
-                    {rhythm === opt.id && <Check size={10} className="sm:size-[12px]" strokeWidth={4} />}
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${rhythm === opt.id ? 'bg-teal border-teal text-white' : 'border-earth/20 dark:border-white/20'}`}>
+                    {rhythm === opt.id && <Check size={10} strokeWidth={4} />}
                   </div>
                 </button>
               ))}
@@ -468,9 +468,9 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
 
       case 6: // IDENTITY
         return (
-          <div className="space-y-6 sm:space-y-10 w-full animate-in fade-in duration-700">
-            <div className="text-center space-y-2 sm:space-y-3">
-              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-teal/10 rounded-2xl flex items-center justify-center mx-auto text-teal mb-2 sm:mb-4">
+          <div className="space-y-4 sm:space-y-8 w-full animate-in fade-in duration-700">
+            <div className="text-center space-y-1.5">
+              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-teal/10 rounded-2xl flex items-center justify-center mx-auto text-teal mb-1">
                 <Anchor size={24} className="sm:size-[28px]" />
               </div>
               <h2 className="text-xl sm:text-3xl font-serif font-black text-earth dark:text-ivory tracking-tight">{curr.identityTitle}</h2>
@@ -481,14 +481,14 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 <button 
                   key={opt.id}
                   onClick={() => setGrowthGoal({ label: opt.label, subline: opt.sub })}
-                  className={`p-3.5 sm:p-5 rounded-[20px] sm:rounded-[24px] border-2 transition-all flex justify-between items-center text-left ${growthGoal?.label === opt.label ? 'border-teal bg-teal/10 shadow-[0_0_15px_rgba(13,148,136,0.1)]' : 'border-earth/10 dark:border-white/10 bg-white dark:bg-charcoal/50 hover:border-teal/30'}`}
+                  className={`p-3 sm:p-5 rounded-2xl border-2 transition-colors flex justify-between items-center text-left ${growthGoal?.label === opt.label ? 'border-teal bg-teal/10 shadow-[0_4px_15px_rgba(13,148,136,0.12)]' : 'border-earth/10 dark:border-white/10 bg-white dark:bg-charcoal/50 hover:border-teal/30'}`}
                 >
-                  <div className="flex flex-col gap-0.5 sm:gap-1">
+                  <div className="flex flex-col gap-0.5">
                     <span className="text-sm sm:text-lg font-black text-earth dark:text-ivory leading-tight">{opt.label}</span>
-                    <span className="text-xs sm:text-sm text-[#4a4a4a] dark:text-[#cccccc] font-serif italic">{opt.sub}</span>
+                    <span className="text-xs text-[#a0a0a0] dark:text-[#cccccc] font-serif italic">{opt.sub}</span>
                   </div>
-                  <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 flex items-center justify-center shrink-0 ml-4 transition-all ${growthGoal?.label === opt.label ? 'bg-teal border-teal text-white' : 'border-earth/20 dark:border-white/20'}`}>
-                    {growthGoal?.label === opt.label && <Check size={10} className="sm:size-[12px]" strokeWidth={4} />}
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ml-4 transition-all ${growthGoal?.label === opt.label ? 'bg-teal border-teal text-white' : 'border-earth/20 dark:border-white/20'}`}>
+                    {growthGoal?.label === opt.label && <Check size={10} strokeWidth={4} />}
                   </div>
                 </button>
               ))}
@@ -498,9 +498,9 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
 
       case 7: // BLOCKER
         return (
-          <div className="space-y-6 sm:space-y-10 w-full animate-in fade-in duration-700">
-            <div className="text-center space-y-2 sm:space-y-3">
-              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-coral/10 rounded-2xl flex items-center justify-center mx-auto text-coral mb-2 sm:mb-4">
+          <div className="space-y-4 sm:space-y-8 w-full animate-in fade-in duration-700">
+            <div className="text-center space-y-1.5">
+              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-coral/10 rounded-2xl flex items-center justify-center mx-auto text-coral mb-1">
                 <ShieldAlert size={24} className="sm:size-[28px]" />
               </div>
               <h2 className="text-xl sm:text-3xl font-serif font-black text-earth dark:text-ivory tracking-tight">{curr.blockerTitle}</h2>
@@ -511,11 +511,11 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 <button 
                   key={opt.id}
                   onClick={() => setBlocker(opt.id as Blocker)}
-                  className={`p-3 sm:p-4 h-22 sm:h-32 rounded-[20px] sm:rounded-[24px] border-2 transition-all flex flex-col justify-between items-start text-left ${blocker === opt.id ? 'border-coral bg-coral/10 shadow-[0_0_15px_rgba(225,29,72,0.1)]' : 'border-earth/10 dark:border-white/10 bg-white dark:bg-charcoal/50 hover:border-coral/30'}`}
+                  className={`p-2.5 sm:p-4 h-18 sm:h-32 rounded-2xl border-2 transition-colors flex flex-col justify-between items-start text-left ${blocker === opt.id ? 'border-coral bg-coral/10 shadow-[0_4px_15px_rgba(225,29,72,0.1)]' : 'border-earth/10 dark:border-white/10 bg-white dark:bg-charcoal/50 hover:border-coral/30'}`}
                 >
                   <span className="text-xs sm:text-base font-black text-earth dark:text-ivory leading-tight">{opt.label}</span>
-                  <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 flex items-center justify-center transition-all ${blocker === opt.id ? 'bg-coral border-coral text-white' : 'border-earth/20 dark:border-white/20'}`}>
-                    {blocker === opt.id && <Check size={10} className="sm:size-[12px]" strokeWidth={4} />}
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${blocker === opt.id ? 'bg-coral border-coral text-white' : 'border-earth/20 dark:border-white/20'}`}>
+                    {blocker === opt.id && <Check size={10} strokeWidth={4} />}
                   </div>
                 </button>
               ))}
@@ -525,18 +525,18 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
 
       case 8: // ENCOURAGEMENT
         return (
-          <div className="text-center space-y-12 w-full animate-in fade-in zoom-in duration-1000">
-            <div className="space-y-10">
+          <div className="text-center space-y-8 sm:space-y-12 w-full animate-in fade-in zoom-in duration-1000">
+            <div className="space-y-8">
               <div className="relative inline-block">
-                <div className="w-32 h-32 bg-teal/5 rounded-full flex items-center justify-center mx-auto text-teal blur-sm animate-pulse" />
+                <div className="w-24 h-24 sm:w-32 sm:h-32 bg-teal/5 rounded-full flex items-center justify-center mx-auto text-teal blur-sm animate-pulse" />
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <Sprout size={64} className="text-teal" strokeWidth={1.5} />
+                  <Sprout size={48} className="text-teal sm:size-[64px]" strokeWidth={1.5} />
                 </div>
               </div>
-              <div className="space-y-6">
-                <div className="space-y-4">
-                  <h2 className="text-4xl font-serif font-black text-earth dark:text-ivory tracking-tight">{curr.encouragementHead}</h2>
-                  <p className="text-lg font-serif italic text-earth-light/90 dark:text-lavender-muted/90 leading-relaxed max-w-xs mx-auto">{curr.encouragementSub}</p>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <h2 className="text-3xl sm:text-4xl font-serif font-black text-earth dark:text-ivory tracking-tight">{curr.encouragementHead}</h2>
+                  <p className="text-base sm:text-lg font-serif italic text-earth-light/90 dark:text-lavender-muted/90 leading-relaxed max-w-xs mx-auto text-balance">{curr.encouragementSub}</p>
                 </div>
                 {curr.encouragementFooter && (
                   <p className="text-xs font-black uppercase tracking-[0.2em] text-teal/90 animate-pulse">
@@ -550,16 +550,16 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
 
       case 9: // REMINDERS
         return (
-          <div className="space-y-6 sm:space-y-10 w-full animate-in fade-in duration-700">
-            <div className="text-center space-y-2 sm:space-y-3">
-              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-teal/10 rounded-2xl flex items-center justify-center mx-auto text-teal mb-2 sm:mb-4">
+          <div className="space-y-4 sm:space-y-8 w-full animate-in fade-in duration-700">
+            <div className="text-center space-y-1.5">
+              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-teal/10 rounded-2xl flex items-center justify-center mx-auto text-teal mb-1">
                 <Clock size={24} className="sm:size-[28px]" />
               </div>
-              <h2 className="text-xl sm:text-3xl font-serif font-black text-earth dark:text-ivory tracking-tight">{curr.reminderTitle}</h2>
-              <div className="space-y-1">
-                <p className="text-xs sm:text-sm font-medium text-earth-light/90 dark:text-lavender-muted/90 px-6">{curr.reminderSubtitle}</p>
+              <h2 className="text-xl sm:text-3xl font-serif font-black text-earth dark:text-ivory tracking-tight text-balance max-w-sm mx-auto leading-tight">{curr.reminderTitle}</h2>
+              <div className="space-y-1 px-4">
+                <p className="text-xs sm:text-sm font-medium text-earth-light/90 dark:text-lavender-muted/90">{curr.reminderSubtitle}</p>
                 {blocker && (
-                  <p className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.15em] text-teal text-center px-8 mt-2 leading-relaxed max-w-[240px] mx-auto transition-all animate-in fade-in duration-500">
+                  <p className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.14em] text-teal text-center mt-1.5 leading-relaxed max-w-[325px] mx-auto text-balance transition-all animate-in fade-in duration-500">
                     {curr.blockerHelper[blocker]}
                   </p>
                 )}
@@ -570,11 +570,11 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 <button 
                   key={opt.id}
                   onClick={() => setReminder(opt.id as ReminderPreference)}
-                  className={`p-4 sm:p-5 rounded-[20px] sm:rounded-[24px] border-2 transition-all flex justify-between items-center ${reminder === opt.id ? 'border-teal bg-teal/10 shadow-[0_0_15px_rgba(13,148,136,0.1)]' : 'border-earth/10 dark:border-white/10 bg-white dark:bg-charcoal/50 hover:border-teal/30'}`}
+                  className={`py-2.5 sm:py-4 px-4 sm:px-5 rounded-2xl border-2 transition-colors flex justify-between items-center ${reminder === opt.id ? 'border-teal bg-teal/10 shadow-[0_4px_15px_rgba(13,148,136,0.12)]' : 'border-earth/10 dark:border-white/10 bg-white dark:bg-charcoal/50 hover:border-teal/30'}`}
                 >
                   <span className="text-sm sm:text-lg font-black text-earth dark:text-ivory">{opt.label}</span>
-                  <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 flex items-center justify-center transition-all ${reminder === opt.id ? 'bg-teal border-teal text-white' : 'border-earth/20 dark:border-white/20'}`}>
-                    {reminder === opt.id && <Check size={10} className="sm:size-[12px]" strokeWidth={4} />}
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${reminder === opt.id ? 'bg-teal border-teal text-white' : 'border-earth/20 dark:border-white/20'}`}>
+                    {reminder === opt.id && <Check size={10} strokeWidth={4} />}
                   </div>
                 </button>
               ))}
@@ -816,8 +816,8 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
     <div className="fixed inset-0 z-[100] bg-parchment dark:bg-espresso flex flex-col items-center justify-start transition-colors duration-500 overflow-hidden pt-safe pb-safe">
       {step < 13 && renderProgress()}
       
-      <div className="flex-1 overflow-y-auto w-full custom-scrollbar pb-36">
-        <div className="w-full max-w-md mx-auto min-h-full flex flex-col justify-center px-4 sm:px-6 py-6 sm:py-10">
+      <div className="flex-1 overflow-y-auto w-full custom-scrollbar pb-44 sm:pb-36">
+        <div className="w-full max-w-md mx-auto flex flex-col justify-start sm:justify-center px-4 sm:px-6 py-6 sm:py-10 min-h-[60vh] sm:min-h-[70vh]">
           <AnimatePresence mode="wait">
             {isPreparing ? (
               <motion.div 
@@ -849,14 +849,8 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
 
       {/* Sticky Navigation Footer */}
       {!isPreparing && step < 13 && step !== 10 && step !== 11 && (
-        <div className="fixed bottom-0 left-0 right-0 z-50 bg-gradient-to-t from-parchment via-parchment/95 to-transparent dark:from-espresso dark:via-espresso/95 pt-8 pb-6 px-4 flex flex-col items-center pointer-events-none">
-          <div className="w-full max-w-sm pointer-events-auto flex flex-col gap-3">
-            {step === 4 && (
-              <p className="text-[10px] font-black uppercase tracking-widest text-teal text-center px-8 mb-1 leading-tight max-w-[280px] mx-auto">
-                {(curr as any).pathHelper}
-              </p>
-            )}
-            
+        <div className="fixed bottom-0 left-0 right-0 z-50 bg-gradient-to-t from-parchment via-parchment/90 to-transparent dark:from-espresso dark:via-espresso/90 pt-4 pb-4 sm:pt-8 sm:pb-6 px-4 flex flex-col items-center pointer-events-none">
+          <div className="w-full max-w-sm pointer-events-auto flex flex-col gap-2.5">
             {step === 12 ? (
               <button 
                 onClick={next}
