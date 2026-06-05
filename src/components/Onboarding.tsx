@@ -320,76 +320,78 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
     switch(step) {
       case 1: // LANGUAGE
         return (
-          <div className="space-y-10 w-full animate-in fade-in duration-700">
-              <div className="space-y-4">
-                <div className="w-16 h-16 bg-teal/10 rounded-2xl flex items-center justify-center mx-auto text-teal">
-                  <Globe size={28} strokeWidth={1.5} />
-                </div>
-                <div className="space-y-1">
-                  <h1 className="text-3xl sm:text-4xl font-serif font-black text-earth dark:text-ivory tracking-tight">Choose your language</h1>
-                  <p className="text-lg sm:text-xl font-serif italic text-earth-light/90 dark:text-lavender-muted/90">Elige tu idioma</p>
-                </div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-earth-light/90 dark:text-ivory/90">
-                  Set your main app language
-                </p>
+          <div className="space-y-6 sm:space-y-10 w-full animate-in fade-in duration-700 text-center">
+            <div className="flex justify-center mb-2">
+              <VersoLogo size="lg" showText={true} variant="onboarding" />
+            </div>
+            
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <h1 className="text-2xl sm:text-3xl font-serif font-black text-earth dark:text-ivory tracking-tight leading-tight">Choose your language</h1>
+                <p className="text-base sm:text-lg font-serif italic text-earth-light/90 dark:text-lavender-muted/90">Elige tu idioma</p>
               </div>
-              <div className="grid grid-cols-1 gap-3 px-2">
-                {[
-                  { id: 'en', label: 'English', sub: 'Inglés' },
-                  { id: 'es', label: 'Español', sub: 'Spanish' }
-                ].map(opt => (
-                  <button 
-                    key={opt.id}
-                    onClick={() => setAppLanguage(opt.id as "en" | "es")}
-                    className={`p-5 rounded-[24px] border-2 transition-all flex justify-between items-center ${appLanguage === opt.id ? 'border-teal bg-teal/10 shadow-[0_0_15px_rgba(13,148,136,0.1)]' : 'border-earth/10 dark:border-white/10 bg-white dark:bg-charcoal/50 hover:border-teal/30'}`}
-                  >
-                    <div className="text-left">
-                      <p className="text-lg font-black text-earth dark:text-ivory">{opt.label}</p>
-                      <p className="text-[9px] font-black uppercase tracking-widest text-earth-light/90 dark:text-ivory/20">{opt.sub}</p>
-                    </div>
-                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${appLanguage === opt.id ? 'bg-teal border-teal text-white' : 'border-earth/20 dark:border-white/20'}`}>
-                      {appLanguage === opt.id && <Check size={12} strokeWidth={4} />}
-                    </div>
-                  </button>
-                ))}
-              </div>
+              <p className="text-[10px] font-black uppercase tracking-[0.15em] text-teal animate-pulse">
+                Set your main app language
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 gap-2.5 max-w-sm mx-auto w-full px-2">
+              {[
+                { id: 'en', label: 'English', sub: 'Inglés' },
+                { id: 'es', label: 'Español', sub: 'Spanish' }
+              ].map(opt => (
+                <button 
+                  key={opt.id}
+                  onClick={() => setAppLanguage(opt.id as "en" | "es")}
+                  className={`p-4 sm:p-5 rounded-[20px] sm:rounded-[24px] border-2 transition-all flex justify-between items-center text-left ${appLanguage === opt.id ? 'border-teal bg-teal/10 shadow-[0_0_15px_rgba(13,148,136,0.15)] scale-[1.01]' : 'border-earth/10 dark:border-white/10 bg-white dark:bg-charcoal/50 hover:border-teal/30 hover:scale-[1.005]'}`}
+                >
+                  <div className="text-left">
+                    <p className="text-base sm:text-lg font-black text-earth dark:text-ivory">{opt.label}</p>
+                    <p className="text-[8px] sm:text-[9px] font-black uppercase tracking-widest text-[#4a4a4a] dark:text-ivory/30">{opt.sub}</p>
+                  </div>
+                  <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 flex items-center justify-center transition-all ${appLanguage === opt.id ? 'bg-teal border-teal text-white' : 'border-earth/20 dark:border-white/20'}`}>
+                    {appLanguage === opt.id && <Check size={10} className="sm:size-[12px]" strokeWidth={4} />}
+                  </div>
+                </button>
+              ))}
+            </div>
           </div>
         );
 
       case 2: // WELCOME
         return (
-          <div className="text-center space-y-12 w-full animate-in fade-in slide-in-from-bottom-8 duration-1000">
+          <div className="text-center space-y-6 sm:space-y-12 w-full animate-in fade-in slide-in-from-bottom-8 duration-1000">
             <VersoLogo size="xl" showText={true} variant="onboarding" />
-            <div className="space-y-3">
-              <h3 className="text-2xl font-serif font-black text-earth dark:text-ivory leading-tight">{curr.welcomeHead}</h3>
-              <p className="text-lg font-serif italic text-earth-light/90 dark:text-lavender-muted/90 leading-relaxed px-4">{curr.welcomeSub}</p>
+            <div className="space-y-2 sm:space-y-3">
+              <h3 className="text-xl sm:text-2xl font-serif font-black text-earth dark:text-ivory leading-tight">{curr.welcomeHead}</h3>
+              <p className="text-base sm:text-lg font-serif italic text-earth-light/90 dark:text-lavender-muted/90 leading-relaxed px-4 max-w-[280px] sm:max-w-sm mx-auto">{curr.welcomeSub}</p>
             </div>
           </div>
         );
 
       case 3: // MEM MODE
         return (
-          <div className="space-y-10 w-full animate-in fade-in duration-700">
-            <div className="text-center space-y-3">
-              <div className="w-16 h-16 bg-gold/10 rounded-2xl flex items-center justify-center mx-auto text-gold mb-4">
-                <BookOpen size={28} />
+          <div className="space-y-6 sm:space-y-10 w-full animate-in fade-in duration-700">
+            <div className="text-center space-y-2 sm:space-y-3">
+              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gold/10 rounded-2xl flex items-center justify-center mx-auto text-gold mb-2 sm:mb-4">
+                <BookOpen size={24} className="sm:size-[28px]" />
               </div>
-              <h2 className="text-2xl sm:text-3xl font-serif font-black text-earth dark:text-ivory tracking-tight">{curr.memTitle}</h2>
+              <h2 className="text-xl sm:text-3xl font-serif font-black text-earth dark:text-ivory tracking-tight">{curr.memTitle}</h2>
               <div className="space-y-1">
                 <p className="text-xs sm:text-sm font-medium text-earth-light/90 dark:text-lavender-muted/90 px-6">{curr.memSub}</p>
-                <p className="text-[10px] font-black uppercase tracking-widest text-earth-light/90 dark:text-ivory/20">{curr.memHelper}</p>
+                <p className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-earth-light/90 dark:text-ivory/20">{curr.memHelper}</p>
               </div>
             </div>
-            <div className="grid grid-cols-1 gap-3 px-2">
+            <div className="grid grid-cols-1 gap-2 sm:gap-3 px-2">
               {curr.memOptions.map(opt => (
                 <button 
                   key={opt.id}
                   onClick={() => setMemMode(opt.id as LanguageMode)}
-                  className={`p-5 rounded-[24px] border-2 transition-all flex justify-between items-center ${memMode === opt.id ? 'border-teal bg-teal/10 shadow-[0_0_15px_rgba(13,148,136,0.1)]' : 'border-earth/10 dark:border-white/10 bg-white dark:bg-charcoal/50 hover:border-teal/30'}`}
+                  className={`p-4 sm:p-5 rounded-[20px] sm:rounded-[24px] border-2 transition-all flex justify-between items-center ${memMode === opt.id ? 'border-teal bg-teal/10 shadow-[0_0_15px_rgba(13,148,136,0.1)]' : 'border-earth/10 dark:border-white/10 bg-white dark:bg-charcoal/50 hover:border-teal/30'}`}
                 >
-                  <span className="text-base sm:text-lg font-black text-earth dark:text-ivory">{opt.label}</span>
-                  <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${memMode === opt.id ? 'bg-teal border-teal text-white' : 'border-earth/20 dark:border-white/20'}`}>
-                    {memMode === opt.id && <Check size={12} strokeWidth={4} />}
+                  <span className="text-sm sm:text-lg font-black text-earth dark:text-ivory">{opt.label}</span>
+                  <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 flex items-center justify-center transition-all ${memMode === opt.id ? 'bg-teal border-teal text-white' : 'border-earth/20 dark:border-white/20'}`}>
+                    {memMode === opt.id && <Check size={10} className="sm:size-[12px]" strokeWidth={4} />}
                   </div>
                 </button>
               ))}
@@ -399,13 +401,13 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
 
       case 4: // PATH
         return (
-          <div className="space-y-10 w-full animate-in fade-in duration-700">
-            <div className="text-center space-y-3">
-              <div className="w-16 h-16 bg-teal/10 rounded-2xl flex items-center justify-center mx-auto text-teal mb-4">
-                <Compass size={28} />
+          <div className="space-y-6 sm:space-y-10 w-full animate-in fade-in duration-700">
+            <div className="text-center space-y-2 sm:space-y-3">
+              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-teal/10 rounded-2xl flex items-center justify-center mx-auto text-teal mb-2 sm:mb-4">
+                <Compass size={24} className="sm:size-[28px]" />
               </div>
-              <h2 className="text-2xl sm:text-3xl font-serif font-black text-earth dark:text-ivory tracking-tight max-w-[280px] sm:max-w-sm mx-auto leading-tight">{curr.pathTitle}</h2>
-              <p className="text-sm sm:text-base font-medium text-earth-light/90 dark:text-lavender-muted/90 px-6 max-w-sm mx-auto balance-text">
+              <h2 className="text-xl sm:text-3xl font-serif font-black text-earth dark:text-ivory tracking-tight max-w-[280px] sm:max-w-sm mx-auto leading-tight">{curr.pathTitle}</h2>
+              <p className="text-xs sm:text-base font-medium text-earth-light/90 dark:text-lavender-muted/90 px-4 max-w-sm mx-auto balance-text">
                 {appLanguage === 'es' ? (
                   <>
                     Elige una Serie de versículos<br />
@@ -414,7 +416,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 ) : curr.pathSub}
               </p>
             </div>
-            <div className="grid grid-cols-2 gap-3 max-h-[180px] sm:max-h-[45vh] overflow-y-auto px-2 custom-scrollbar">
+            <div className="grid grid-cols-2 gap-2 sm:gap-3 px-2">
               {[...PATHS]
                 .sort((a, b) => {
                   const titleA = appLanguage === 'es' ? (a.titleEs || a.title) : a.title;
@@ -425,11 +427,11 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 <button 
                   key={p.id}
                   onClick={() => setSelectedPathId(p.id)}
-                  className={`p-3.5 sm:p-4 rounded-[20px] border-2 transition-all flex flex-col justify-between items-start text-left gap-3 ${selectedPathId === p.id ? 'border-teal bg-teal/10 shadow-[0_0_10px_rgba(13,148,136,0.1)]' : 'border-earth/10 dark:border-white/10 bg-white dark:bg-charcoal/50 hover:border-teal/30'}`}
+                  className={`p-3 sm:p-4 rounded-[16px] sm:rounded-[20px] border-2 transition-all flex flex-col justify-between items-start text-left gap-2 sm:gap-3 ${selectedPathId === p.id ? 'border-teal bg-teal/10 shadow-[0_0_10px_rgba(13,148,136,0.1)]' : 'border-earth/10 dark:border-white/10 bg-white dark:bg-charcoal/50 hover:border-teal/30'}`}
                 >
-                  <span className="text-[13px] sm:text-sm font-black text-earth dark:text-ivory leading-tight">{appLanguage === 'es' ? p.titleEs : p.title}</span>
-                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${selectedPathId === p.id ? 'bg-teal border-teal text-white' : 'border-earth/20 dark:border-white/20'}`}>
-                    {selectedPathId === p.id && <Check size={10} strokeWidth={4} />}
+                  <span className="text-[11px] sm:text-sm font-black text-earth dark:text-ivory leading-tight line-clamp-2">{appLanguage === 'es' ? p.titleEs : p.title}</span>
+                  <div className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${selectedPathId === p.id ? 'bg-teal border-teal text-white' : 'border-earth/20 dark:border-white/20'}`}>
+                    {selectedPathId === p.id && <Check size={8} className="sm:size-[10px]" strokeWidth={4} />}
                   </div>
                 </button>
               ))}
@@ -439,24 +441,24 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
 
       case 5: // RHYTHM
         return (
-          <div className="space-y-10 w-full animate-in fade-in duration-700">
-            <div className="text-center space-y-3">
-              <div className="w-16 h-16 bg-teal/10 rounded-2xl flex items-center justify-center mx-auto text-teal mb-4">
-                <Activity size={28} />
+          <div className="space-y-6 sm:space-y-10 w-full animate-in fade-in duration-700">
+            <div className="text-center space-y-2 sm:space-y-3">
+              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-teal/10 rounded-2xl flex items-center justify-center mx-auto text-teal mb-2 sm:mb-4">
+                <Activity size={24} className="sm:size-[28px]" />
               </div>
-              <h2 className="text-2xl sm:text-3xl font-serif font-black text-earth dark:text-ivory tracking-tight">{curr.rhythmTitle}</h2>
+              <h2 className="text-xl sm:text-3xl font-serif font-black text-earth dark:text-ivory tracking-tight">{curr.rhythmTitle}</h2>
               <p className="text-xs sm:text-sm font-medium text-earth-light/90 dark:text-lavender-muted/90 px-6">{curr.rhythmSub}</p>
             </div>
-            <div className="grid grid-cols-1 gap-3 px-2">
+            <div className="grid grid-cols-1 gap-2 sm:gap-3 px-2">
               {curr.rhythmOptions.map(opt => (
                 <button 
                   key={opt.id}
                   onClick={() => setRhythm(opt.id as DailyRhythm)}
-                  className={`p-5 rounded-[24px] border-2 transition-all flex justify-between items-center ${rhythm === opt.id ? 'border-teal bg-teal/10 shadow-[0_0_15px_rgba(13,148,136,0.1)]' : 'border-earth/10 dark:border-white/10 bg-white dark:bg-charcoal/50 hover:border-teal/30'}`}
+                  className={`p-4 sm:p-5 rounded-[20px] sm:rounded-[24px] border-2 transition-all flex justify-between items-center ${rhythm === opt.id ? 'border-teal bg-teal/10 shadow-[0_0_15px_rgba(13,148,136,0.1)]' : 'border-earth/10 dark:border-white/10 bg-white dark:bg-charcoal/50 hover:border-teal/30'}`}
                 >
-                  <span className="text-base sm:text-lg font-black text-earth dark:text-ivory">{opt.label}</span>
-                  <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${rhythm === opt.id ? 'bg-teal border-teal text-white' : 'border-earth/20 dark:border-white/20'}`}>
-                    {rhythm === opt.id && <Check size={12} strokeWidth={4} />}
+                  <span className="text-sm sm:text-lg font-black text-earth dark:text-ivory">{opt.label}</span>
+                  <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 flex items-center justify-center transition-all ${rhythm === opt.id ? 'bg-teal border-teal text-white' : 'border-earth/20 dark:border-white/20'}`}>
+                    {rhythm === opt.id && <Check size={10} className="sm:size-[12px]" strokeWidth={4} />}
                   </div>
                 </button>
               ))}
@@ -466,27 +468,27 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
 
       case 6: // IDENTITY
         return (
-          <div className="space-y-10 w-full animate-in fade-in duration-700">
-            <div className="text-center space-y-3">
-              <div className="w-16 h-16 bg-teal/10 rounded-2xl flex items-center justify-center mx-auto text-teal mb-4">
-                <Anchor size={28} />
+          <div className="space-y-6 sm:space-y-10 w-full animate-in fade-in duration-700">
+            <div className="text-center space-y-2 sm:space-y-3">
+              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-teal/10 rounded-2xl flex items-center justify-center mx-auto text-teal mb-2 sm:mb-4">
+                <Anchor size={24} className="sm:size-[28px]" />
               </div>
-              <h2 className="text-2xl sm:text-3xl font-serif font-black text-earth dark:text-ivory tracking-tight">{curr.identityTitle}</h2>
+              <h2 className="text-xl sm:text-3xl font-serif font-black text-earth dark:text-ivory tracking-tight">{curr.identityTitle}</h2>
               <p className="text-xs sm:text-sm font-medium text-earth-light/90 dark:text-lavender-muted/90 px-6">{curr.identitySub}</p>
             </div>
-            <div className="grid grid-cols-1 gap-3 px-2">
+            <div className="grid grid-cols-1 gap-2 sm:gap-3 px-2">
               {curr.identityOptions.map(opt => (
                 <button 
                   key={opt.id}
                   onClick={() => setGrowthGoal({ label: opt.label, subline: opt.sub })}
-                  className={`p-5 rounded-[24px] border-2 transition-all flex justify-between items-center text-left ${growthGoal?.label === opt.label ? 'border-teal bg-teal/10 shadow-[0_0_15px_rgba(13,148,136,0.1)]' : 'border-earth/10 dark:border-white/10 bg-white dark:bg-charcoal/50 hover:border-teal/30'}`}
+                  className={`p-3.5 sm:p-5 rounded-[20px] sm:rounded-[24px] border-2 transition-all flex justify-between items-center text-left ${growthGoal?.label === opt.label ? 'border-teal bg-teal/10 shadow-[0_0_15px_rgba(13,148,136,0.1)]' : 'border-earth/10 dark:border-white/10 bg-white dark:bg-charcoal/50 hover:border-teal/30'}`}
                 >
-                  <div className="flex flex-col gap-1">
-                    <span className="text-base sm:text-lg font-black text-earth dark:text-ivory leading-tight">{opt.label}</span>
-                    <span className="text-sm text-[#4a4a4a] dark:text-[#cccccc] font-serif italic">{opt.sub}</span>
+                  <div className="flex flex-col gap-0.5 sm:gap-1">
+                    <span className="text-sm sm:text-lg font-black text-earth dark:text-ivory leading-tight">{opt.label}</span>
+                    <span className="text-xs sm:text-sm text-[#4a4a4a] dark:text-[#cccccc] font-serif italic">{opt.sub}</span>
                   </div>
-                  <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 ml-4 transition-all ${growthGoal?.label === opt.label ? 'bg-teal border-teal text-white' : 'border-earth/20 dark:border-white/20'}`}>
-                    {growthGoal?.label === opt.label && <Check size={12} strokeWidth={4} />}
+                  <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 flex items-center justify-center shrink-0 ml-4 transition-all ${growthGoal?.label === opt.label ? 'bg-teal border-teal text-white' : 'border-earth/20 dark:border-white/20'}`}>
+                    {growthGoal?.label === opt.label && <Check size={10} className="sm:size-[12px]" strokeWidth={4} />}
                   </div>
                 </button>
               ))}
@@ -496,24 +498,24 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
 
       case 7: // BLOCKER
         return (
-          <div className="space-y-10 w-full animate-in fade-in duration-700">
-            <div className="text-center space-y-3">
-              <div className="w-16 h-16 bg-coral/10 rounded-2xl flex items-center justify-center mx-auto text-coral mb-4">
-                <ShieldAlert size={28} />
+          <div className="space-y-6 sm:space-y-10 w-full animate-in fade-in duration-700">
+            <div className="text-center space-y-2 sm:space-y-3">
+              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-coral/10 rounded-2xl flex items-center justify-center mx-auto text-coral mb-2 sm:mb-4">
+                <ShieldAlert size={24} className="sm:size-[28px]" />
               </div>
-              <h2 className="text-2xl sm:text-3xl font-serif font-black text-earth dark:text-ivory tracking-tight">{curr.blockerTitle}</h2>
+              <h2 className="text-xl sm:text-3xl font-serif font-black text-earth dark:text-ivory tracking-tight">{curr.blockerTitle}</h2>
               <p className="text-xs sm:text-sm font-medium text-earth-light/90 dark:text-lavender-muted/90 px-6">{curr.blockerSub}</p>
             </div>
-            <div className="grid grid-cols-2 gap-3 max-w-sm mx-auto px-2">
+            <div className="grid grid-cols-2 gap-2 sm:gap-3 max-w-sm mx-auto px-2">
               {curr.blockerOptions.map(opt => (
                 <button 
                   key={opt.id}
                   onClick={() => setBlocker(opt.id as Blocker)}
-                  className={`p-4 h-28 sm:h-32 rounded-[24px] border-2 transition-all flex flex-col justify-between items-start text-left ${blocker === opt.id ? 'border-coral bg-coral/10 shadow-[0_0_15px_rgba(225,29,72,0.1)]' : 'border-earth/10 dark:border-white/10 bg-white dark:bg-charcoal/50 hover:border-coral/30'}`}
+                  className={`p-3 sm:p-4 h-22 sm:h-32 rounded-[20px] sm:rounded-[24px] border-2 transition-all flex flex-col justify-between items-start text-left ${blocker === opt.id ? 'border-coral bg-coral/10 shadow-[0_0_15px_rgba(225,29,72,0.1)]' : 'border-earth/10 dark:border-white/10 bg-white dark:bg-charcoal/50 hover:border-coral/30'}`}
                 >
-                  <span className="text-[13px] sm:text-base font-black text-earth dark:text-ivory leading-tight">{opt.label}</span>
-                  <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${blocker === opt.id ? 'bg-coral border-coral text-white' : 'border-earth/20 dark:border-white/20'}`}>
-                    {blocker === opt.id && <Check size={12} strokeWidth={4} />}
+                  <span className="text-xs sm:text-base font-black text-earth dark:text-ivory leading-tight">{opt.label}</span>
+                  <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 flex items-center justify-center transition-all ${blocker === opt.id ? 'bg-coral border-coral text-white' : 'border-earth/20 dark:border-white/20'}`}>
+                    {blocker === opt.id && <Check size={10} className="sm:size-[12px]" strokeWidth={4} />}
                   </div>
                 </button>
               ))}
@@ -548,31 +550,31 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
 
       case 9: // REMINDERS
         return (
-          <div className="space-y-10 w-full animate-in fade-in duration-700">
-            <div className="text-center space-y-3">
-              <div className="w-16 h-16 bg-teal/10 rounded-2xl flex items-center justify-center mx-auto text-teal mb-4">
-                <Clock size={28} />
+          <div className="space-y-6 sm:space-y-10 w-full animate-in fade-in duration-700">
+            <div className="text-center space-y-2 sm:space-y-3">
+              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-teal/10 rounded-2xl flex items-center justify-center mx-auto text-teal mb-2 sm:mb-4">
+                <Clock size={24} className="sm:size-[28px]" />
               </div>
-              <h2 className="text-2xl sm:text-3xl font-serif font-black text-earth dark:text-ivory tracking-tight">{curr.reminderTitle}</h2>
+              <h2 className="text-xl sm:text-3xl font-serif font-black text-earth dark:text-ivory tracking-tight">{curr.reminderTitle}</h2>
               <div className="space-y-1">
                 <p className="text-xs sm:text-sm font-medium text-earth-light/90 dark:text-lavender-muted/90 px-6">{curr.reminderSubtitle}</p>
                 {blocker && (
-                  <p className="text-[10px] font-black uppercase tracking-[0.15em] text-teal text-center px-8 mt-2 leading-relaxed max-w-[240px] mx-auto transition-all animate-in fade-in duration-500">
+                  <p className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.15em] text-teal text-center px-8 mt-2 leading-relaxed max-w-[240px] mx-auto transition-all animate-in fade-in duration-500">
                     {curr.blockerHelper[blocker]}
                   </p>
                 )}
               </div>
             </div>
-            <div className="grid grid-cols-1 gap-3 px-2">
+            <div className="grid grid-cols-1 gap-2 sm:gap-3 px-2">
               {curr.reminderOptions.map(opt => (
                 <button 
                   key={opt.id}
                   onClick={() => setReminder(opt.id as ReminderPreference)}
-                  className={`p-5 rounded-[24px] border-2 transition-all flex justify-between items-center ${reminder === opt.id ? 'border-teal bg-teal/10 shadow-[0_0_15px_rgba(13,148,136,0.1)]' : 'border-earth/10 dark:border-white/10 bg-white dark:bg-charcoal/50 hover:border-teal/30'}`}
+                  className={`p-4 sm:p-5 rounded-[20px] sm:rounded-[24px] border-2 transition-all flex justify-between items-center ${reminder === opt.id ? 'border-teal bg-teal/10 shadow-[0_0_15px_rgba(13,148,136,0.1)]' : 'border-earth/10 dark:border-white/10 bg-white dark:bg-charcoal/50 hover:border-teal/30'}`}
                 >
-                  <span className="text-base sm:text-lg font-black text-earth dark:text-ivory">{opt.label}</span>
-                  <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${reminder === opt.id ? 'bg-teal border-teal text-white' : 'border-earth/20 dark:border-white/20'}`}>
-                    {reminder === opt.id && <Check size={12} strokeWidth={4} />}
+                  <span className="text-sm sm:text-lg font-black text-earth dark:text-ivory">{opt.label}</span>
+                  <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 flex items-center justify-center transition-all ${reminder === opt.id ? 'bg-teal border-teal text-white' : 'border-earth/20 dark:border-white/20'}`}>
+                    {reminder === opt.id && <Check size={10} className="sm:size-[12px]" strokeWidth={4} />}
                   </div>
                 </button>
               ))}
@@ -801,84 +803,93 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
     return false;
   };
 
+  if (step === 13) {
+    return (
+      <Paywall 
+        state={{ primaryLanguage: appLanguage } as AppState}
+        onSubscribe={() => handleFinish()}
+      />
+    );
+  }
+
   return (
-    <div className="fixed inset-0 z-[100] bg-parchment dark:bg-espresso flex flex-col items-center justify-start transition-colors duration-500 overflow-y-auto pt-safe pb-safe">
+    <div className="fixed inset-0 z-[100] bg-parchment dark:bg-espresso flex flex-col items-center justify-start transition-colors duration-500 overflow-hidden pt-safe pb-safe">
       {step < 13 && renderProgress()}
       
-      <div className={`w-full ${step === 13 ? 'h-full' : 'max-w-md min-h-full'} flex flex-col items-center justify-between p-4 sm:p-6 relative pb-10 sm:pb-12`}>
-        <AnimatePresence mode="wait">
-          {isPreparing ? (
-            <motion.div 
-              key="preparing"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="flex-1 flex flex-col items-center justify-center w-full min-h-0 py-4"
-            >
-               {renderStep()}
-            </motion.div>
-          ) : (
-            <motion.div 
-              key={step}
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.4 }}
-              className={`flex-1 flex flex-col items-center justify-center w-full min-h-0 ${step === 13 ? '' : 'py-4 sm:py-8'}`}
-            >
-              <div className="w-full flex flex-col items-center justify-center min-h-0">
-                {renderStep()}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Navigation Footer */}
-        {!isPreparing && step < 11 && step !== 10 && (
-          <div className="w-full pt-8 flex flex-col gap-4 max-w-[420px]">
-            {step === 4 && (
-              <motion.p 
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="text-[10px] font-black uppercase tracking-widest text-teal text-center px-8 mb-1 leading-tight max-w-sm mx-auto"
+      <div className="flex-1 overflow-y-auto w-full custom-scrollbar pb-36">
+        <div className="w-full max-w-md mx-auto min-h-full flex flex-col justify-center px-4 sm:px-6 py-6 sm:py-10">
+          <AnimatePresence mode="wait">
+            {isPreparing ? (
+              <motion.div 
+                key="preparing"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="flex-grow flex flex-col items-center justify-center w-full"
               >
-                {(curr as any).pathHelper}
-              </motion.p>
+                 {renderStep()}
+              </motion.div>
+            ) : (
+              <motion.div 
+                key={step}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.4 }}
+                className="flex-grow flex flex-col items-center justify-center w-full"
+              >
+                <div className="w-full flex flex-col items-center justify-center">
+                  {renderStep()}
+                </div>
+              </motion.div>
             )}
-            <button 
-              onClick={next}
-              disabled={isNextDisabled()}
-              className={`w-full h-14 sm:h-16 rounded-[24px] shadow-lg flex items-center justify-center gap-3 transition-all ${isNextDisabled() ? 'bg-earth/10 text-earth/20 dark:bg-white/5 dark:text-white/10 cursor-not-allowed border-none' : 'bg-playful-purple/5 border-2 border-playful-purple/30 text-playful-purple hover:bg-playful-purple/10 shadow-[0_0_20px_rgba(109,40,217,0.1)] active:scale-95'}`}
-            >
-              <span className="font-black uppercase tracking-[0.1em] text-base sm:text-lg">
-                {step === 1 ? (appLanguage === 'en' ? 'Continue' : 'Continuar') : curr.continue}
-              </span>
-              <ChevronRight size={18} />
-            </button>
+          </AnimatePresence>
+        </div>
+      </div>
+
+      {/* Sticky Navigation Footer */}
+      {!isPreparing && step < 13 && step !== 10 && step !== 11 && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 bg-gradient-to-t from-parchment via-parchment/95 to-transparent dark:from-espresso dark:via-espresso/95 pt-8 pb-6 px-4 flex flex-col items-center pointer-events-none">
+          <div className="w-full max-w-sm pointer-events-auto flex flex-col gap-3">
+            {step === 4 && (
+              <p className="text-[10px] font-black uppercase tracking-widest text-teal text-center px-8 mb-1 leading-tight max-w-[280px] mx-auto">
+                {(curr as any).pathHelper}
+              </p>
+            )}
+            
+            {step === 12 ? (
+              <button 
+                onClick={next}
+                className="w-full h-12 sm:h-14 bg-playful-purple/5 border-2 border-playful-purple/30 text-playful-purple rounded-2xl shadow-[0_0_20px_rgba(109,40,217,0.1)] flex items-center justify-center gap-3 hover:bg-playful-purple/10 active:scale-95 transition-all px-6"
+              >
+                <span className="font-black uppercase tracking-tight sm:tracking-normal text-sm sm:text-base whitespace-nowrap">{curr.readyBtn}</span>
+                <ChevronRight size={16} className="shrink-0" />
+              </button>
+            ) : (
+              <button 
+                onClick={next}
+                disabled={isNextDisabled()}
+                className={`w-full h-12 sm:h-14 rounded-2xl shadow-lg flex items-center justify-center gap-3 transition-all ${isNextDisabled() ? 'bg-earth/10 text-earth/20 dark:bg-white/5 dark:text-white/10 cursor-not-allowed border-none' : 'bg-playful-purple/5 border-2 border-playful-purple/30 text-playful-purple hover:bg-playful-purple/10 shadow-[0_0_20px_rgba(109,40,217,0.1)] active:scale-95'}`}
+              >
+                <span className="font-black uppercase tracking-[0.1em] text-sm sm:text-base">
+                  {step === 1 ? (appLanguage === 'en' ? 'Continue' : 'Continuar') : curr.continue}
+                </span>
+                <ChevronRight size={16} />
+              </button>
+            )}
+
             {step > 1 && (
               <button 
                 onClick={prev}
-                className="h-12 flex items-center justify-center gap-2 text-earth-light/90 dark:text-ivory/90 font-black uppercase tracking-[0.2em] text-[10px] hover:text-teal transition-all"
+                className="h-10 flex items-center justify-center gap-2 text-earth-light/90 dark:text-ivory/90 font-black uppercase tracking-[0.2em] text-[10px] hover:text-teal transition-all"
               >
-                <ChevronLeft size={14} />
+                <ChevronLeft size={12} />
                 {appLanguage === 'en' ? 'Back' : 'Atrás'}
               </button>
             )}
           </div>
-        )}
-
-        {step === 12 && (
-          <div className="w-full pt-8 max-w-[420px]">
-            <button 
-              onClick={next}
-              className="w-full h-16 bg-playful-purple/5 border-2 border-playful-purple/30 text-playful-purple rounded-[24px] shadow-[0_0_20px_rgba(109,40,217,0.1)] flex items-center justify-center gap-3 hover:bg-playful-purple/10 active:scale-95 transition-all px-6"
-            >
-              <span className="font-black uppercase tracking-tight sm:tracking-normal text-base sm:text-lg whitespace-nowrap">{curr.readyBtn}</span>
-              <ChevronRight size={20} className="shrink-0" />
-            </button>
-          </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
