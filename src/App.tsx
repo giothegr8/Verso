@@ -125,6 +125,7 @@ const INITIAL_STATE: AppState = {
   isSubscribed: false,
   isLoadingAnotherVerse: false,
   anotherVerseError: null,
+  activeAttempt: null,
 };
 
 function AppInner() {
@@ -195,6 +196,12 @@ function AppInner() {
   const [activeTab, setActiveTab] = useState(() => {
     return localStorage.getItem("verso_active_tab") || "home";
   });
+  const handleSetActiveTab = (tab: string) => {
+    setActiveTab(tab);
+    if (tab === "home" || tab === "paths" || tab === "saved") {
+      setState(s => ({ ...s, activeAttempt: null }));
+    }
+  };
   const [showSettings, setShowSettings] = useState(false);
   const [showTour, setShowTour] = useState(false);
   const [editingPath, setEditingPath] = useState<CustomPath | null>(null);
@@ -228,6 +235,10 @@ function AppInner() {
       const yesterdayStr = `${yesterdayDate.getFullYear()}-${String(yesterdayDate.getMonth() + 1).padStart(2, '0')}-${String(yesterdayDate.getDate()).padStart(2, '0')}`;
 
       setState(prev => {
+        if (prev.activeAttempt) {
+          return prev;
+        }
+
         if (prev.progress.lastPracticeDate === today && prev.lastVotdDate === today) {
           return prev;
         }
@@ -289,7 +300,7 @@ function AppInner() {
     checkDailyUpdate();
     const interval = setInterval(checkDailyUpdate, 60000);
     return () => clearInterval(interval);
-  }, [state.onboarded]);
+  }, [state.onboarded, !!state.activeAttempt]);
 
   useEffect(() => {
     const isDark = 
@@ -313,18 +324,68 @@ function AppInner() {
 
   const startMemorizing = (verseId: string, source: "daily" | "path" | "custom" | "extra" | "saved" = "daily") => {
     localStorage.removeItem(`memorize_failed_${verseId}`);
-    setState(s => ({ 
-      ...s, 
-      selectedVerseId: verseId,
-      activeSource: source,
-      progress: {
-        ...s.progress,
-        verseStages: {
-          ...s.progress.verseStages,
-          [verseId]: 1
+    setState(s => {
+      let resolvedVerse: Verse;
+      if (source === "custom" && s.selectedCustomVerse) {
+        resolvedVerse = s.selectedCustomVerse;
+      } else if (verseId) {
+        const fromMock = MOCK_VERSES.find(v => v.id === verseId);
+        const fromCustomList = s.customVerses.find(v => v.id === verseId);
+        if (fromMock) {
+          resolvedVerse = fromMock;
+        } else if (fromCustomList) {
+          resolvedVerse = fromCustomList;
+        } else {
+          let pathVerse: Verse | null = null;
+          for (const p of s.customPaths) {
+            const vData = p.verses.find(v => v.id === verseId);
+            if (vData) {
+              pathVerse = {
+                id: vData.id,
+                book: vData.reference.split(' ').slice(0, -1).join(' '),
+                chapter: parseInt(vData.reference.split(' ').pop()?.split(':')[0] || '1'),
+                verse: parseInt(vData.reference.split(' ').pop()?.split(':')[1] || '1'),
+                text: {
+                  es: { RVR1960: vData.text || "", NVI: vData.text || "", NBLA: vData.text || "", KJV: "", NIV: "", NASB: "" },
+                  en: { KJV: vData.text || "", NIV: vData.text || "", NASB: vData.text || "", RVR1960: "", NVI: "", NBLA: "" }
+                },
+                copyright: vData.copyright
+              } as Verse;
+              break;
+            }
+          }
+          resolvedVerse = pathVerse || getVerseByDate(getLocalDateString());
         }
+      } else {
+        resolvedVerse = getVerseByDate(getLocalDateString());
       }
-    }));
+
+      const reference = `${resolvedVerse.book} ${resolvedVerse.chapter}:${resolvedVerse.verse}`;
+      const snapshot = {
+        verseId: resolvedVerse.id,
+        reference,
+        translations: { ...s.selectedTranslations },
+        memorizeMode: s.memorizeMode,
+        verse: resolvedVerse,
+        source: source,
+        pathId: s.pathProgress.selectedPathId || s.customPathProgress.selectedPathId,
+        pathDay: source === "path" ? (s.pathProgress.selectedPathId ? s.pathProgress.currentDay : s.customPathProgress.currentDay) : null,
+      };
+
+      return { 
+        ...s, 
+        selectedVerseId: verseId,
+        activeSource: source,
+        activeAttempt: snapshot,
+        progress: {
+          ...s.progress,
+          verseStages: {
+            ...s.progress.verseStages,
+            [verseId]: 1
+          }
+        }
+      };
+    });
     setActiveTab("memorize");
   };
 
@@ -426,10 +487,23 @@ function AppInner() {
           updatedCustom = [...prev.customVerses, newVerse];
         }
 
+        const reference = `${newVerse.book} ${newVerse.chapter}:${newVerse.verse}`;
+        const snapshot = {
+          verseId: newVerseId,
+          reference,
+          translations: { ...prev.selectedTranslations },
+          memorizeMode: prev.memorizeMode,
+          verse: newVerse,
+          source: "extra" as const,
+          pathId: prev.pathProgress.selectedPathId || prev.customPathProgress.selectedPathId,
+          pathDay: null,
+        };
+
         return {
           ...prev,
           selectedVerseId: newVerseId,
           activeSource: "extra",
+          activeAttempt: snapshot,
           recentVerseIds: newRecent,
           customVerses: updatedCustom,
           isLoadingAnotherVerse: false,
@@ -517,7 +591,7 @@ function AppInner() {
         }
       };
     });
-    setActiveTab("home");
+    handleSetActiveTab("home");
   };
 
   const handleCompletePathDay = () => {
@@ -616,7 +690,7 @@ function AppInner() {
       };
     });
     setEditingPath(null);
-    setActiveTab("paths");
+    handleSetActiveTab("paths");
   };
 
   const handleDeleteCustomPath = (pathId: string) => {
@@ -645,8 +719,8 @@ function AppInner() {
           setState={setState} 
           onStartMemorizing={(id) => startMemorizing(id, state.activeSource)} 
           onGetAnotherVerse={getAnotherVerse} 
-          onGoToSaved={() => setActiveTab('saved')} 
-          onGoToPaths={() => setActiveTab('paths')}
+          onGoToSaved={() => handleSetActiveTab('saved')} 
+          onGoToPaths={() => handleSetActiveTab('paths')}
           onCompletePathDay={handleCompletePathDay}
         />
       );
@@ -659,7 +733,7 @@ function AppInner() {
               onSubscribe={() => {
                 setMockPremium(true);
               }}
-              onClose={() => setActiveTab("home")}
+              onClose={() => handleSetActiveTab("home")}
             />
           );
         }
@@ -667,12 +741,12 @@ function AppInner() {
           <PathSelection 
             state={state} 
             onSelectPath={handleSelectPath} 
-            onBack={() => setActiveTab("home")} 
+            onBack={() => handleSetActiveTab("home")} 
             onMemorize={(id, source) => startMemorizing(id, source || "path")}
-            onCreateCustom={() => setActiveTab("create-path")}
+            onCreateCustom={() => handleSetActiveTab("create-path")}
             onEditCustom={(path) => {
               setEditingPath(path);
-              setActiveTab("create-path");
+              handleSetActiveTab("create-path");
             }}
             onDeleteCustom={handleDeleteCustomPath}
             selectedPath={selectedPath}
@@ -685,7 +759,7 @@ function AppInner() {
             state={state}
             onBack={() => {
               setEditingPath(null);
-              setActiveTab("paths");
+              handleSetActiveTab("paths");
             }}
             onSave={handleSaveCustomPath}
             initialPath={editingPath || undefined}
@@ -695,7 +769,7 @@ function AppInner() {
         <Memorize 
           state={state} 
           setState={setState} 
-          onComplete={() => setActiveTab("saved")} 
+          onComplete={() => handleSetActiveTab("saved")} 
           onGoToFlashcards={(verseId) => {
             setState(s => ({ ...s, selectedVerseId: verseId }));
             setActiveTab("flashcards");
@@ -708,7 +782,7 @@ function AppInner() {
           state={state} 
           setState={setState} 
           onMemorize={(id) => startMemorizing(id, state.activeSource)} 
-          onGoToSaved={() => setActiveTab("saved")}
+          onGoToSaved={() => handleSetActiveTab("saved")}
           onComplete={() => {
             if (state.activeSource === 'path') {
               handleCompletePathDay();
@@ -801,11 +875,11 @@ function AppInner() {
 
         <div className="fixed bottom-0 left-0 right-0 z-40 px-6 pb-8 pointer-events-none">
           <nav className="max-w-xl mx-auto bg-white dark:bg-charcoal border border-earth/10 dark:border-white/10 px-6 sm:px-10 py-3.5 flex justify-around items-center rounded-[32px] shadow-[0_15px_50px_rgba(0,0,0,0.15)] pointer-events-auto transition-colors duration-500">
-            <NavButton id="nav-home" active={activeTab === 'home'} activeColor="text-playful-purple" onClick={() => setActiveTab('home')} icon={<HomeIcon size={22} />} label={state.primaryLanguage === 'es' ? 'Inicio' : 'Home'} />
+            <NavButton id="nav-home" active={activeTab === 'home'} activeColor="text-playful-purple" onClick={() => handleSetActiveTab('home')} icon={<HomeIcon size={22} />} label={state.primaryLanguage === 'es' ? 'Inicio' : 'Home'} />
             <NavButton id="nav-memorize" active={activeTab === 'memorize'} activeColor="text-gold" onClick={() => setActiveTab('memorize')} icon={<BookOpen size={22} />} label={state.primaryLanguage === 'es' ? 'Memorizar' : 'Memorize'} />
             <NavButton id="nav-flashcards" active={activeTab === 'flashcards'} activeColor="text-coral" onClick={() => setActiveTab('flashcards')} icon={<Layers size={22} />} label={state.primaryLanguage === 'es' ? 'Tarjetas' : 'Cards'} />
-            <NavButton id="nav-paths" active={activeTab === 'paths'} activeColor="text-sky-blue" onClick={() => { setSelectedPath(null); setEditingPath(null); setActiveTab('paths'); }} icon={<Compass size={22} />} label={state.primaryLanguage === 'es' ? 'Series' : 'Paths'} />
-            <NavButton id="nav-saved" active={activeTab === 'saved'} activeColor="text-teal" onClick={() => setActiveTab('saved')} icon={<Sprout size={22} />} label={state.primaryLanguage === 'es' ? 'Guardados' : 'Saved'} />
+            <NavButton id="nav-paths" active={activeTab === 'paths'} activeColor="text-sky-blue" onClick={() => { setSelectedPath(null); setEditingPath(null); handleSetActiveTab('paths'); }} icon={<Compass size={22} />} label={state.primaryLanguage === 'es' ? 'Series' : 'Paths'} />
+            <NavButton id="nav-saved" active={activeTab === 'saved'} activeColor="text-teal" onClick={() => handleSetActiveTab('saved')} icon={<Sprout size={22} />} label={state.primaryLanguage === 'es' ? 'Guardados' : 'Saved'} />
           </nav>
         </div>
 

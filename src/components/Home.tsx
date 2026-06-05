@@ -2,7 +2,7 @@ import { motion } from "motion/react";
 import { AppState, TRANSLATION_PAIRS, TRANSLATION_DETAILS, Verse, Translation, CustomPath, CustomPathVerse, Path } from "../types";
 import { MOCK_VERSES, getVerseByDate } from "../constants";
 import { getVerseText, getFallbackMessage } from "../utils/verseProvider";
-import { Globe, Play, Flame, Trophy, Sparkles, Languages, BookOpen, History, AlertCircle, Share2, Star, X, Sprout, Compass, ChevronRight, CheckCircle2, Search, Loader2 } from "lucide-react";
+import { Globe, Play, Flame, Trophy, Sparkles, Languages, BookOpen, History, AlertCircle, Share2, Star, X, Sprout, Compass, ChevronRight, CheckCircle2, Search, Loader2, Flower2 } from "lucide-react";
 import React, { useState } from "react";
 import { getCurrentTranslationPair, getValidatedVerse, getLocalizedBookName, getLocalDateString, VERSE_LAYOUT } from "../utils/verseUtils";
 import { handleShare } from "../utils/shareUtils";
@@ -524,27 +524,35 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
                       const isActive = dayNum === currentPathDayNum;
                       
                       return (
-                        <div key={i} className="relative flex items-center justify-center">
-                          <motion.div 
-                            initial={false}
-                            animate={{
-                              scale: isActive ? 1.25 : 1,
-                            }}
-                            className={`w-2 h-2 rounded-full transition-all duration-500 ${
-                              isCompleted 
-                                ? "bg-amber-500/45" 
-                                : isActive 
-                                  ? "bg-amber-500 shadow-[0_0_12px_rgba(245,158,11,0.6)]" 
-                                  : "bg-earth/10 dark:bg-white/10"
-                            }`}
-                          />
-                          {isActive && (
-                            <motion.div 
-                              className="absolute inset-0 rounded-full bg-amber-500/30"
-                              initial={{ opacity: 0, scale: 1 }}
-                              animate={{ opacity: [0, 0.6, 0], scale: [1, 2.5, 3.5] }}
-                              transition={{ duration: 2.5, repeat: Infinity, ease: "easeOut" }}
+                        <div key={i} className="relative flex items-center justify-center w-3 h-3">
+                          {isCompleted ? (
+                            <Flower2 
+                              size={12} 
+                              className="text-amber-500 dark:text-amber-400 shrink-0" 
+                              strokeWidth={2.5} 
                             />
+                          ) : (
+                            <>
+                              <motion.div 
+                                initial={false}
+                                animate={{
+                                  scale: isActive ? 1.25 : 1,
+                                }}
+                                className={`w-2 h-2 rounded-full transition-all duration-500 ${
+                                  isActive 
+                                    ? "bg-amber-500 shadow-[0_0_12px_rgba(245,158,11,0.6)]" 
+                                    : "bg-earth/10 dark:bg-white/10"
+                                }`}
+                              />
+                              {isActive && (
+                                <motion.div 
+                                  className="absolute inset-0 rounded-full bg-amber-500/30"
+                                  initial={{ opacity: 0, scale: 1 }}
+                                  animate={{ opacity: [0, 0.6, 0], scale: [1, 2.5, 3.5] }}
+                                  transition={{ duration: 2.5, repeat: Infinity, ease: "easeOut" }}
+                                />
+                              )}
+                            </>
                           )}
                         </div>
                       );

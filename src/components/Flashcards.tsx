@@ -57,7 +57,9 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
 
   // Unified Active Verse Logic
   let verse: Verse;
-  if (state.activeSource === "custom" && state.selectedCustomVerse) {
+  if (state.activeAttempt?.verse) {
+    verse = state.activeAttempt.verse;
+  } else if (state.activeSource === "custom" && state.selectedCustomVerse) {
     verse = state.selectedCustomVerse;
   } else if (state.selectedVerseId) {
     const fromMock = MOCK_VERSES.find(v => v.id === state.selectedVerseId);

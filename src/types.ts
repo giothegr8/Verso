@@ -171,4 +171,17 @@ export interface AppState {
   isSubscribed: boolean;
   isLoadingAnotherVerse?: boolean;
   anotherVerseError?: string | null;
+  activeAttempt?: ActiveAttemptSnapshot | null;
+}
+
+export interface ActiveAttemptSnapshot {
+  verseId: string;
+  reference: string;
+  translations: TranslationPair;
+  memorizeMode: LanguageMode;
+  verse: Verse;
+  source: ActiveVerseSource;
+  pathId?: string | null;
+  pathDay?: number | null;
+  dayReference?: string | null;
 }

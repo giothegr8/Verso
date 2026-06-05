@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from "motion/react";
 import { AppState, TRANSLATION_PAIRS, TRANSLATION_DETAILS, ActiveVerseSource } from "../types";
-import { Bookmark, Share2, Trash2, BookOpen, Search, Languages, Star, Heart, AlertCircle, X, Sprout, Sparkles, Compass } from "lucide-react";
+import { Bookmark, Share2, Trash2, BookOpen, Search, Languages, Star, Heart, AlertCircle, X, Flower2, Sparkles, Compass } from "lucide-react";
 import { MOCK_VERSES, PATHS } from "../constants";
 import React, { useState } from "react";
 import { handleShare } from "../utils/shareUtils";
@@ -291,9 +291,9 @@ export default function Saved({ state, setState, onStartMemorizing }: SavedProps
                         scale: [1, 1.05, 1] 
                       }}
                       transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                      className="mt-1 text-teal"
+                      className="mt-1 text-amber-500 dark:text-amber-400"
                     >
-                      <Sprout size={20} />
+                      <Flower2 size={20} />
                     </motion.div>
                     <div className="space-y-1">
                       <h3 className="text-2xl font-serif font-black text-earth dark:text-ivory tracking-tight whitespace-nowrap">

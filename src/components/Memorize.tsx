@@ -37,6 +37,11 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
 
   // Helper to resolve the correct verse
   const getResolvedVerse = (): Verse => {
+    // 0. Use the locked active attempt snapshot if present
+    if (state.activeAttempt?.verse) {
+      return state.activeAttempt.verse;
+    }
+
     // 1. If explicitly custom
     if (state.activeSource === "custom" && state.selectedCustomVerse) {
       return state.selectedCustomVerse;
@@ -754,29 +759,33 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
       const newStage = stage + 1;
       setStage(newStage);
       setIsRevealed(false);
-      setDidFailFlowEs(false);
-      setDidFailFlowEn(false);
-      setAttemptsEs(0);
-      setAttemptsEn(0);
-      setUserInputEs([]);
-      setUserInputEn([]);
-      setSubmittedWrongCharsEs({});
-      setSubmittedWrongCharsEn({});
-      setClueCountEs(0);
-      setClueCountEn(0);
-      setIsWrongEs(false);
-      setIsWrongEn(false);
-      setHasSubmittedEs(false);
-      setHasSubmittedEn(false);
-      setIncorrectIndicesEs([]);
-      setIncorrectIndicesEn([]);
-      setIsCorrectEs(false);
-      setIsCorrectEn(false);
+      
+      if (activeLanguage === 'es') {
+        setDidFailFlowEs(false);
+        setAttemptsEs(0);
+        setUserInputEs([]);
+        setSubmittedWrongCharsEs({});
+        setClueCountEs(0);
+        setIsWrongEs(false);
+        setHasSubmittedEs(false);
+        setIncorrectIndicesEs([]);
+        setIsCorrectEs(false);
+        setRevealedIndicesEs([]);
+        setCursorIndexEs(0);
+      } else {
+        setDidFailFlowEn(false);
+        setAttemptsEn(0);
+        setUserInputEn([]);
+        setSubmittedWrongCharsEn({});
+        setClueCountEn(0);
+        setIsWrongEn(false);
+        setHasSubmittedEn(false);
+        setIncorrectIndicesEn([]);
+        setIsCorrectEn(false);
+        setRevealedIndicesEn([]);
+        setCursorIndexEn(0);
+      }
       setFeedback(null);
-      setRevealedIndicesEs([]);
-      setRevealedIndicesEn([]);
-      setCursorIndexEs(0);
-      setCursorIndexEn(0);
       
       // Initialize slot buffers for Stage 5
       if (newStage === 5) {
@@ -890,25 +899,28 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
       // but standard transitions might expect it. 
       // Actually, we want persistence, so we only reset on truly new verse/reset()
       
-      setUserInputEs([]);
-      setUserInputEn([]);
-      setSubmittedWrongCharsEs({});
-      setSubmittedWrongCharsEn({});
-      setCursorIndexEs(0);
-      setCursorIndexEn(0);
-      setClueCountEs(0);
-      setClueCountEn(0);
-      setIsWrongEs(false);
-      setIsWrongEn(false);
-      setHasSubmittedEs(false);
-      setHasSubmittedEn(false);
-      setIncorrectIndicesEs([]);
-      setIncorrectIndicesEn([]);
-      setIsCorrectEs(false);
-      setIsCorrectEn(false);
+      if (activeLanguage === 'es') {
+        setUserInputEs([]);
+        setSubmittedWrongCharsEs({});
+        setCursorIndexEs(0);
+        setClueCountEs(0);
+        setIsWrongEs(false);
+        setHasSubmittedEs(false);
+        setIncorrectIndicesEs([]);
+        setIsCorrectEs(false);
+        setRevealedIndicesEs([]);
+      } else {
+        setUserInputEn([]);
+        setSubmittedWrongCharsEn({});
+        setCursorIndexEn(0);
+        setClueCountEn(0);
+        setIsWrongEn(false);
+        setHasSubmittedEn(false);
+        setIncorrectIndicesEn([]);
+        setIsCorrectEn(false);
+        setRevealedIndicesEn([]);
+      }
       setFeedback(null);
-      setRevealedIndicesEs([]);
-      setRevealedIndicesEn([]);
       setState(s => ({
         ...s,
         progress: {
@@ -1506,6 +1518,37 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
   };
 
   if (isAlmostDone) {
+    const getFailureScreenContent = () => {
+      const enPassed = isCorrectEn && !didFailFlowEn;
+      const esPassed = isCorrectEs && !didFailFlowEs;
+
+      let title = state.primaryLanguage === 'es' ? 'Todavía no' : 'Not quite yet';
+      let body = state.primaryLanguage === 'es' 
+        ? 'No has logrado memorizar todo el texto del versículo. Por favor, inténtalo de nuevo para desbloquear el reto de la cita bíblica.' 
+        : 'You did not successfully memorize the verse text. Please try again to unlock the citation challenge.';
+      let buttonLabel = state.primaryLanguage === 'es' ? 'intentar de nuevo' : 'try again';
+
+      if (state.memorizeMode === 'both') {
+        if (enPassed && !esPassed) {
+          title = state.primaryLanguage === 'es' ? 'Todavía no' : 'Not quite yet';
+          body = state.primaryLanguage === 'es'
+            ? 'El inglés ya está asegurado. Ahora intenta con el español de nuevo para desbloquear el reto de la cita bíblica.'
+            : 'English is locked in. Now try Spanish again to unlock the citation challenge.';
+          buttonLabel = state.primaryLanguage === 'es' ? 'intentar español de nuevo' : 'try Spanish again';
+        } else if (esPassed && !enPassed) {
+          title = state.primaryLanguage === 'es' ? 'Todavía no' : 'Not quite yet';
+          body = state.primaryLanguage === 'es'
+            ? 'El español ya está asegurado. Ahora intenta con el inglés de nuevo para desbloquear el reto de la cita bíblica.'
+            : 'Spanish is locked in. Now try English again to unlock the citation challenge.';
+          buttonLabel = state.primaryLanguage === 'es' ? 'intentar inglés de nuevo' : 'try English again';
+        }
+      }
+
+      return { title, body, buttonLabel };
+    };
+
+    const failureContent = getFailureScreenContent();
+
     return (
       <motion.div 
         className="h-full flex flex-col items-center justify-center text-center space-y-10"
@@ -1556,7 +1599,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
             className="text-3xl sm:text-4xl font-serif font-black text-earth dark:text-ivory leading-tight text-center"
           >
             {isAnyPartFailed 
-              ? (state.primaryLanguage === 'es' ? 'Todavía no' : 'Not quite yet')
+              ? failureContent.title
               : (state.memorizeMode === 'both'
                   ? (activeLanguage === 'es'
                       ? (state.primaryLanguage === 'es' ? '¡Buen trabajo! — Español memorizado' : 'Great job — Spanish locked in!')
@@ -1573,9 +1616,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
             className="text-lg text-earth-light dark:text-lavender-muted font-medium max-w-sm mx-auto"
           >
             {isAnyPartFailed 
-              ? (state.primaryLanguage === 'es' 
-                  ? 'No has logrado memorizar todo el texto del versículo. Por favor, inténtalo de nuevo para desbloquear el reto de la cita bíblica.' 
-                  : 'You did not successfully memorize the verse text. Please try again to unlock the citation challenge.')
+              ? failureContent.body
               : (state.memorizeMode === 'both'
                   ? (state.primaryLanguage === 'es' 
                       ? 'Ambos idiomas listos. Ya casi. Ahora falta el último paso: la cita bíblica.' 
@@ -1638,7 +1679,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
               >
                 <RotateCcw size={18} />
                 <span className="text-sm sm:text-base font-bold tracking-tight lowercase">
-                  {state.primaryLanguage === 'es' ? 'intentar de nuevo' : 'try again'}
+                  {failureContent.buttonLabel}
                 </span>
               </motion.button>
             )}
