@@ -468,7 +468,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
 
       case 6: // IDENTITY
         return (
-          <div className="space-y-4 sm:space-y-8 w-full animate-in fade-in duration-700">
+          <div className="space-y-6 sm:space-y-8 w-full animate-in fade-in duration-700">
             <div className="text-center space-y-1.5">
               <div className="w-12 h-12 sm:w-16 sm:h-16 bg-teal/10 rounded-2xl flex items-center justify-center mx-auto text-teal mb-1">
                 <Anchor size={24} className="sm:size-[28px]" />
@@ -498,7 +498,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
 
       case 7: // BLOCKER
         return (
-          <div className="space-y-4 sm:space-y-8 w-full animate-in fade-in duration-700">
+          <div className="space-y-6 sm:space-y-8 w-full animate-in fade-in duration-700">
             <div className="text-center space-y-1.5">
               <div className="w-12 h-12 sm:w-16 sm:h-16 bg-coral/10 rounded-2xl flex items-center justify-center mx-auto text-coral mb-1">
                 <ShieldAlert size={24} className="sm:size-[28px]" />
@@ -511,10 +511,10 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 <button 
                   key={opt.id}
                   onClick={() => setBlocker(opt.id as Blocker)}
-                  className={`p-2.5 sm:p-4 h-18 sm:h-32 rounded-2xl border-2 transition-colors flex flex-col justify-between items-start text-left ${blocker === opt.id ? 'border-coral bg-coral/10 shadow-[0_4px_15px_rgba(225,29,72,0.1)]' : 'border-earth/10 dark:border-white/10 bg-white dark:bg-charcoal/50 hover:border-coral/30'}`}
+                  className={`p-3 sm:p-4 h-24 sm:h-32 rounded-2xl border-2 transition-colors flex flex-col justify-between items-start text-left w-full ${blocker === opt.id ? 'border-coral bg-coral/10 shadow-[0_4px_15px_rgba(225,29,72,0.1)]' : 'border-earth/10 dark:border-white/10 bg-white dark:bg-charcoal/50 hover:border-coral/30'}`}
                 >
-                  <span className="text-xs sm:text-base font-black text-earth dark:text-ivory leading-tight">{opt.label}</span>
-                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${blocker === opt.id ? 'bg-coral border-coral text-white' : 'border-earth/20 dark:border-white/20'}`}>
+                  <span className="text-xs sm:text-base font-black text-earth dark:text-ivory leading-tight block w-full pr-1">{opt.label}</span>
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 mt-2 transition-all ${blocker === opt.id ? 'bg-coral border-coral text-white' : 'border-earth/20 dark:border-white/20'}`}>
                     {blocker === opt.id && <Check size={10} strokeWidth={4} />}
                   </div>
                 </button>
@@ -742,14 +742,104 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
         return (
           <div className="text-center space-y-12 w-full animate-in fade-in zoom-in duration-700">
             <div className="space-y-10">
-              <div className="w-24 h-24 bg-teal/10 rounded-[40px] flex items-center justify-center mx-auto text-teal shadow-2xl">
-                <CheckCircle2 size={56} strokeWidth={1.2} />
-              </div>
+              <motion.div 
+                initial={{ scale: 0.5, opacity: 0 }}
+                animate={{ 
+                  scale: [0.5, 1.1, 1], 
+                  opacity: 1,
+                  boxShadow: [
+                    "0 0 0px rgba(20,184,166,0)", 
+                    "0 0 30px rgba(20,184,166,0.25)", 
+                    "0 0 20px rgba(20,184,166,0.12)"
+                  ] 
+                }}
+                transition={{ 
+                  type: "spring", 
+                  stiffness: 120, 
+                  damping: 15,
+                  duration: 1.2
+                }}
+                className="w-24 h-24 bg-teal/10 rounded-[40px] flex items-center justify-center mx-auto text-teal relative"
+              >
+                {/* Concentric subtle pulsing rings radiating outward */}
+                <motion.div 
+                  animate={{ 
+                    scale: [1, 1.4, 1.7], 
+                    opacity: [0.5, 0.15, 0] 
+                  }}
+                  transition={{ 
+                    repeat: Infinity, 
+                    duration: 3, 
+                    ease: "easeOut" 
+                  }}
+                  className="absolute inset-0 rounded-[40px] border border-teal/20 pointer-events-none"
+                />
+                <motion.div 
+                  animate={{ 
+                    scale: [1, 1.25, 1.4], 
+                    opacity: [0.35, 0.08, 0] 
+                  }}
+                  transition={{ 
+                    repeat: Infinity, 
+                    duration: 3, 
+                    delay: 1,
+                    ease: "easeOut" 
+                  }}
+                  className="absolute inset-0 rounded-[40px] border border-teal/15 pointer-events-none"
+                />
+
+                {/* Quiet, stylish floating seed/particles radiating outwards */}
+                <div className="absolute inset-x-0 inset-y-0 pointer-events-none overflow-visible">
+                  {[
+                    { delay: 0.1, x: -65, y: -35, size: 7, color: "bg-teal/40" },
+                    { delay: 0.3, x: -95, y: 25, size: 5, color: "bg-playful-purple/35" },
+                    { delay: 0.5, x: 75, y: -50, size: 6, color: "bg-gold/35" },
+                    { delay: 0.2, x: 85, y: 15, size: 4, color: "bg-teal/35" },
+                    { delay: 0.7, x: -45, y: 70, size: 7, color: "bg-gold/45" },
+                    { delay: 0.4, x: 60, y: 75, size: 5, color: "bg-playful-purple/45" },
+                  ].map((p, idx) => (
+                    <motion.div
+                      key={idx}
+                      initial={{ opacity: 0, scale: 0 }}
+                      animate={{ 
+                        opacity: [0, 0.8, 0.8, 0], 
+                        scale: [0, 1.2, 1, 0.5],
+                        x: p.x, 
+                        y: p.y - 12 
+                      }}
+                      transition={{ 
+                        delay: p.delay, 
+                        duration: 2.5, 
+                        ease: "easeOut",
+                        repeat: Infinity,
+                        repeatDelay: 1
+                      }}
+                      className={`absolute left-1/2 top-1/2 -ml-1 -mt-1 rounded-full ${p.color}`}
+                      style={{ width: p.size, height: p.size }}
+                    />
+                  ))}
+                </div>
+
+                <motion.div
+                  initial={{ rotate: -15, scale: 0.8 }}
+                  animate={{ rotate: 0, scale: 1 }}
+                  transition={{ delay: 0.25, type: "spring", stiffness: 100 }}
+                >
+                  <CheckCircle2 size={56} strokeWidth={1.2} />
+                </motion.div>
+              </motion.div>
+
               <div className="space-y-8">
                 <h2 className="text-4xl font-serif font-black text-earth dark:text-ivory tracking-tight">{curr.readyTitle}</h2>
-                <div className="bg-white dark:bg-charcoal/50 rounded-[32px] p-8 border border-earth/5 dark:border-white/5 space-y-6 shadow-xl">
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.97, y: 15 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  transition={{ delay: 0.35, duration: 0.7, ease: "easeOut" }}
+                  className="bg-white dark:bg-charcoal/50 rounded-[32px] p-8 border border-earth/5 dark:border-white/5 space-y-6 shadow-xl relative overflow-hidden"
+                >
+                  <div className="absolute inset-x-0 -top-40 -bottom-40 bg-gradient-to-b from-teal/[0.04] to-transparent pointer-events-none" />
                   {selectedPathId && (
-                    <div className="space-y-1">
+                    <div className="space-y-1 relative z-10">
                       <p className="text-[10px] font-black uppercase tracking-widest text-earth-light/90 dark:text-ivory/90">
                         {appLanguage === 'es' ? 'TU SERIE' : 'YOUR PATH'}
                       </p>
@@ -759,7 +849,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                     </div>
                   )}
                   {growthGoal && (
-                    <div className="space-y-2">
+                    <div className="space-y-2 relative z-10">
                        <p className="text-[10px] font-black uppercase tracking-widest text-earth-light/90 dark:text-ivory/90">
                         {appLanguage === 'es' ? 'ESTÁS AQUÍ PARA CULTIVAR' : "YOU'RE HERE TO GROW"}
                       </p>
@@ -767,13 +857,13 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                         <p className="text-lg font-black text-earth dark:text-ivory leading-tight">
                           {growthGoal.label}
                         </p>
-                        <p className="text-sm font-serif italic text-earth-light/90 dark:text-lavender-muted">
+                        <p className="text-sm font-serif italic text-earth-light/90 dark:text-lavender-muted font-light">
                           "{growthGoal.subline}"
                         </p>
                       </div>
                     </div>
                   )}
-                </div>
+                </motion.div>
               </div>
             </div>
           </div>
@@ -817,7 +907,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
       {step < 13 && renderProgress()}
       
       <div className="flex-1 overflow-y-auto w-full custom-scrollbar pb-44 sm:pb-36">
-        <div className="w-full max-w-md mx-auto flex flex-col justify-start sm:justify-center px-4 sm:px-6 py-6 sm:py-10 min-h-[60vh] sm:min-h-[70vh]">
+        <div className="w-full max-w-md mx-auto flex flex-col justify-center px-4 sm:px-6 py-6 sm:py-10 min-h-[65vh] sm:min-h-[70vh]">
           <AnimatePresence mode="wait">
             {isPreparing ? (
               <motion.div 
