@@ -745,19 +745,22 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               <motion.div 
                 initial={{ scale: 0.5, opacity: 0 }}
                 animate={{ 
-                  scale: [0.5, 1.1, 1], 
+                  scale: 1, 
                   opacity: 1,
-                  boxShadow: [
-                    "0 0 0px rgba(20,184,166,0)", 
-                    "0 0 30px rgba(20,184,166,0.25)", 
-                    "0 0 20px rgba(20,184,166,0.12)"
-                  ] 
+                  boxShadow: "0 0 20px rgba(20,184,166,0.12)"
                 }}
                 transition={{ 
-                  type: "spring", 
-                  stiffness: 120, 
-                  damping: 15,
-                  duration: 1.2
+                  scale: {
+                    type: "spring", 
+                    stiffness: 150, 
+                    damping: 12
+                  },
+                  opacity: {
+                    duration: 0.5
+                  },
+                  boxShadow: {
+                    duration: 0.8
+                  }
                 }}
                 className="w-24 h-24 bg-teal/10 rounded-[40px] flex items-center justify-center mx-auto text-teal relative"
               >
