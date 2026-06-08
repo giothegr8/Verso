@@ -27,6 +27,7 @@ export default function PathSelection({ state, setState, onSelectPath, onBack, o
   const [reviewDay, setReviewDay] = useState<number | null>(null);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
   const selectedPathId = state.pathProgress.selectedPathId || state.customPathProgress.selectedPathId;
 
   const getPathIsCompleted = (path: Path | CustomPath) => {
@@ -43,6 +44,99 @@ export default function PathSelection({ state, setState, onSelectPath, onBack, o
       : (state.pathProgress?.completedPathIds || []).includes(path.id);
       
     return !!(hasAllCompleted || inCompletedIds);
+  };
+
+  const getPathWasCompletedBefore = (path: Path | CustomPath) => {
+    const isCustomPath = 'type' in path && path.type === "custom";
+    const hasInPrev = isCustomPath 
+      ? (state.customPathProgress?.previouslyCompletedPathIds || []).includes(path.id)
+      : (state.pathProgress?.previouslyCompletedPathIds || []).includes(path.id);
+    const hasInCurrent = isCustomPath
+      ? (state.customPathProgress?.completedPathIds || []).includes(path.id)
+      : (state.pathProgress?.completedPathIds || []).includes(path.id);
+    return !!(hasInPrev || hasInCurrent);
+  };
+
+  const handleResetAndReshuffle = () => {
+    if (!selectedPath) return;
+    const isCustomPath = 'type' in selectedPath && selectedPath.type === "custom";
+    const duration = isCustomPath ? (selectedPath as CustomPath).verses.length : (selectedPath as Path).duration;
+
+    // Fisher-Yates Shuffle 1..duration
+    const originalOrder = Array.from({ length: duration }, (_, i) => i + 1);
+    const shuffledOrder = [...originalOrder];
+    for (let i = shuffledOrder.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffledOrder[i], shuffledOrder[j]] = [shuffledOrder[j], shuffledOrder[i]];
+    }
+
+    setState(s => {
+      if (isCustomPath) {
+        const completedIds = s.customPathProgress.completedPathIds || [];
+        const prevCompleted = s.customPathProgress.previouslyCompletedPathIds || [];
+        
+        const newCompletedIds = completedIds.filter(id => id !== selectedPath.id);
+        const newPrevCompleted = prevCompleted.includes(selectedPath.id) 
+          ? prevCompleted 
+          : [...prevCompleted, selectedPath.id];
+
+        const newSavedProgress = {
+          ...(s.customPathProgress.savedProgress || {}),
+          [selectedPath.id]: {
+            currentDay: 1,
+            completedDays: [],
+            shuffledDayOrder: shuffledOrder
+          }
+        };
+
+        const isCurrentlyActive = s.customPathProgress.selectedPathId === selectedPath.id;
+
+        return {
+          ...s,
+          customPathProgress: {
+            ...s.customPathProgress,
+            currentDay: isCurrentlyActive ? 1 : s.customPathProgress.currentDay,
+            pathCompletedToday: isCurrentlyActive ? false : s.customPathProgress.pathCompletedToday,
+            completedPathIds: newCompletedIds,
+            previouslyCompletedPathIds: newPrevCompleted,
+            savedProgress: newSavedProgress
+          }
+        };
+      } else {
+        const completedIds = s.pathProgress.completedPathIds || [];
+        const prevCompleted = s.pathProgress.previouslyCompletedPathIds || [];
+        
+        const newCompletedIds = completedIds.filter(id => id !== selectedPath.id);
+        const newPrevCompleted = prevCompleted.includes(selectedPath.id) 
+          ? prevCompleted 
+          : [...prevCompleted, selectedPath.id];
+
+        const newSavedProgress = {
+          ...(s.pathProgress.savedProgress || {}),
+          [selectedPath.id]: {
+            currentDay: 1,
+            completedDays: [],
+            shuffledDayOrder: shuffledOrder
+          }
+        };
+
+        const isCurrentlyActive = s.pathProgress.selectedPathId === selectedPath.id;
+
+        return {
+          ...s,
+          pathProgress: {
+            ...s.pathProgress,
+            currentDay: isCurrentlyActive ? 1 : s.pathProgress.currentDay,
+            pathCompletedToday: isCurrentlyActive ? false : s.pathProgress.pathCompletedToday,
+            completedPathIds: newCompletedIds,
+            previouslyCompletedPathIds: newPrevCompleted,
+            savedProgress: newSavedProgress
+          }
+        };
+      }
+    });
+
+    setShowResetConfirm(false);
   };
 
   const getVerseByRef = (ref: string) => {
@@ -259,6 +353,51 @@ export default function PathSelection({ state, setState, onSelectPath, onBack, o
                     className="w-full h-14 bg-earth/5 dark:bg-white/5 text-earth/60 dark:text-ivory/60 rounded-2xl font-black uppercase tracking-widest text-xs border border-earth/10 dark:border-white/10"
                   >
                     {isEs ? "Conservar Serie" : "Keep Path"}
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* Reset Confirmation Overlay */}
+        <AnimatePresence>
+          {showResetConfirm && (
+            <div className="fixed inset-0 z-[120] flex items-center justify-center p-6">
+              <motion.div 
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                className="absolute inset-0 bg-espresso/80 backdrop-blur-md"
+                onClick={() => setShowResetConfirm(false)}
+              />
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                className="relative w-full max-w-sm bg-white dark:bg-charcoal rounded-[40px] shadow-2xl border border-earth/10 dark:border-white/10 p-8 space-y-6"
+              >
+                <div className="space-y-3 text-center">
+                  <div className="w-16 h-16 bg-amber-500/10 rounded-2xl flex items-center justify-center text-amber-500 mx-auto mb-4">
+                    <RotateCw size={28} />
+                  </div>
+                  <h3 className="text-2xl font-serif font-black text-earth dark:text-ivory">
+                    {isEs ? "Reiniciar y mezclar serie" : "Reset and reshuffle path"}
+                  </h3>
+                  <p className="text-sm font-medium text-earth-light/60 dark:text-lavender-muted/60 leading-relaxed text-center">
+                    {isEs 
+                      ? "Esto reiniciará el progreso de esta serie para que puedas recorrerla otra vez con un nuevo orden. Tus versículos guardados, tu racha y lo que ya completaste en La Cosecha permanecerán intactos. Si vuelves a completar un versículo, pasará de flor a fruto."
+                      : "This will reset this path’s progress so you can walk through it again in a fresh order. Your saved verses, streak, and Harvest completions will stay safe. If you complete a verse again, it will mature from bloom to fruit."}
+                  </p>
+                </div>
+                <div className="flex flex-col gap-3">
+                  <button 
+                    onClick={handleResetAndReshuffle}
+                    className="w-full h-14 bg-amber-500 text-white hover:bg-amber-600 rounded-2xl font-black uppercase tracking-widest text-xs transition-colors"
+                  >
+                    {isEs ? "sí, reiniciar y mezclar" : "yes, reset and reshuffle"}
+                  </button>
+                  <button 
+                    onClick={() => setShowResetConfirm(false)}
+                    className="w-full h-14 bg-earth/5 dark:bg-white/5 text-earth/60 dark:text-ivory/60 rounded-2xl font-black uppercase tracking-widest text-xs border border-earth/10 dark:border-white/10 hover:bg-earth/10 transition-colors"
+                  >
+                    {isEs ? "cancelar" : "cancel"}
                   </button>
                 </div>
               </motion.div>
@@ -502,6 +641,15 @@ export default function PathSelection({ state, setState, onSelectPath, onBack, o
                   ? "Puedes volver a repasarla cuando quieras o elegir una nueva serie." 
                   : "You can return to review it anytime or choose a new series."}
               </p>
+              <div className="pt-3 flex justify-center md:justify-start">
+                <button
+                  onClick={() => setShowResetConfirm(true)}
+                  className="px-6 py-2.5 h-10 rounded-full bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs uppercase tracking-widest transition-all hover:shadow-[0_4px_12px_rgba(245,158,11,0.25)] active:scale-95 flex items-center gap-2"
+                >
+                  <RotateCw size={12} />
+                  {isEs ? "reiniciar y mezclar serie" : "reset and reshuffle path"}
+                </button>
+              </div>
             </div>
           </motion.div>
         )}
@@ -514,9 +662,19 @@ export default function PathSelection({ state, setState, onSelectPath, onBack, o
           <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
             {Array.from({ length: pathDuration }).map((_, i) => {
               const dayNum = i + 1;
+              const savedProgressOfPath = selectedPath 
+                ? (isCustom 
+                    ? (state.customPathProgress?.savedProgress || {})[selectedPath.id]
+                    : (state.pathProgress?.savedProgress || {} as any)[selectedPath.id])
+                : null;
+              const shuffledDayOrder = savedProgressOfPath?.shuffledDayOrder;
+              const originalDayNum = shuffledDayOrder && shuffledDayOrder.length === pathDuration
+                ? (shuffledDayOrder[dayNum - 1] || dayNum)
+                : dayNum;
+
               const rawDayData = isCustom 
-                ? (selectedPath as CustomPath).verses.find(v => v.dayNumber === dayNum)
-                : (selectedPath as Path).days?.find(d => d.day === dayNum);
+                ? (selectedPath as CustomPath).verses.find(v => v.dayNumber === originalDayNum)
+                : (selectedPath as Path).days?.find(d => d.day === originalDayNum);
               const dayData = getLocalizedPathDay(rawDayData, isEs);
               
               // Robust completion detection
@@ -768,6 +926,16 @@ export default function PathSelection({ state, setState, onSelectPath, onBack, o
                           </span>
                         </motion.div>
                       )}
+                      {!isPathCompleted && getPathWasCompletedBefore(path) && (
+                        <motion.div 
+                          className="flex items-center gap-1.5 px-2.5 py-1 bg-earth/5 dark:bg-white/5 rounded-lg border border-earth/10 dark:border-white/10"
+                        >
+                          <Flower2 size={10} className="text-earth/45 dark:text-ivory/45" />
+                          <span className="text-[9px] font-black uppercase tracking-widest text-earth/50 dark:text-ivory/50">
+                            {isEs ? "Completada" : "Completed"}
+                          </span>
+                        </motion.div>
+                      )}
                       {isActive && (
                         <motion.div 
                           className="flex items-center gap-1.5 px-2.5 py-1 bg-teal/10 dark:bg-teal/20 rounded-lg border border-teal/20 dark:border-teal-400/20"
@@ -863,6 +1031,18 @@ export default function PathSelection({ state, setState, onSelectPath, onBack, o
                     <Flower2 size={10} className="text-amber-600 dark:text-amber-400" />
                     <span className="text-[9px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-400">
                       {isEs ? "Completado" : "Completed"}
+                    </span>
+                  </motion.div>
+                )}
+                {!isPathCompleted && getPathWasCompletedBefore(path) && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="flex items-center gap-1.5 px-2.5 py-1 bg-earth/5 dark:bg-white/5 rounded-lg border border-earth/10 dark:border-white/10"
+                  >
+                    <Flower2 size={10} className="text-earth/45 dark:text-ivory/45" />
+                    <span className="text-[9px] font-black uppercase tracking-widest text-earth/50 dark:text-ivory/50">
+                      {isEs ? "Completada" : "Completed"}
                     </span>
                   </motion.div>
                 )}

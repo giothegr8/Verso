@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { AppState, Verse } from "../types";
 import { loadVerseAndMerge } from "../services/bibleService";
 import { MOCK_VERSES, getVerseByDate } from "../constants";
-import { ChevronLeft, ChevronRight, RotateCcw, Sparkles, BookOpen, Brain, HelpCircle, Trophy, Star, Bookmark, CheckCircle2, ArrowRight, Flower2, Sprout, Compass, Layers } from "lucide-react";
+import { ChevronLeft, ChevronRight, RotateCcw, Sparkles, BookOpen, Brain, HelpCircle, Trophy, Star, Bookmark, CheckCircle2, ArrowRight, Flower2, Sprout, Compass, Layers, Grape, Lock } from "lucide-react";
 import { getValidatedVerse, getCurrentTranslationPair, getLocalizedBookName, getLocalDateString, getVerseLines, removeAccents, VERSE_LAYOUT } from "../utils/verseUtils";
 import confetti from "canvas-confetti";
 
@@ -136,6 +136,10 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
     [verse, state, state.selectedTranslations.es, state.selectedTranslations.en]
   );
 
+  const isEligible = useMemo(() => {
+    return state.progress.verseStages?.[verse.id] === 6;
+  }, [state.progress.verseStages, verse.id]);
+
   // Reset state when verse or configuration changes
   useEffect(() => {
     setIsFlipped(false);
@@ -216,12 +220,22 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
           newLastCompletedDailyVerseDate = today;
         }
 
+        // Handle completion counts
+        const currentCounts = s.progress.completionCounts || {};
+        const oldVal = currentCounts[verse.id] !== undefined ? currentCounts[verse.id] : (isAlreadyCompleted ? 1 : 0);
+        const newCounts = {
+          ...currentCounts,
+          [verse.id]: oldVal + 1
+        };
+
         return {
           ...s,
+          activeAttempt: null,
           progress: {
             ...s.progress,
             totalMemorized: isAlreadyCompleted ? s.progress.totalMemorized : s.progress.totalMemorized + 1,
             completedVerses: isAlreadyCompleted ? s.progress.completedVerses : [...s.progress.completedVerses, verse.id],
+            completionCounts: newCounts,
             lastCompletedDailyVerseDate: newLastCompletedDailyVerseDate,
             verseStages: {
               ...s.progress.verseStages,
@@ -533,6 +547,10 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
   };
 
   const handleSubmit = () => {
+    if (!isEligible) {
+      onMemorize(verse.id);
+      return;
+    }
     const esTarget = getTargetChars(esRef, revealedIndices.es);
     const enTarget = getTargetChars(enRef, revealedIndices.en);
     
@@ -573,6 +591,40 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
 
   if (isCompleted) {
     const isFailedSession = localStorage.getItem(`memorize_failed_${verse.id}`) === "true";
+    
+    // Compute the actual completion count from state
+    const isAlreadyCompleted = state.progress.completedVerses.includes(verse.id);
+    const completionCounts = state.progress.completionCounts || {};
+    const count = completionCounts[verse.id] !== undefined ? completionCounts[verse.id] : (isAlreadyCompleted ? 1 : 0);
+
+    let titleText = "";
+    let bodyText = "";
+    let subtextText = "";
+
+    if (isFailedSession) {
+      titleText = state.primaryLanguage === 'es' ? 'Práctica' : 'Practice';
+      bodyText = state.primaryLanguage === 'es' 
+        ? 'Cita correcta. Te falta dominar el texto del versículo para memorizarlo por completo.' 
+        : 'Reference correct. Keep practicing the text of the verse to fully memorize and complete it.';
+      subtextText = state.primaryLanguage === 'es' ? 'Sigue intentándolo' : 'Keep practicing';
+    } else {
+      if (count <= 1) {
+        titleText = state.primaryLanguage === 'es' ? '¡Increíble!' : 'Amazing!';
+        bodyText = state.primaryLanguage === 'es' 
+          ? 'Has guardado su Palabra en tu corazón.' 
+          : 'You’ve hidden His Word in your heart.';
+        subtextText = state.primaryLanguage === 'es' ? 'Un versículo por día.' : 'One verse a day.';
+      } else {
+        titleText = state.primaryLanguage === 'es' ? '¡Dio fruto!' : 'It bore fruit!';
+        bodyText = state.primaryLanguage === 'es'
+          ? 'Esta palabra sigue dando fruto en ti.'
+          : 'This word is continuing to bear fruit in you.';
+        subtextText = state.primaryLanguage === 'es'
+          ? `Lo has completado ${count} veces.`
+          : `You’ve completed it ${count} times.`;
+      }
+    }
+
     return (
       <motion.div 
         className="h-full flex flex-col items-center justify-center text-center space-y-10 py-12"
@@ -582,7 +634,13 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
       >
         <div className="relative">
           <motion.div 
-            className={`w-40 h-40 ${isFailedSession ? 'bg-sky-blue/10 dark:bg-sky-blue/5 border border-sky-blue/20' : 'bg-amber-50 dark:bg-amber-950/20 shadow-2xl shadow-amber-500/10 border border-amber-200/50 dark:border-amber-500/20'} rounded-[48px] flex items-center justify-center`}
+            className={`w-40 h-40 ${
+              isFailedSession 
+                ? 'bg-sky-blue/10 dark:bg-sky-blue/5 border border-sky-blue/20' 
+                : count >= 2
+                  ? 'bg-rose-50 dark:bg-rose-950/20 shadow-2xl shadow-rose-500/10 border border-rose-200/50 dark:border-rose-500/20'
+                  : 'bg-amber-50 dark:bg-amber-950/20 shadow-2xl shadow-amber-500/10 border border-amber-200/50 dark:border-amber-500/20'
+            } rounded-[48px] flex items-center justify-center`}
             animate={isFailedSession ? {
               scale: [1, 1.02, 1],
               y: [0, -3, 0]
@@ -595,6 +653,20 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
           >
             {isFailedSession ? (
               <Brain size={80} className="text-sky-blue" strokeWidth={1.2} />
+            ) : count >= 2 ? (
+              <div className="relative flex items-center justify-center">
+                <Grape size={80} className="text-rose-500 dark:text-rose-400" strokeWidth={1.2} />
+                {count >= 3 && (
+                  <motion.div 
+                    initial={{ scale: 0, rotate: -25 }}
+                    animate={{ scale: 1, rotate: 0 }}
+                    transition={{ delay: 0.5, type: "spring", stiffness: 200, damping: 12 }}
+                    className="absolute -bottom-3 -right-3 bg-gradient-to-br from-rose-500 to-rose-600 dark:from-rose-600 dark:to-rose-700 text-white font-serif font-black text-xs tracking-wider px-3 py-1.5 rounded-full shadow-lg shadow-rose-500/20 dark:shadow-rose-950/40 border-[2.5px] border-white dark:border-charcoal whitespace-nowrap min-w-[32px] flex items-center justify-center select-none"
+                  >
+                    ×{count}
+                  </motion.div>
+                )}
+              </div>
             ) : (
               <Flower2 size={80} className="text-amber-500 dark:text-amber-400" strokeWidth={1.2} />
             )}
@@ -615,7 +687,7 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
               }}
               transition={{ duration: 3, repeat: Infinity, delay: i * 0.2 }}
             >
-              <div className="w-1.5 h-1.5 rounded-full bg-amber-400/40 blur-[1px]" />
+              <div className={`w-1.5 h-1.5 rounded-full ${count >= 2 ? 'bg-rose-400/40' : 'bg-amber-400/40'} blur-[1px]`} />
             </motion.div>
           ))}
         </div>
@@ -627,10 +699,7 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
             transition={{ delay: 0.3 }}
             className="text-6xl sm:text-8xl font-serif font-black text-earth dark:text-ivory tracking-tighter"
           >
-            {isFailedSession 
-              ? (state.primaryLanguage === 'es' ? 'Práctica' : 'Practice')
-              : (state.primaryLanguage === 'es' ? '¡Increíble!' : 'Incredible!')
-            }
+            {titleText}
           </motion.h2>
           <motion.p 
             initial={{ y: 20, opacity: 0 }}
@@ -639,20 +708,10 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
             className="text-xl text-earth-light dark:text-lavender-muted font-medium max-w-sm mx-auto flex flex-col items-center gap-2"
           >
             <span>
-              {isFailedSession 
-                ? (state.primaryLanguage === 'es' 
-                    ? 'Cita correcta. Te falta dominar el texto del versículo para memorizarlo por completo.' 
-                    : 'Reference correct. Keep practicing the text of the verse to fully memorize and complete it.')
-                : (state.primaryLanguage === 'es' 
-                    ? 'Has guardado su Palabra en tu corazón.' 
-                    : 'You’ve stored His Word in your heart.')
-              }
+              {bodyText}
             </span>
-            <span className="text-sm font-black text-playful-purple dark:text-plum uppercase tracking-widest mt-2">
-              {isFailedSession 
-                ? (state.primaryLanguage === 'es' ? 'Sigue intentándolo' : 'Keep practicing')
-                : (state.primaryLanguage === 'es' ? 'Un versículo por día.' : 'One verse a day.')
-              }
+            <span className="text-sm font-black text-playful-purple dark:text-plum uppercase tracking-widest mt-2 animate-pulse">
+              {subtextText}
             </span>
           </motion.p>
         </div>
@@ -664,13 +723,7 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
               animate={{ x: 0, opacity: 1 }}
               transition={{ delay: 0.5 }}
               onClick={() => {
-                setIsFlipped(false);
-                setIsCompleted(false);
-                setClueCount({ es: 0, en: 0 });
-                setRevealedIndices({ es: [], en: [] });
-                setActiveLanguage(null);
-                setCursorPositionEs(0);
-                setCursorPositionEn(0);
+                onMemorize(verse.id);
               }} 
               className="btn-primary w-full flex items-center justify-center gap-3 py-5 shadow-playful-purple/20"
             >
@@ -730,8 +783,42 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
           </p>
         </div>
 
-        {/* Card Container - Restored to wider width with balanced height */}
-        <div className="relative w-full h-[660px] sm:h-[720px] lg:h-[780px] perspective-1000 mb-10 mx-auto">
+        {!isEligible ? (
+          <div className="w-full max-w-xl mx-auto my-12 bg-white dark:bg-charcoal shadow-2xl rounded-[40px] border border-earth/5 dark:ring-1 dark:ring-white/5 flex flex-col items-center justify-center p-8 sm:p-12 text-center space-y-8 animate-in fade-in duration-500">
+            <div className="relative">
+              <div className="w-24 h-24 bg-playful-purple/10 dark:bg-plum/10 rounded-full flex items-center justify-center text-playful-purple dark:text-plum">
+                <Brain size={44} className="animate-pulse" />
+              </div>
+              <div className="absolute -bottom-1 -right-1 bg-coral text-white p-2.5 rounded-full shadow-lg">
+                <Lock size={18} />
+              </div>
+            </div>
+            <div className="space-y-3">
+              <h3 className="text-2xl font-serif font-black text-earth dark:text-ivory">
+                {state.primaryLanguage === 'es' ? 'Cita Bloqueada' : 'Citation Locked'}
+              </h3>
+              <p className="text-sm text-earth-light dark:text-lavender-muted leading-relaxed max-w-xs mx-auto font-medium font-serif">
+                {state.primaryLanguage === 'es' 
+                  ? 'Primero completa la memorización del versículo. Después desbloquearás la cita bíblica.'
+                  : 'Complete the verse memorization first. Then you’ll unlock the citation challenge.'}
+              </p>
+            </div>
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => onMemorize(verse.id)}
+              className="px-8 py-4 bg-teal hover:bg-teal-600 text-white font-black text-xs uppercase tracking-widest rounded-full shadow-lg shadow-teal/20 transition-colors flex items-center gap-2"
+            >
+              <BookOpen size={16} />
+              <span>
+                {state.primaryLanguage === 'es' ? 'ir a memorizar' : 'go memorize'}
+              </span>
+            </motion.button>
+          </div>
+        ) : (
+          <>
+            {/* Card Container - Restored to wider width with balanced height */}
+            <div className="relative w-full h-[660px] sm:h-[720px] lg:h-[780px] perspective-1000 mb-10 mx-auto">
           <motion.div
             className="w-full h-full preserve-3d"
             animate={{ rotateY: isFlipped ? 180 : 0 }}
@@ -1201,6 +1288,8 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
           )}
         </AnimatePresence>
       </div>
+          </>
+        )}
     </div>
   </div>
 );

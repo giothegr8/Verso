@@ -50,6 +50,7 @@ export interface UserProgress {
   currentStreak: number;
   bestStreak: number;
   completedVerses: string[]; // IDs
+  completionCounts?: Record<string, number>; // IDs -> count
   verseStages: Record<string, number>; // verseId -> currentStage
   lastPracticeDate: string | null; // ISO date string (YYYY-MM-DD) of last completion
   lastStreakDate: string | null; // ISO date string (YYYY-MM-DD) when streak was last incremented
@@ -110,9 +111,11 @@ export interface UserPathProgress {
   lastCompletedAt: string | null; // ISO date (YYYY-MM-DD)
   pathCompletedToday: boolean; // Whether today's verse is done
   completedPathIds: string[];
+  previouslyCompletedPathIds?: string[];
   savedProgress: Record<string, {
     currentDay: number;
     completedDays: number[];
+    shuffledDayOrder?: number[];
   }>;
 }
 

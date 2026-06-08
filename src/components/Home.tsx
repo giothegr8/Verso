@@ -199,22 +199,40 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
       
     return !!(hasAllCompleted || inCompletedIds);
   }, [selectedPath, isCustomPath, state.customPathProgress, state.pathProgress, pathDuration]);
+
+  const savedProgressForSelected = selectedPath 
+    ? (isCustomPath 
+        ? (state.customPathProgress?.savedProgress || {})[selectedPath.id] 
+        : (state.pathProgress?.savedProgress || {})[selectedPath.id])
+    : null;
+  const shuffledDayOrder = savedProgressForSelected?.shuffledDayOrder;
+
   const nextPathDayNum = currentPathDayNum < pathDuration ? currentPathDayNum + 1 : null;
+
+  const originalCurrentDayNum = shuffledDayOrder && shuffledDayOrder.length === pathDuration
+    ? (shuffledDayOrder[currentPathDayNum - 1] || currentPathDayNum)
+    : currentPathDayNum;
+
+  const originalNextDayNum = nextPathDayNum
+    ? (shuffledDayOrder && shuffledDayOrder.length === pathDuration
+        ? (shuffledDayOrder[nextPathDayNum - 1] || nextPathDayNum)
+        : nextPathDayNum)
+    : null;
   
   const currentPathDay = selectedPath 
     ? getLocalizedPathDay(
         'days' in selectedPath 
-          ? selectedPath.days[currentPathDayNum - 1] 
-          : selectedPath.verses.find(v => v.dayNumber === currentPathDayNum),
+          ? selectedPath.days[originalCurrentDayNum - 1] 
+          : selectedPath.verses.find(v => v.dayNumber === originalCurrentDayNum),
         isEs
       )
     : null;
     
-  const nextPathDay = selectedPath && nextPathDayNum 
+  const nextPathDay = selectedPath && originalNextDayNum 
     ? getLocalizedPathDay(
         'days' in selectedPath 
-          ? selectedPath.days[nextPathDayNum - 1] 
-          : selectedPath.verses.find(v => v.dayNumber === nextPathDayNum),
+          ? selectedPath.days[originalNextDayNum - 1] 
+          : selectedPath.verses.find(v => v.dayNumber === originalNextDayNum),
         isEs
       )
     : null;

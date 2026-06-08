@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from "motion/react";
 import { AppState, TRANSLATION_PAIRS, TRANSLATION_DETAILS, ActiveVerseSource } from "../types";
-import { Bookmark, Share2, Trash2, BookOpen, Search, Languages, Star, Heart, AlertCircle, X, Flower2, Sparkles, Compass, Sprout } from "lucide-react";
+import { Bookmark, Share2, Trash2, BookOpen, Search, Languages, Star, Heart, AlertCircle, X, Flower2, Sparkles, Compass, Sprout, Grape } from "lucide-react";
 import { MOCK_VERSES, PATHS } from "../constants";
 import React, { useState } from "react";
 import { handleShare } from "../utils/shareUtils";
@@ -146,6 +146,23 @@ export default function Saved({ state, setState, onStartMemorizing, onGoToFlashc
 
     const sourceInfo = getSourceInfo(verse.id);
 
+    const completionCounts = state.progress.completionCounts || {};
+    const count = completionCounts[verse.id] !== undefined ? completionCounts[verse.id] : (isMemorized ? 1 : 0);
+
+    const badgeText = count === 0
+      ? (state.primaryLanguage === 'es' ? 'En Progreso' : 'In Progress')
+      : count === 1
+        ? (state.primaryLanguage === 'es' ? 'Floreció' : 'Bloomed')
+        : (state.primaryLanguage === 'es' ? 'Dio fruto' : 'Bore fruit');
+
+    const badgeClasses = count === 0
+      ? 'bg-teal/10 dark:bg-teal/25 text-teal dark:text-teal-300 border-teal/20'
+      : count === 1
+        ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
+        : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20 shadow-[0_0_10px_rgba(244,63,94,0.15)]';
+
+    const isActiveInProgress = state.activeAttempt && state.activeAttempt.verseId === verse.id;
+
     return (
       <motion.div 
         key={verse.id}
@@ -164,15 +181,9 @@ export default function Saved({ state, setState, onStartMemorizing, onGoToFlashc
               {sourceInfo.label}
             </span>
           </div>
-          {!isMemorized ? (
-            <div className="bg-teal/10 dark:bg-teal/25 text-teal dark:text-teal-300 px-2.5 py-1 rounded-full flex items-center gap-1 border border-teal/20 shadow-sm text-[9px] font-black uppercase tracking-widest">
-              <span>{state.primaryLanguage === 'es' ? 'En Progreso' : 'In Progress'}</span>
-            </div>
-          ) : (
-            <div className="bg-amber-500/10 text-amber-600 dark:text-amber-400 px-2.5 py-1 rounded-full flex items-center gap-1 border border-amber-500/20 shadow-sm text-[9px] font-black uppercase tracking-widest">
-              <span>{state.primaryLanguage === 'es' ? 'Completado' : 'Completed'}</span>
-            </div>
-          )}
+          <div className={`${badgeClasses} px-2.5 py-1 rounded-full flex items-center gap-1 border shadow-sm text-[9px] font-black uppercase tracking-widest`}>
+            <span>{badgeText}</span>
+          </div>
         </div>
         <div className="flex justify-between items-start relative z-10 pt-6">
           <div className="space-y-1 flex items-start gap-3">
@@ -182,22 +193,37 @@ export default function Saved({ state, setState, onStartMemorizing, onGoToFlashc
                 scale: [1, 1.05, 1] 
               }}
               transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-              className={isMemorized ? "mt-1 text-amber-500 dark:text-amber-400 shrink-0" : "mt-1 text-teal-600 dark:text-teal-400 shrink-0"}
+              className={`mt-1 shrink-0 ${
+                count === 0 
+                  ? "text-teal-600 dark:text-teal-400" 
+                  : count === 1 
+                    ? "text-amber-500 dark:text-amber-400" 
+                    : "text-rose-500 dark:text-rose-400"
+              }`}
             >
-              {isMemorized ? (
-                <Flower2 size={20} />
-              ) : (
-                <Sprout size={20} />
-              )}
+              <div className="relative">
+                {count === 0 && <Sprout size={20} />}
+                {count === 1 && <Flower2 size={20} />}
+                {count >= 2 && (
+                  <div className="flex items-center gap-1">
+                    <Grape size={20} className="animate-pulse" />
+                    {count >= 3 && (
+                      <span className="text-[10px] font-black bg-rose-500/20 text-rose-600 dark:text-rose-400 px-1 rounded-md">
+                        ×{count}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
             </motion.div>
             <div className="space-y-1">
-              <h3 className="text-2xl font-serif font-black text-earth dark:text-ivory tracking-tight whitespace-nowrap">
+              <h3 className={`text-2xl font-serif font-black text-earth dark:text-ivory tracking-tight whitespace-nowrap transition-all duration-300 ${isActiveInProgress ? 'blur-md select-none pointer-events-none' : ''}`}>
                 {getLocalizedBookName(verse.book, state.primaryLanguage === 'es' ? 'es' : 'en')} {verse.chapter}:{verse.verse}
               </h3>
             </div>
           </div>
           <div className="flex gap-2">
-            {isMemorized && (
+            {isMemorized && !isActiveInProgress && (
               <motion.button 
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
@@ -207,18 +233,42 @@ export default function Saved({ state, setState, onStartMemorizing, onGoToFlashc
                 <Share2 size={18} />
               </motion.button>
             )}
-            <motion.button 
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-              onClick={() => removeSaved(verse.id)}
-              className="p-2.5 rounded-xl bg-earth/5 dark:bg-white/5 text-earth/60 dark:text-ivory/60 hover:text-coral hover:bg-coral/10 transition-all"
-            >
-              <Trash2 size={18} />
-            </motion.button>
+            {!isActiveInProgress && (
+              <motion.button 
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={() => removeSaved(verse.id)}
+                className="p-2.5 rounded-xl bg-earth/5 dark:bg-white/5 text-earth/60 dark:text-ivory/60 hover:text-coral hover:bg-coral/10 transition-all"
+              >
+                <Trash2 size={18} />
+              </motion.button>
+            )}
           </div>
         </div>
 
         <div className="space-y-4 relative z-10">
+          {isActiveInProgress && (
+            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-white/60 dark:bg-charcoal/60 backdrop-blur-md rounded-xl p-4">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => {
+                  const currentStage = state.progress.verseStages?.[verse.id] || 1;
+                  if (currentStage === 6) {
+                    onGoToFlashcards?.(verse.id);
+                  } else {
+                    onStartMemorizing(verse.id, state.activeSource || "saved");
+                  }
+                }}
+                className="px-6 py-3 bg-teal hover:bg-teal-600 text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-lg hover:shadow-teal/25 transition-all flex items-center gap-2"
+              >
+                <BookOpen size={14} />
+                <span>
+                  {state.primaryLanguage === 'es' ? 'continuar reto' : 'continue challenge'}
+                </span>
+              </motion.button>
+            </div>
+          )}
           {(state.memorizeMode === 'es' || state.memorizeMode === 'both') && (
             <div className="space-y-2">
               <div className="flex items-center gap-2">
@@ -227,7 +277,7 @@ export default function Saved({ state, setState, onStartMemorizing, onGoToFlashc
                 </span>
               </div>
               {esText ? (
-                <p className="text-xl font-serif leading-relaxed text-earth dark:text-ivory font-black">
+                <p className={`text-xl font-serif leading-relaxed text-earth dark:text-ivory font-black transition-all duration-300 ${isActiveInProgress ? 'blur-md select-none pointer-events-none' : ''}`}>
                   {esText}
                 </p>
               ) : isEsLoading ? (
@@ -251,7 +301,7 @@ export default function Saved({ state, setState, onStartMemorizing, onGoToFlashc
                 </span>
               </div>
               {enText ? (
-                <p className="text-lg font-serif leading-relaxed text-earth/80 dark:text-lavender-muted border-l-4 border-playful-purple/30 dark:border-plum/40 pl-4 bg-playful-purple/5 dark:bg-plum/5 py-3 rounded-r-xl font-medium">
+                <p className={`text-lg font-serif leading-relaxed text-earth/80 dark:text-lavender-muted border-l-4 border-playful-purple/30 dark:border-plum/40 pl-4 bg-playful-purple/5 dark:bg-plum/5 py-3 rounded-r-xl font-medium transition-all duration-300 ${isActiveInProgress ? 'blur-md select-none pointer-events-none' : ''}`}>
                   {enText}
                 </p>
               ) : isEnLoading ? (
@@ -269,7 +319,7 @@ export default function Saved({ state, setState, onStartMemorizing, onGoToFlashc
           )}
         </div>
 
-        {memorizationStage === 6 && !isMemorized ? (
+        {!isActiveInProgress && (memorizationStage === 6 && !isMemorized ? (
           <motion.button 
             whileHover={{ scale: 1.01 }}
             whileTap={{ scale: 0.99 }}
@@ -299,7 +349,7 @@ export default function Saved({ state, setState, onStartMemorizing, onGoToFlashc
               : (state.primaryLanguage === 'es' ? 'memorizar ahora' : 'memorize now')
             }</span>
           </motion.button>
-        )}
+        ))}
       </motion.div>
     );
   };

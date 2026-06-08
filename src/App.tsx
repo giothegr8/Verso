@@ -11,7 +11,8 @@ import {
   Moon,
   Sun,
   RotateCcw,
-  Loader2
+  Loader2,
+  AlertCircle
 } from "lucide-react";
 import { AppState, LanguageMode, Translation, TRANSLATION_PAIRS, Verse } from "./types";
 import { MOCK_VERSES, getVerseByDate, PATHS } from "./constants";
@@ -93,6 +94,7 @@ const INITIAL_STATE: AppState = {
     currentStreak: 0,
     bestStreak: 0,
     completedVerses: [],
+    completionCounts: {},
     verseStages: {},
     lastPracticeDate: null,
     lastStreakDate: null,
@@ -104,6 +106,7 @@ const INITIAL_STATE: AppState = {
     lastCompletedAt: null,
     pathCompletedToday: false,
     completedPathIds: [],
+    previouslyCompletedPathIds: [],
     savedProgress: {},
   },
   customPathProgress: {
@@ -112,6 +115,7 @@ const INITIAL_STATE: AppState = {
     lastCompletedAt: null,
     pathCompletedToday: false,
     completedPathIds: [],
+    previouslyCompletedPathIds: [],
     savedProgress: {},
   },
   reminders: {
@@ -179,11 +183,20 @@ function AppInner() {
         if (merged.selectedCustomVerse === undefined) merged.selectedCustomVerse = null;
         if (!merged.onboardingProfile) merged.onboardingProfile = {};
         if (merged.hasCompletedTour === undefined) merged.hasCompletedTour = false;
+        if (!merged.progress.completionCounts) {
+          merged.progress.completionCounts = {};
+        }
         if (!merged.pathProgress) {
           merged.pathProgress = INITIAL_STATE.pathProgress;
         }
+        if (!merged.pathProgress.previouslyCompletedPathIds) {
+          merged.pathProgress.previouslyCompletedPathIds = [];
+        }
         if (!merged.customPathProgress) {
           merged.customPathProgress = INITIAL_STATE.customPathProgress;
+        }
+        if (!merged.customPathProgress.previouslyCompletedPathIds) {
+          merged.customPathProgress.previouslyCompletedPathIds = [];
         }
         
         return merged;
@@ -198,11 +211,13 @@ function AppInner() {
   const [activeTab, setActiveTab] = useState(() => {
     return localStorage.getItem("verso_active_tab") || "home";
   });
+  const [pendingAttempt, setPendingAttempt] = useState<{
+    type: "start" | "another";
+    verseId?: string;
+    source?: "daily" | "path" | "custom" | "extra" | "saved" | "daily";
+  } | null>(null);
   const handleSetActiveTab = (tab: string) => {
     setActiveTab(tab);
-    if (tab === "home" || tab === "paths" || tab === "saved") {
-      setState(s => ({ ...s, activeAttempt: null }));
-    }
   };
   const handleGoToPaths = (path?: Path | CustomPath) => {
     if (path) {
@@ -334,6 +349,30 @@ function AppInner() {
 
   const startMemorizing = (verseId: string, source: "daily" | "path" | "custom" | "extra" | "saved" = "daily") => {
     localStorage.removeItem(`memorize_failed_${verseId}`);
+    
+    // 1. If we click on the SAME verse that is currently active, resume it
+    if (state.activeAttempt && state.activeAttempt.verseId === verseId) {
+      const currentStage = state.progress.verseStages?.[verseId] || 1;
+      if (currentStage === 6) {
+        setActiveTab("flashcards");
+      } else {
+        setActiveTab("memorize");
+      }
+      return;
+    }
+
+    // 2. If we have an active attempt on a DIFFERENT verse, prompt them first
+    if (state.activeAttempt) {
+      setPendingAttempt({ type: "start", verseId, source });
+      return;
+    }
+
+    // 3. Otherwise, proceed to memorize
+    startMemorizingBypassingCheck(verseId, source);
+  };
+
+  const startMemorizingBypassingCheck = (verseId: string, source: "daily" | "path" | "custom" | "extra" | "saved" = "daily") => {
+    localStorage.removeItem(`memorize_failed_${verseId}`);
     setState(s => {
       let resolvedVerse: Verse;
       if (source === "custom" && s.selectedCustomVerse) {
@@ -400,6 +439,14 @@ function AppInner() {
   };
 
   const getAnotherVerse = async () => {
+    if (state.activeAttempt) {
+      setPendingAttempt({ type: "another" });
+      return;
+    }
+    await getAnotherVerseBypassingCheck();
+  };
+
+  const getAnotherVerseBypassingCheck = async () => {
     const today = getLocalDateString();
     const votd = getVerseByDate(today);
     const currentActiveId = state.selectedVerseId || votd.id;
@@ -982,6 +1029,92 @@ function AppInner() {
             onStepChange={setCurrentTourStepId}
           />
         )}
+
+        <AnimatePresence>
+          {pendingAttempt && (
+            <div className="fixed inset-0 z-[150] flex items-center justify-center p-6">
+              <motion.div 
+                initial={{ opacity: 0 }} 
+                animate={{ opacity: 1 }} 
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 bg-neutral-900/60 backdrop-blur-md"
+                onClick={() => setPendingAttempt(null)}
+              />
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95, y: 20 }} 
+                animate={{ opacity: 1, scale: 1, y: 0 }} 
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className="relative w-full max-w-sm bg-white dark:bg-charcoal rounded-[40px] shadow-2xl border border-earth/10 dark:border-white/10 p-8 space-y-6 z-10"
+              >
+                <div className="space-y-3 text-center">
+                  <div className="w-16 h-16 bg-amber-500/10 rounded-2xl flex items-center justify-center text-amber-500 mx-auto mb-4">
+                    <AlertCircle size={28} />
+                  </div>
+                  <h3 className="text-2xl font-serif font-black text-earth dark:text-ivory">
+                    {state.primaryLanguage === 'es' ? "Reto en curso" : "Challenge in progress"}
+                  </h3>
+                  <p className="text-xs font-semibold text-earth-light dark:text-lavender-muted leading-relaxed text-center">
+                    {state.primaryLanguage === 'es' 
+                      ? "Ya tienes un versículo en progreso. ¿Deseas continuar con tu reto actual o abandonarlo para empezar uno nuevo?"
+                      : "You already have a verse challenge in progress. Do you want to continue your current challenge or quit it to start a new one?"}
+                  </p>
+                </div>
+                <div className="flex flex-col gap-3 pt-2">
+                  <button 
+                    onClick={() => {
+                      const activeVerseId = state.activeAttempt?.verseId;
+                      setPendingAttempt(null);
+                      if (activeVerseId) {
+                        const currentStage = state.progress.verseStages?.[activeVerseId] || 1;
+                        if (currentStage === 6) {
+                          setActiveTab("flashcards");
+                        } else {
+                          setActiveTab("memorize");
+                        }
+                      }
+                    }}
+                    className="w-full h-14 bg-teal text-white hover:bg-teal-600 rounded-3xl font-black uppercase tracking-widest text-xs transition-colors shadow-md shadow-teal/10"
+                  >
+                    {state.primaryLanguage === 'es' ? "continuar reto actual" : "continue current challenge"}
+                  </button>
+                  <button 
+                    onClick={() => {
+                      const nextAction = pendingAttempt;
+                      setPendingAttempt(null);
+                      
+                      // Safety clear activeAttempt and reset stage for that verse
+                      setState(s => {
+                        const nextProgress = { ...s.progress };
+                        if (nextProgress.verseStages && s.activeAttempt) {
+                          const updatedStages = { ...nextProgress.verseStages };
+                          delete updatedStages[s.activeAttempt.verseId];
+                          nextProgress.verseStages = updatedStages;
+                        }
+                        return {
+                          ...s,
+                          activeAttempt: null,
+                          progress: nextProgress
+                        };
+                      });
+
+                      // Trigger pending action using the updated / cleared state
+                      setTimeout(() => {
+                        if (nextAction.type === "start" && nextAction.verseId) {
+                          startMemorizingBypassingCheck(nextAction.verseId, nextAction.source || "daily");
+                        } else if (nextAction.type === "another") {
+                          getAnotherVerseBypassingCheck();
+                        }
+                      }, 50);
+                    }}
+                    className="w-full h-14 bg-coral/10 hover:bg-coral/20 text-coral rounded-3xl font-black uppercase tracking-widest text-xs transition-colors"
+                  >
+                    {state.primaryLanguage === 'es' ? "abandonar reto actual" : "quit current challenge"}
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
       </div>
     );
   };
