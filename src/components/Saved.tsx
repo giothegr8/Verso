@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from "motion/react";
 import { AppState, TRANSLATION_PAIRS, TRANSLATION_DETAILS, ActiveVerseSource } from "../types";
-import { Bookmark, Share2, Trash2, BookOpen, Search, Languages, Star, Heart, AlertCircle, X, Flower2, Sparkles, Compass } from "lucide-react";
+import { Bookmark, Share2, Trash2, BookOpen, Search, Languages, Star, Heart, AlertCircle, X, Flower2, Sparkles, Compass, Sprout } from "lucide-react";
 import { MOCK_VERSES, PATHS } from "../constants";
 import React, { useState } from "react";
 import { handleShare } from "../utils/shareUtils";
@@ -11,9 +11,10 @@ interface SavedProps {
   state: AppState;
   setState: React.Dispatch<React.SetStateAction<AppState>>;
   onStartMemorizing: (verseId: string, source?: ActiveVerseSource) => void;
+  onGoToFlashcards?: (verseId: string) => void;
 }
 
-export default function Saved({ state, setState, onStartMemorizing }: SavedProps) {
+export default function Saved({ state, setState, onStartMemorizing, onGoToFlashcards }: SavedProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
@@ -86,6 +87,207 @@ export default function Saved({ state, setState, onStartMemorizing }: SavedProps
       setTimeout(() => setShowToast(false), 2000);
     }, elementId);
     setIsShareModalOpen(false);
+  };
+
+  const inProgressList = filteredList.filter(v => !state.progress.completedVerses.includes(v.id));
+  const completedList = filteredList.filter(v => state.progress.completedVerses.includes(v.id));
+
+  const renderVerseCard = (verse: any, idx: number) => {
+    const { esText, enText, esError, enError } = getValidatedVerse(verse, state);
+    const isMemorized = state.progress.completedVerses.includes(verse.id);
+    const memorizationStage = state.progress.verseStages?.[verse.id] || 0;
+
+    const getSourceInfo = (verseId: string) => {
+      const isEs = state.primaryLanguage === 'es';
+      
+      const vObj = allAvailableVerses.find(v => v.id === verseId);
+      if (!vObj) return { label: isEs ? 'versículo' : 'verse', icon: <Compass size={10} /> };
+
+      for (const path of PATHS) {
+        if (path.verses.includes(verseId)) {
+          return { 
+            label: isEs ? path.titleEs.toLowerCase() : path.title.toLowerCase(), 
+            icon: <Compass size={10} className="text-sky-blue" /> 
+          };
+        }
+        
+        const hasMatch = path.days.some(day => {
+          const normRef = day.reference.toLowerCase();
+          const bookParts = vObj.book.toLowerCase().split("/");
+          const matchBook = bookParts.some(p => normRef.includes(p.trim()));
+          const matchNum = normRef.includes(`${vObj.chapter}:${vObj.verse}`);
+          return matchBook && matchNum;
+        });
+        
+        if (hasMatch) {
+          return { 
+            label: isEs ? path.titleEs.toLowerCase() : path.title.toLowerCase(), 
+            icon: <Compass size={10} className="text-sky-blue" /> 
+          };
+        }
+      }
+
+      if (vObj.source === "custom") {
+        return {
+          label: isEs ? 'tu búsqueda' : 'your search',
+          icon: <Search size={10} className="text-playful-purple" />
+        };
+      }
+
+      return { 
+        label: isEs ? 'versículo del día' : 'daily verse', 
+        icon: <Sparkles size={10} className="text-amber-500" /> 
+      };
+    };
+
+    const sourceInfo = getSourceInfo(verse.id);
+
+    return (
+      <motion.div 
+        key={verse.id}
+        layout
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        transition={{ delay: idx * 0.05 }}
+        whileHover={{ scale: 1.01, y: -2 }}
+        className="card p-6 space-y-4 border border-earth/10 dark:border-white/10 bg-white dark:bg-charcoal shadow-lg relative overflow-hidden group"
+      >
+        <div className="absolute top-3 left-6 flex items-center gap-2">
+          <div className="bg-earth/5 dark:bg-white/5 px-2.5 py-1 rounded-full flex items-center gap-1.5 border border-earth/10 dark:border-white/10 shadow-sm transition-colors group-hover:bg-earth/10 dark:group-hover:bg-white/10">
+            {sourceInfo.icon}
+            <span className="text-[9px] font-black uppercase tracking-widest text-earth/60 dark:text-ivory/60">
+              {sourceInfo.label}
+            </span>
+          </div>
+          {!isMemorized ? (
+            <div className="bg-teal/10 dark:bg-teal/25 text-teal dark:text-teal-300 px-2.5 py-1 rounded-full flex items-center gap-1 border border-teal/20 shadow-sm text-[9px] font-black uppercase tracking-widest">
+              <span>{state.primaryLanguage === 'es' ? 'En Progreso' : 'In Progress'}</span>
+            </div>
+          ) : (
+            <div className="bg-amber-500/10 text-amber-600 dark:text-amber-400 px-2.5 py-1 rounded-full flex items-center gap-1 border border-amber-500/20 shadow-sm text-[9px] font-black uppercase tracking-widest">
+              <span>{state.primaryLanguage === 'es' ? 'Completado' : 'Completed'}</span>
+            </div>
+          )}
+        </div>
+        <div className="flex justify-between items-start relative z-10 pt-6">
+          <div className="space-y-1 flex items-start gap-3">
+            <motion.div
+              animate={{ 
+                rotate: [0, 5, -5, 0],
+                scale: [1, 1.05, 1] 
+              }}
+              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+              className={isMemorized ? "mt-1 text-amber-500 dark:text-amber-400 shrink-0" : "mt-1 text-teal-600 dark:text-teal-400 shrink-0"}
+            >
+              {isMemorized ? (
+                <Flower2 size={20} />
+              ) : (
+                <Sprout size={20} />
+              )}
+            </motion.div>
+            <div className="space-y-1">
+              <h3 className="text-2xl font-serif font-black text-earth dark:text-ivory tracking-tight whitespace-nowrap">
+                {getLocalizedBookName(verse.book, state.primaryLanguage === 'es' ? 'es' : 'en')} {verse.chapter}:{verse.verse}
+              </h3>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            {isMemorized && (
+              <motion.button 
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={() => onShareClick(verse)}
+                className="p-2.5 rounded-xl bg-earth/5 dark:bg-white/5 text-earth/60 dark:text-ivory/60 hover:text-playful-purple dark:hover:text-plum hover:bg-playful-purple/10 dark:hover:bg-plum/20 transition-all ring-1 ring-teal/20"
+              >
+                <Share2 size={18} />
+              </motion.button>
+            )}
+            <motion.button 
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={() => removeSaved(verse.id)}
+              className="p-2.5 rounded-xl bg-earth/5 dark:bg-white/5 text-earth/60 dark:text-ivory/60 hover:text-coral hover:bg-coral/10 transition-all"
+            >
+              <Trash2 size={18} />
+            </motion.button>
+          </div>
+        </div>
+
+        <div className="space-y-4 relative z-10">
+          {(state.memorizeMode === 'es' || state.memorizeMode === 'both') && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="text-[9px] font-black uppercase tracking-widest text-playful-purple/60 dark:text-plum/60 bg-playful-purple/5 dark:bg-plum/5 px-2 py-0.5 rounded border border-playful-purple/10 dark:border-plum/10">
+                  {activePair.es}
+                </span>
+              </div>
+              {esText ? (
+                <p className="text-xl font-serif leading-relaxed text-earth dark:text-ivory font-black">
+                  {esText}
+                </p>
+              ) : (
+                <div className="p-3 bg-coral/10 rounded-xl flex items-center gap-2 text-coral border border-coral/20">
+                  <AlertCircle size={16} />
+                  <p className="text-[10px] font-bold">{esError}</p>
+                </div>
+              )}
+            </div>
+          )}
+          {(state.memorizeMode === 'en' || state.memorizeMode === 'both') && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="text-[9px] font-black uppercase tracking-widest text-golden/60 dark:text-gold/60 bg-golden/5 dark:bg-gold/5 px-2 py-0.5 rounded border border-golden/10 dark:border-gold/10">
+                  {activePair.en}
+                </span>
+              </div>
+              {enText ? (
+                <p className="text-lg font-serif leading-relaxed text-earth/80 dark:text-lavender-muted border-l-4 border-playful-purple/30 dark:border-plum/40 pl-4 bg-playful-purple/5 dark:bg-plum/5 py-3 rounded-r-xl font-medium">
+                  {enText}
+                </p>
+              ) : (
+                <div className="p-3 bg-coral/10 rounded-xl flex items-center gap-2 text-coral border border-coral/20">
+                  <AlertCircle size={16} />
+                  <p className="text-[10px] font-bold">{enError}</p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {memorizationStage === 6 && !isMemorized ? (
+          <motion.button 
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.99 }}
+            onClick={() => {
+              onGoToFlashcards?.(verse.id);
+            }}
+            className="w-full py-4 rounded-[20px] bg-playful-purple/10 hover:bg-playful-purple/20 text-playful-purple dark:text-plum font-bold text-sm tracking-tight flex items-center justify-center gap-2.5 transition-all shadow-sm border border-playful-purple/20 lowercase"
+          >
+            <Sparkles size={16} className="animate-pulse" />
+            <span>{state.primaryLanguage === 'es' ? 'reto: cita bíblica' : 'challenge: citation'}</span>
+          </motion.button>
+        ) : (
+          <motion.button 
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.99 }}
+            onClick={() => {
+              if (esText || enText) {
+                onStartMemorizing(verse.id, "saved");
+              }
+            }}
+            disabled={!esText && !enText}
+            className={`w-full py-4 rounded-full bg-teal/10 hover:bg-teal/20 text-teal dark:text-teal-400 font-bold text-sm tracking-tight flex items-center justify-center gap-2.5 transition-all shadow-sm border border-teal/20 lowercase ${(!esText && !enText) ? 'opacity-50 grayscale cursor-not-allowed' : ''}`}
+          >
+            <BookOpen size={16} />
+            <span>{isMemorized 
+              ? (state.primaryLanguage === 'es' ? 'repasar ahora' : 'review now')
+              : (state.primaryLanguage === 'es' ? 'memorizar ahora' : 'memorize now')
+            }</span>
+          </motion.button>
+        )}
+      </motion.div>
+    );
   };
 
   return (
@@ -179,7 +381,7 @@ export default function Saved({ state, setState, onStartMemorizing }: SavedProps
       </div>
 
       {/* List */}
-      <div className="space-y-6">
+      <div className="space-y-8">
         {/* Toast Notification */}
         <AnimatePresence>
           {showToast && (
@@ -195,193 +397,47 @@ export default function Saved({ state, setState, onStartMemorizing }: SavedProps
           )}
         </AnimatePresence>
 
-        <AnimatePresence mode="popLayout">
-          {filteredList.map((verse, idx) => {
-            const { esText, enText, esError, enError } = getValidatedVerse(verse, state);
-            const isMemorized = state.progress.completedVerses.includes(verse.id);
-            const memorizationStage = state.progress.verseStages?.[verse.id] || 0;
-            
-            let growthLabel = "";
-            let growthIcon = null;
-            let growthColorClass = "";
-
-            if (isMemorized) {
-              growthLabel = state.primaryLanguage === 'es' ? 'Dando fruto' : 'Bearing Fruit';
-              growthIcon = <Sparkles size={10} className="text-amber-500 dark:text-amber-400" fill="currentColor" />;
-              growthColorClass = "bg-earth/90 dark:bg-charcoal text-ivory/90 dark:text-white/90 border-earth/20 dark:border-white/10 shadow-sm ring-1 ring-amber-500/20";
-            } else if (memorizationStage > 0) {
-              growthLabel = state.primaryLanguage === 'es' ? 'Echando raíces' : 'Taking Root';
-              growthIcon = <div className="w-1.5 h-1.5 rounded-full bg-teal" />;
-              growthColorClass = "bg-teal/10 text-teal border-teal/20";
-            } else {
-              growthLabel = state.primaryLanguage === 'es' ? 'Semilla sembrada' : 'Seed Planted';
-              growthIcon = <div className="w-1.5 h-1.5 rounded-full bg-amber-500 dark:bg-amber-400" />;
-              growthColorClass = "bg-amber-500/10 text-amber-500 border-amber-500/20";
-            }
-
-            const getSourceInfo = (verseId: string) => {
-              const isEs = state.primaryLanguage === 'es';
-              
-              const vObj = allAvailableVerses.find(v => v.id === verseId);
-              if (!vObj) return { label: isEs ? 'versículo' : 'verse', icon: <Compass size={10} /> };
-
-              for (const path of PATHS) {
-                if (path.verses.includes(verseId)) {
-                  return { 
-                    label: isEs ? path.titleEs.toLowerCase() : path.title.toLowerCase(), 
-                    icon: <Compass size={10} className="text-sky-blue" /> 
-                  };
-                }
-                
-                const hasMatch = path.days.some(day => {
-                  const normRef = day.reference.toLowerCase();
-                  const bookParts = vObj.book.toLowerCase().split("/");
-                  const matchBook = bookParts.some(p => normRef.includes(p.trim()));
-                  const matchNum = normRef.includes(`${vObj.chapter}:${vObj.verse}`);
-                  return matchBook && matchNum;
-                });
-                
-                if (hasMatch) {
-                  return { 
-                    label: isEs ? path.titleEs.toLowerCase() : path.title.toLowerCase(), 
-                    icon: <Compass size={10} className="text-sky-blue" /> 
-                  };
-                }
-              }
-
-              if (vObj.source === "custom") {
-                return {
-                  label: isEs ? 'tu búsqueda' : 'your search',
-                  icon: <Search size={10} className="text-playful-purple" />
-                };
-              }
-
-              return { 
-                label: isEs ? 'versículo del día' : 'daily verse', 
-                icon: <Sparkles size={10} className="text-amber-500" /> 
-              };
-            };
-
-            const sourceInfo = getSourceInfo(verse.id);
-
-            return (
-              <motion.div 
-                key={verse.id}
-                layout
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                transition={{ delay: idx * 0.05 }}
-                whileHover={{ scale: 1.01, y: -2 }}
-                className="card p-6 space-y-4 border border-earth/10 dark:border-white/10 bg-white dark:bg-charcoal shadow-lg relative overflow-hidden group"
-              >
-                <div className="absolute top-3 left-6">
-                  <div className="bg-earth/5 dark:bg-white/5 px-2.5 py-1 rounded-full flex items-center gap-1.5 border border-earth/10 dark:border-white/10 shadow-sm transition-colors group-hover:bg-earth/10 dark:group-hover:bg-white/10">
-                    {sourceInfo.icon}
-                    <span className="text-[9px] font-black uppercase tracking-widest text-earth/60 dark:text-ivory/60">
-                      {sourceInfo.label}
-                    </span>
-                  </div>
+        {filteredList.length > 0 ? (
+          <div className="space-y-10">
+            {inProgressList.length > 0 && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 mt-2 mb-4">
+                  <span className="text-xs font-black uppercase tracking-[0.2em] text-teal-600 dark:text-teal-400">
+                    {state.primaryLanguage === 'es' ? 'EN PROGRESO' : 'IN PROGRESS'}
+                  </span>
+                  <div className="h-px flex-1 bg-earth/10 dark:bg-white/10" />
+                  <span className="text-[10px] font-mono text-earth-light/60 dark:text-ivory/40">
+                    ({inProgressList.length})
+                  </span>
                 </div>
-                <div className="flex justify-between items-start relative z-10 pt-6">
-                  <div className="space-y-1 flex items-start gap-3">
-                    <motion.div
-                      animate={{ 
-                        rotate: [0, 5, -5, 0],
-                        scale: [1, 1.05, 1] 
-                      }}
-                      transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                      className="mt-1 text-amber-500 dark:text-amber-400"
-                    >
-                      <Flower2 size={20} />
-                    </motion.div>
-                    <div className="space-y-1">
-                      <h3 className="text-2xl font-serif font-black text-earth dark:text-ivory tracking-tight whitespace-nowrap">
-                        {getLocalizedBookName(verse.book, state.primaryLanguage === 'es' ? 'es' : 'en')} {verse.chapter}:{verse.verse}
-                      </h3>
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <motion.button 
-                      whileHover={{ scale: 1.1 }}
-                      whileTap={{ scale: 0.9 }}
-                      onClick={() => onShareClick(verse)}
-                      className="p-2.5 rounded-xl bg-earth/5 dark:bg-white/5 text-earth/60 dark:text-ivory/60 hover:text-playful-purple dark:hover:text-plum hover:bg-playful-purple/10 dark:hover:bg-plum/20 transition-all ring-1 ring-teal/20"
-                    >
-                      <Share2 size={18} />
-                    </motion.button>
-                    <motion.button 
-                      whileHover={{ scale: 1.1 }}
-                      whileTap={{ scale: 0.9 }}
-                      onClick={() => removeSaved(verse.id)}
-                      className="p-2.5 rounded-xl bg-earth/5 dark:bg-white/5 text-earth/60 dark:text-ivory/60 hover:text-coral hover:bg-coral/10 transition-all"
-                    >
-                      <Trash2 size={18} />
-                    </motion.button>
-                  </div>
+                <div className="space-y-6">
+                  <AnimatePresence mode="popLayout">
+                    {inProgressList.map((verse, idx) => renderVerseCard(verse, idx))}
+                  </AnimatePresence>
                 </div>
+              </div>
+            )}
 
-                <div className="space-y-4 relative z-10">
-                  {(state.memorizeMode === 'es' || state.memorizeMode === 'both') && (
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[9px] font-black uppercase tracking-widest text-playful-purple/60 dark:text-plum/60 bg-playful-purple/5 dark:bg-plum/5 px-2 py-0.5 rounded border border-playful-purple/10 dark:border-plum/10">
-                          {activePair.es}
-                        </span>
-                      </div>
-                      {esText ? (
-                        <p className="text-xl font-serif leading-relaxed text-earth dark:text-ivory font-black">
-                          {esText}
-                        </p>
-                      ) : (
-                        <div className="p-3 bg-coral/10 rounded-xl flex items-center gap-2 text-coral border border-coral/20">
-                          <AlertCircle size={16} />
-                          <p className="text-[10px] font-bold">{esError}</p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  {(state.memorizeMode === 'en' || state.memorizeMode === 'both') && (
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[9px] font-black uppercase tracking-widest text-golden/60 dark:text-gold/60 bg-golden/5 dark:bg-gold/5 px-2 py-0.5 rounded border border-golden/10 dark:border-gold/10">
-                          {activePair.en}
-                        </span>
-                      </div>
-                      {enText ? (
-                        <p className="text-lg font-serif leading-relaxed text-earth/80 dark:text-lavender-muted border-l-4 border-playful-purple/30 dark:border-plum/40 pl-4 bg-playful-purple/5 dark:bg-plum/5 py-3 rounded-r-xl font-medium">
-                          {enText}
-                        </p>
-                      ) : (
-                        <div className="p-3 bg-coral/10 rounded-xl flex items-center gap-2 text-coral border border-coral/20">
-                          <AlertCircle size={16} />
-                          <p className="text-[10px] font-bold">{enError}</p>
-                        </div>
-                      )}
-                    </div>
-                  )}
+            {completedList.length > 0 && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 mt-2 mb-4">
+                  <span className="text-xs font-black uppercase tracking-[0.2em] text-amber-500 dark:text-amber-400 font-bold">
+                    {state.primaryLanguage === 'es' ? 'COMPLETADOS' : 'COMPLETED'}
+                  </span>
+                  <div className="h-px flex-1 bg-earth/10 dark:bg-white/10" />
+                  <span className="text-[10px] font-mono text-earth-light/60 dark:text-ivory/40">
+                    ({completedList.length})
+                  </span>
                 </div>
-
-                <motion.button 
-                  whileHover={{ scale: 1.01 }}
-                  whileTap={{ scale: 0.99 }}
-                  onClick={() => {
-                    if (esText || enText) {
-                      onStartMemorizing(verse.id, "saved");
-                    }
-                  }}
-                  disabled={!esText && !enText}
-                  className={`w-full py-4 rounded-full bg-teal/10 hover:bg-teal/20 text-teal dark:text-teal-400 font-bold text-sm tracking-tight flex items-center justify-center gap-2.5 transition-all shadow-sm border border-teal/20 lowercase ${(!esText && !enText) ? 'opacity-50 grayscale cursor-not-allowed' : ''}`}
-                >
-                  <BookOpen size={16} />
-                  <span>{state.primaryLanguage === 'es' ? 'memorizar ahora' : 'memorize now'}</span>
-                </motion.button>
-              </motion.div>
-            );
-          })}
-        </AnimatePresence>
-
-        {filteredList.length === 0 && (
+                <div className="space-y-6">
+                  <AnimatePresence mode="popLayout">
+                    {completedList.map((verse, idx) => renderVerseCard(verse, idx))}
+                  </AnimatePresence>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}

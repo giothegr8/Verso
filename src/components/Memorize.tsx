@@ -829,8 +829,10 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
             savedVerses: s.savedVerses.includes(verse.id) ? s.savedVerses : [...s.savedVerses, verse.id],
             progress: {
               ...s.progress,
-              totalMemorized: s.progress.completedVerses.includes(verse.id) ? s.progress.totalMemorized : s.progress.totalMemorized + 1,
-              completedVerses: s.progress.completedVerses.includes(verse.id) ? s.progress.completedVerses : [...s.progress.completedVerses, verse.id]
+              verseStages: {
+                ...s.progress.verseStages,
+                [verse.id]: 6
+              }
             }
           }));
         } else {

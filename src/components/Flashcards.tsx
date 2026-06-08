@@ -223,6 +223,10 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
             totalMemorized: isAlreadyCompleted ? s.progress.totalMemorized : s.progress.totalMemorized + 1,
             completedVerses: isAlreadyCompleted ? s.progress.completedVerses : [...s.progress.completedVerses, verse.id],
             lastCompletedDailyVerseDate: newLastCompletedDailyVerseDate,
+            verseStages: {
+              ...s.progress.verseStages,
+              [verse.id]: 7
+            }
           }
         };
       });

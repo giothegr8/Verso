@@ -861,7 +861,17 @@ function AppInner() {
           }}
         />
       );
-      case "saved": return <Saved state={state} setState={setState} onStartMemorizing={(id, src) => startMemorizing(id, src || "saved")} />;
+      case "saved": return (
+        <Saved 
+          state={state} 
+          setState={setState} 
+          onStartMemorizing={(id, src) => startMemorizing(id, src || "saved")} 
+          onGoToFlashcards={(verseId) => {
+            setState(s => ({ ...s, selectedVerseId: verseId }));
+            setActiveTab("flashcards");
+          }}
+        />
+      );
       default: return null;
     }
   };
