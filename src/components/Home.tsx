@@ -3,7 +3,7 @@ import { AppState, TRANSLATION_PAIRS, TRANSLATION_DETAILS, Verse, Translation, C
 import { MOCK_VERSES, getVerseByDate } from "../constants";
 import { getVerseText, getFallbackMessage } from "../utils/verseProvider";
 import { Globe, Play, Flame, Trophy, Sparkles, Languages, BookOpen, History, AlertCircle, Share2, Star, X, Sprout, Compass, ChevronRight, CheckCircle2, Search, Loader2, Flower2 } from "lucide-react";
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { getCurrentTranslationPair, getValidatedVerse, getLocalizedBookName, getLocalDateString, VERSE_LAYOUT, getLocalizedPathDay, formatReferenceForLocale } from "../utils/verseUtils";
 import { handleShare } from "../utils/shareUtils";
 import { AnimatePresence } from "motion/react";
@@ -186,6 +186,19 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
   const currentPathDayNum = isCustomPath ? state.customPathProgress.currentDay : state.pathProgress.currentDay;
   
   const pathDuration = selectedPath ? ('duration' in selectedPath ? selectedPath.duration : selectedPath.verses.length) : 0;
+  const isPathFullyCompleted = useMemo(() => {
+    if (!selectedPath) return false;
+    const pathSaved = isCustomPath 
+      ? (state.customPathProgress?.savedProgress || {})[selectedPath.id]
+      : (state.pathProgress?.savedProgress || {})[selectedPath.id];
+      
+    const hasAllCompleted = pathSaved && (pathSaved.completedDays || []).length === pathDuration;
+    const inCompletedIds = isCustomPath 
+      ? (state.customPathProgress?.completedPathIds || []).includes(selectedPath.id)
+      : (state.pathProgress?.completedPathIds || []).includes(selectedPath.id);
+      
+    return !!(hasAllCompleted || inCompletedIds);
+  }, [selectedPath, isCustomPath, state.customPathProgress, state.pathProgress, pathDuration]);
   const nextPathDayNum = currentPathDayNum < pathDuration ? currentPathDayNum + 1 : null;
   
   const currentPathDay = selectedPath 
@@ -549,8 +562,15 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
                   <div className="flex flex-wrap items-center gap-2 pb-1 shrink-0">
                     {Array.from({ length: pathDuration }).map((_, i) => {
                       const dayNum = i + 1;
-                      const isCompleted = dayNum < currentPathDayNum;
-                      const isActive = dayNum === currentPathDayNum;
+                      const pathSaved = isCustomPath 
+                        ? (state.customPathProgress?.savedProgress || {} as any)[currentPathId]
+                        : (state.pathProgress?.savedProgress || {} as any)[currentPathId];
+                      
+                      const isCompleted = isPathFullyCompleted || 
+                                          pathSaved?.completedDays?.includes(dayNum) || 
+                                          dayNum < currentPathDayNum || 
+                                          (dayNum === currentPathDayNum && isPathDayComplete);
+                      const isActive = !isPathFullyCompleted && dayNum === currentPathDayNum && !isPathDayComplete;
                       
                       return (
                         <div key={i} className="relative flex items-center justify-center w-3 h-3">

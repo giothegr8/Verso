@@ -29,6 +29,22 @@ export default function PathSelection({ state, setState, onSelectPath, onBack, o
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const selectedPathId = state.pathProgress.selectedPathId || state.customPathProgress.selectedPathId;
 
+  const getPathIsCompleted = (path: Path | CustomPath) => {
+    const isCustomPath = 'type' in path && path.type === "custom";
+    const totalDays = isCustomPath ? (path as CustomPath).verses.length : (path as Path).duration;
+    
+    const pathSaved = isCustomPath 
+      ? (state.customPathProgress?.savedProgress || {})[path.id]
+      : (state.pathProgress?.savedProgress || {})[path.id];
+      
+    const hasAllCompleted = pathSaved && (pathSaved.completedDays || []).length === totalDays;
+    const inCompletedIds = isCustomPath 
+      ? (state.customPathProgress?.completedPathIds || []).includes(path.id)
+      : (state.pathProgress?.completedPathIds || []).includes(path.id);
+      
+    return !!(hasAllCompleted || inCompletedIds);
+  };
+
   const getVerseByRef = (ref: string) => {
     // 1. If we're in a custom path, we might have the verse text already
     if (selectedPath && 'verses' in selectedPath && typeof selectedPath.verses[0] === 'object') {
@@ -177,6 +193,7 @@ export default function PathSelection({ state, setState, onSelectPath, onBack, o
     const pathTitle = isCustom ? (selectedPath as CustomPath).title : (isEs ? (selectedPath as Path).titleEs : (selectedPath as Path).title);
     const pathDesc = isCustom ? (selectedPath as CustomPath).description : (isEs ? (selectedPath as Path).descriptionEs : (selectedPath as Path).description);
     const pathDuration = isCustom ? (selectedPath as CustomPath).verses.length : (selectedPath as Path).duration;
+    const isPathCompleted = getPathIsCompleted(selectedPath);
 
     const reviewDayData = reviewDay !== null 
       ? getLocalizedPathDay(
@@ -457,6 +474,38 @@ export default function PathSelection({ state, setState, onSelectPath, onBack, o
           </div>
         </div>
 
+        {/* Completion Celebration Banner */}
+        {isPathCompleted && (
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="relative overflow-hidden rounded-[32px] p-8 bg-amber-500/[0.04] border-2 border-amber-500/20 dark:border-amber-400/20 flex flex-col md:flex-row items-center gap-6 shadow-[0_0_30px_rgba(245,158,11,0.05)]"
+          >
+            <div className="w-20 h-20 shrink-0 rounded-[28px] bg-amber-500/10 flex items-center justify-center text-amber-600 dark:text-amber-400 relative">
+              <Flower2 size={36} className="relative z-10 text-amber-500" />
+              <div className="absolute inset-0 bg-amber-500/20 blur-2xl rounded-full scale-75 animate-pulse" />
+            </div>
+            <div className="flex-1 space-y-2 text-center md:text-left">
+              <span className="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-[0.2em]">
+                {isEs ? "¡FELICITACIONES!" : "CONGRATULATIONS!"}
+              </span>
+              <h3 className="text-2xl sm:text-3xl font-serif font-black text-earth dark:text-ivory tracking-tight">
+                {isEs ? "Completaste esta serie" : "You completed this series"}
+              </h3>
+              <p className="text-base text-earth-light/80 dark:text-lavender-muted/80 font-medium leading-relaxed">
+                {isEs 
+                  ? `${pathDuration} días. ${pathDuration} versículos. Una semilla fiel en tu corazón.` 
+                  : `${pathDuration} days. ${pathDuration} verses. A faithful seed planted.`}
+              </p>
+              <p className="text-sm text-earth-light/60 dark:text-lavender-muted/60 leading-relaxed">
+                {isEs 
+                  ? "Puedes volver a repasarla cuando quieras o elegir una nueva serie." 
+                  : "You can return to review it anytime or choose a new series."}
+              </p>
+            </div>
+          </motion.div>
+        )}
+
         {/* Day Grid */}
         <div className="space-y-6">
           <h3 className="text-xs font-black uppercase tracking-[0.3em] text-earth/40 dark:text-ivory/40 border-b border-earth/5 pb-2">
@@ -476,9 +525,10 @@ export default function PathSelection({ state, setState, onSelectPath, onBack, o
                 : (state.pathProgress?.savedProgress || {} as any)[(selectedPath as any).id];
               
               const isCompleted = pathSaved?.completedDays.includes(dayNum) || 
+                                isPathCompleted ||
                                 (selectedPathId === selectedPath.id && 
                                   (isCustom ? state.customPathProgress.currentDay : state.pathProgress.currentDay || 1) > dayNum);
-              const isActive = (selectedPathId === selectedPath.id) && 
+              const isActive = !isPathCompleted && (selectedPathId === selectedPath.id) && 
                               (isCustom ? state.customPathProgress.currentDay === dayNum : state.pathProgress.currentDay === dayNum);
               const isFlipped = flippedDay === dayNum && isActive && !isCompleted;
 
@@ -568,18 +618,30 @@ export default function PathSelection({ state, setState, onSelectPath, onBack, o
         </div>
 
         {/* CTA */}
-        <div className="pt-8 sticky bottom-0 bg-gradient-to-t from-parchment dark:from-espresso to-transparent pb-4">
-          <button
-            onClick={() => onSelectPath(selectedPath.id)}
-            className="w-full py-4 rounded-full bg-teal/10 hover:bg-teal/20 text-teal dark:text-teal-400 font-bold text-sm tracking-tight flex items-center justify-center gap-2.5 transition-all shadow-sm border border-teal/20 lowercase active:scale-95"
-          >
-            <Compass size={18} />
-            <span className="tracking-tight">
-              {state.pathProgress.selectedPathId === selectedPath.id || state.customPathProgress.selectedPathId === selectedPath.id 
-                ? (isEs ? "continuar serie" : "continue path") 
-                : (isCustom ? (isEs ? "empezar serie" : "start path") : (isEs ? (selectedPath as Path).ctaEs.toLowerCase() : (selectedPath as Path).cta.toLowerCase()))}
-            </span>
-          </button>
+        <div className="pt-8 sticky bottom-0 bg-gradient-to-t from-parchment dark:from-espresso to-transparent pb-4 z-20">
+          {isPathCompleted ? (
+            <button
+              onClick={() => setSelectedPath(null)}
+              className="w-full py-4 rounded-full bg-amber-500 text-white hover:bg-amber-600 font-bold text-sm tracking-widest uppercase flex items-center justify-center gap-2.5 transition-all shadow-[0_4px_20px_rgba(245,158,11,0.2)] border border-amber-500 lowercase active:scale-95"
+            >
+              <Compass size={18} className="animate-pulse" />
+              <span className="tracking-widest uppercase text-xs">
+                {isEs ? "elegir otra serie" : "choose another series"}
+              </span>
+            </button>
+          ) : (
+            <button
+              onClick={() => onSelectPath(selectedPath.id)}
+              className="w-full py-4 rounded-full bg-teal/10 hover:bg-teal/20 text-teal dark:text-teal-400 font-bold text-sm tracking-tight flex items-center justify-center gap-2.5 transition-all shadow-sm border border-teal/20 lowercase active:scale-95"
+            >
+              <Compass size={18} />
+              <span className="tracking-tight">
+                {state.pathProgress.selectedPathId === selectedPath.id || state.customPathProgress.selectedPathId === selectedPath.id 
+                  ? (isEs ? "continuar serie" : "continue path") 
+                  : (isCustom ? (isEs ? "empezar serie" : "start path") : (isEs ? (selectedPath as Path).ctaEs.toLowerCase() : (selectedPath as Path).cta.toLowerCase()))}
+              </span>
+            </button>
+          )}
         </div>
       </motion.div>
     );
@@ -652,6 +714,7 @@ export default function PathSelection({ state, setState, onSelectPath, onBack, o
            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {state.customPaths.map((path, idx) => {
                 const isActive = path.id === selectedPathId;
+                const isPathCompleted = getPathIsCompleted(path);
                 return (
                   <motion.button
                     key={path.id}
@@ -660,16 +723,22 @@ export default function PathSelection({ state, setState, onSelectPath, onBack, o
                     transition={{ delay: idx * 0.05 }}
                     onClick={() => setSelectedPath(path)}
                     className={`group relative flex flex-col items-start p-6 bg-white dark:bg-charcoal border transition-all text-left overflow-hidden ring-1 ${
-                      isActive 
-                        ? "border-teal/50 ring-teal/20 bg-teal/[0.02] shadow-lg" 
-                        : "border-earth/10 dark:border-white/10 ring-teal/5 shadow-sm hover:shadow-xl hover:border-teal/30"
+                      isPathCompleted
+                        ? "border-amber-500/20 ring-amber-500/5 bg-amber-500/[0.01] shadow-sm hover:shadow-xl hover:border-amber-500/40"
+                        : isActive 
+                          ? "border-teal/50 ring-teal/20 bg-teal/[0.02] shadow-lg" 
+                          : "border-earth/10 dark:border-white/10 ring-teal/5 shadow-sm hover:shadow-xl hover:border-teal/30"
                     } rounded-[32px]`}
                   >
                     <div className="flex justify-between items-start w-full mb-4 relative z-10">
                       <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${
-                        isActive ? "bg-teal text-white shadow-xl shadow-teal/20 scale-110" : "bg-teal/10 text-teal group-hover:scale-110"
+                        isPathCompleted
+                          ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 scale-110"
+                          : isActive 
+                            ? "bg-teal text-white shadow-xl shadow-teal/20 scale-110" 
+                            : "bg-teal/10 text-teal group-hover:scale-110"
                       }`}>
-                        <Sprout size={24} />
+                        {isPathCompleted ? <Flower2 size={24} className="animate-pulse" /> : <Sprout size={24} />}
                       </div>
                       <div className="flex items-center gap-1.5 px-3 py-1.5 bg-teal/5 dark:bg-teal/10 rounded-full border border-teal/10 dark:border-teal/20">
                         <Clock size={12} className="text-amber-500/80 dark:text-amber-400/80" />
@@ -681,10 +750,24 @@ export default function PathSelection({ state, setState, onSelectPath, onBack, o
 
                     {/* Watermark Motif */}
                     <div className="absolute top-6 -right-16 p-8 opacity-[0.06] group-hover:opacity-[0.1] transition-opacity pointer-events-none">
-                      <Sprout size={140} className="text-teal transform rotate-[-12deg]" />
+                      {isPathCompleted ? (
+                        <Flower2 size={140} className="text-amber-500 transform rotate-[-12deg]" />
+                      ) : (
+                        <Sprout size={140} className="text-teal transform rotate-[-12deg]" />
+                      )}
                     </div>
 
-                    <div className="mb-4 min-h-[1.5rem] relative z-10">
+                    <div className="mb-4 min-h-[1.5rem] relative z-10 flex gap-2">
+                      {isPathCompleted && (
+                        <motion.div 
+                          className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/10 dark:bg-amber-500/20 rounded-lg border border-amber-500/20 dark:border-amber-400/20"
+                        >
+                          <Flower2 size={10} className="text-amber-600 dark:text-amber-400" />
+                          <span className="text-[9px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-400">
+                            {isEs ? "Completado" : "Completed"}
+                          </span>
+                        </motion.div>
+                      )}
                       {isActive && (
                         <motion.div 
                           className="flex items-center gap-1.5 px-2.5 py-1 bg-teal/10 dark:bg-teal/20 rounded-lg border border-teal/20 dark:border-teal-400/20"
@@ -725,6 +808,7 @@ export default function PathSelection({ state, setState, onSelectPath, onBack, o
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {sortedPaths.map((path, index) => {
           const isActive = path.id === selectedPathId;
+          const isPathCompleted = getPathIsCompleted(path);
           
           return (
             <motion.button
@@ -734,21 +818,31 @@ export default function PathSelection({ state, setState, onSelectPath, onBack, o
               transition={{ delay: index * 0.03 }}
               onClick={() => setSelectedPath(path)}
               className={`group relative flex flex-col items-start p-6 bg-white dark:bg-charcoal border transition-all text-left overflow-hidden ring-1 ${
-                isActive 
-                  ? "border-sky-blue/50 ring-sky-blue/20 bg-teal/[0.02] shadow-lg" 
-                  : "border-earth/10 dark:border-white/10 ring-sky-blue/5 shadow-sm hover:shadow-xl hover:border-sky-blue/30"
+                isPathCompleted
+                  ? "border-amber-500/20 ring-amber-500/5 bg-amber-500/[0.01] shadow-sm hover:shadow-xl hover:border-amber-500/40"
+                  : isActive 
+                    ? "border-sky-blue/50 ring-sky-blue/20 bg-teal/[0.02] shadow-lg" 
+                    : "border-earth/10 dark:border-white/10 ring-sky-blue/5 shadow-sm hover:shadow-xl hover:border-sky-blue/30"
               } rounded-[32px]`}
             >
               {/* Background Accent - Repositioned to sit higher and further right for artistic cropping */}
               <div className="absolute top-6 -right-16 p-8 opacity-[0.08] group-hover:opacity-[0.12] transition-opacity pointer-events-none">
-                <Compass size={140} className="text-sky-blue transform rotate-[-12deg]" />
+                {isPathCompleted ? (
+                  <Flower2 size={140} className="text-amber-500 transform rotate-[-12deg]" />
+                ) : (
+                  <Compass size={140} className="text-sky-blue transform rotate-[-12deg]" />
+                )}
               </div>
 
               <div className="flex justify-between items-start w-full mb-4 relative z-10">
                 <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${
-                  isActive ? "bg-teal text-white shadow-xl shadow-teal/20 scale-110" : "bg-teal/10 text-teal group-hover:scale-110"
+                  isPathCompleted
+                    ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 scale-110"
+                    : isActive 
+                      ? "bg-teal text-white shadow-xl shadow-teal/20 scale-110" 
+                      : "bg-teal/10 text-teal group-hover:scale-110"
                 }`}>
-                  <Sprout size={24} />
+                  {isPathCompleted ? <Flower2 size={24} className="animate-pulse" /> : <Sprout size={24} />}
                 </div>
                 <div className="flex items-center gap-1.5 px-3 py-1.5 bg-teal/5 dark:bg-teal/10 rounded-full border border-teal/10 dark:border-teal/20">
                   <Clock size={12} className="text-amber-500/80 dark:text-amber-400/80" />
@@ -759,7 +853,19 @@ export default function PathSelection({ state, setState, onSelectPath, onBack, o
               </div>
 
               {/* Current Status Badge - Independent of duration pill */}
-              <div className="mb-4 min-h-[1.5rem] relative z-10">
+              <div className="mb-4 min-h-[1.5rem] relative z-10 flex gap-2">
+                {isPathCompleted && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/10 dark:bg-amber-500/20 rounded-lg border border-amber-500/20 dark:border-amber-400/20"
+                  >
+                    <Flower2 size={10} className="text-amber-600 dark:text-amber-400" />
+                    <span className="text-[9px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-400">
+                      {isEs ? "Completado" : "Completed"}
+                    </span>
+                  </motion.div>
+                )}
                 {isActive && (
                   <motion.div 
                     initial={{ opacity: 0, y: 5 }}
