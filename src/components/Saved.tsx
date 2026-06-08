@@ -33,23 +33,39 @@ export default function Saved({ state, setState, onStartMemorizing, onGoToFlashc
     ? allAvailableVerses.filter(v => state.savedVerses.includes(v.id))
     : MOCK_VERSES.slice(0, 2);
 
+  const normalizeText = (str: string): string => {
+    if (!str) return "";
+    return str
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[.;]/g, ":")
+      .replace(/\s+/g, " ")
+      .trim();
+  };
+
   const filteredList = savedList.filter(v => {
     const { esText, enText } = getValidatedVerse(v, state);
-    const query = searchQuery.toLowerCase().trim();
+    const query = normalizeText(searchQuery);
     if (!query) return true;
 
-    const bookParts = v.book.toLowerCase().split(' / ');
-    const esBook = bookParts[0];
+    const bookParts = v.book.split(' / ');
+    const esBook = bookParts[0] || "";
     const enBook = bookParts[1] || esBook;
     
-    const citationEs = `${esBook} ${v.chapter}:${v.verse}`.toLowerCase();
-    const citationEn = `${enBook} ${v.chapter}:${v.verse}`.toLowerCase();
-    const shortCitation = `${v.chapter}:${v.verse}`.toLowerCase();
-    const chapterOnly = `${esBook} ${v.chapter}`.toLowerCase();
-    const chapterOnlyEn = `${enBook} ${v.chapter}`.toLowerCase();
+    const esBookNorm = normalizeText(esBook);
+    const enBookNorm = normalizeText(enBook);
     
-    return esBook.includes(query) ||
-           enBook.includes(query) ||
+    const citationEs = normalizeText(`${esBook} ${v.chapter}:${v.verse}`);
+    const citationEn = normalizeText(`${enBook} ${v.chapter}:${v.verse}`);
+    const shortCitation = `${v.chapter}:${v.verse}`;
+    const chapterOnly = normalizeText(`${esBook} ${v.chapter}`);
+    const chapterOnlyEn = normalizeText(`${enBook} ${v.chapter}`);
+    const verseTextEsNorm = normalizeText(esText || "");
+    const verseTextEnNorm = normalizeText(enText || "");
+    
+    return esBookNorm.includes(query) ||
+           enBookNorm.includes(query) ||
            String(v.chapter) === query ||
            String(v.verse) === query ||
            citationEs.includes(query) ||
@@ -57,8 +73,8 @@ export default function Saved({ state, setState, onStartMemorizing, onGoToFlashc
            shortCitation.includes(query) ||
            chapterOnly.includes(query) ||
            chapterOnlyEn.includes(query) ||
-           (esText || "").toLowerCase().includes(query) ||
-           (enText || "").toLowerCase().includes(query);
+           verseTextEsNorm.includes(query) ||
+           verseTextEnNorm.includes(query);
   });
 
   const removeSaved = (id: string) => {

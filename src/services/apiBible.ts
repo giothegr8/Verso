@@ -222,8 +222,13 @@ export function findSuggestedBook(userInput: string, isSpanish: boolean): string
     // Only match against longer keys (at least 3 chars) to avoid suggesting small abbreviations
     if (key.length < 3) continue;
 
-    const levDist = levenshtein(cleanInput, key);
-    const score = 1 - (levDist / Math.max(cleanInput.length, key.length));
+    const cleanKey = key.toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim();
+
+    const levDist = levenshtein(cleanInput, cleanKey);
+    const score = 1 - (levDist / Math.max(cleanInput.length, cleanKey.length));
 
     if (score > bestScore) {
       bestScore = score;
@@ -231,7 +236,7 @@ export function findSuggestedBook(userInput: string, isSpanish: boolean): string
     }
   }
 
-  if (bestMatch && bestScore > 0.5) {
+  if (bestMatch && bestScore > 0.4) {
     const names = CANONICAL_USFM_NAMES[bestMatch];
     return isSpanish ? names.es : names.en;
   }
@@ -242,56 +247,64 @@ export function findSuggestedBook(userInput: string, isSpanish: boolean): string
 export function preprocessReference(ref: string): string {
   if (!ref) return "";
   
-  // Normalize spacing, trim, and handle semicolons
-  let cleaned = ref.trim().replace(/;/g, ':').replace(/,/g, ':');
+  // Convert to lowercase, normalize accents first
+  let normalized = ref.toLowerCase().trim();
+  normalized = normalized.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   
-  // If there's no colon or dot separating the chapter and verse, but there is a space separating two ending numbers.
-  // e.g. "genesis 11 1" or "1 corinthians 13 4" or "1 cor 13 4" or "gen 11 1-2"
-  const trailingDigitsRegex = /\s+(\d+)\s+(\d+([\d\-]*))\s*$/;
-  if (!cleaned.includes(':') && !cleaned.includes('.') && trailingDigitsRegex.test(cleaned)) {
-    cleaned = cleaned.replace(trailingDigitsRegex, (match, ch, vs) => ` ${ch}:${vs}`);
-  }
-
-  // Replace dots with colons
-  cleaned = cleaned.replace(/\./g, ":");
-
+  // Treat :, ., and ; as valid chapter/verse separators (replace with colon)
+  normalized = normalized.replace(/[.;]/g, ":");
+  
   // Normalize spacing around colons
-  cleaned = cleaned.replace(/\s*:\s*/g, ":");
-
+  normalized = normalized.replace(/\s*:\s*/g, ":");
+  
+  // If there's no colon but there are two numbers at the end separated by space,
+  // e.g. "genesis 11 1", link them with a colon
+  const trailingDigitsRegex = /\s+(\d+)\s+(\d+([\d\-]*))\s*$/;
+  if (!normalized.includes(':') && trailingDigitsRegex.test(normalized)) {
+    normalized = normalized.replace(trailingDigitsRegex, (match, ch, vs) => ` ${ch}:${vs}`);
+  }
+  
+  // Remove any other invalid punctuation that is not colon or hyphen or letters/numbers
+  normalized = normalized.replace(/[^a-z0-9\s:-]/g, "");
+  
   // Normalize multiple spaces to single
-  cleaned = cleaned.replace(/\s+/g, " ");
-
-  return cleaned;
+  normalized = normalized.replace(/\s+/g, " ");
+  
+  return normalized.trim();
 }
 
 export function parseReference(ref: string) {
   if (!ref) return null;
-  const originalRef = ref.trim();
-  
-  // Match chapter and verse at the end, allowing separators like space, colon, period, semicolon, comma
-  const regex = /(?:^|\s+|[:.,;]+)(\d+)\s*[:.,;\s]\s*([\d\-]+)\s*$/;
-  const match = originalRef.match(regex);
-  if (!match) return null;
-  
-  const matchIndex = match.index || 0;
-  // Extract book name part
-  let bookPart = originalRef.slice(0, matchIndex).trim();
-  
-  // Clean up any trailing separators from the book name
-  bookPart = bookPart.replace(/[:.,;]+$/, "").trim();
-  
-  const chapter = match[1];
-  const verse = match[2];
-  
-  // Strip accents/diacritics from the book name
-  const bookCleaned = bookPart.toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
-  
+  const preprocessed = preprocessReference(ref);
+  if (!preprocessed) return null;
+
+  // Pattern: match "book_name chapter:verse"
+  const regex = /^(.*?)\s*(\d+):([\d\-]+)$/;
+  const match = preprocessed.match(regex);
+  if (match) {
+    return {
+      book: match[1].trim(),
+      chapter: match[2],
+      verse: match[3].trim()
+    };
+  }
+
+  // If there's no colon but it ends with a chapter number (e.g. "Colossians 4")
+  const chapterOnlyRegex = /^(.*?)\s*(\d+)$/;
+  const chMatch = preprocessed.match(chapterOnlyRegex);
+  if (chMatch) {
+    return {
+      book: chMatch[1].trim(),
+      chapter: chMatch[2],
+      verse: null
+    };
+  }
+
+  // It's just a book name
   return {
-    book: bookCleaned,
-    chapter,
-    verse
+    book: preprocessed.trim(),
+    chapter: null,
+    verse: null
   };
 }
 

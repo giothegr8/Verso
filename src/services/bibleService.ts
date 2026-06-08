@@ -1,5 +1,6 @@
 import { Verse, AppState, Translation } from "../types";
-import { getVerseFromApiBible, BIBLE_VERSIONS, parseReference, BOOK_TO_USFM, findSuggestedBook } from "./apiBible";
+import { getVerseFromApiBible, BIBLE_VERSIONS, parseReference, BOOK_TO_USFM, findSuggestedBook, CANONICAL_USFM_NAMES } from "./apiBible";
+import { BIBLE_VERSE_COUNTS } from "../utils/bibleVerseCounts";
 
 /**
  * Bible Service
@@ -36,11 +37,11 @@ export function normalizeReference(ref: string): string {
   // 1. Remove accents/diacritics
   normalized = normalized.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   
-  // 2. Replace dots with colons
-  normalized = normalized.replace(/\./g, ":");
+  // 2. Replace dots and semicolons with colons
+  normalized = normalized.replace(/[.;]/g, ":");
   
   // 3. Remove punctuation that isn't colon or hyphen
-  normalized = normalized.replace(/[,/#!$%\^&\*;{}=\-_`~()]/g, "");
+  normalized = normalized.replace(/[,/#!$%\^&*{}=\-_`~()]/g, "");
   
   // 4. Normalize spacing around colons
   normalized = normalized.replace(/\s*:\s*/g, ":");
@@ -240,6 +241,8 @@ async function fetchVerseFromApi(reference: string, translation: string): Promis
  * Main search function used by UI
  */
 export async function searchVerse(reference: string, translation?: string): Promise<Verse | null> {
+  const isSpanish = translation && (translation.includes('RVR') || translation.includes('NVI') || translation.includes('NBLA'));
+  
   const normalizedInput = normalizeReference(reference);
   if (!normalizedInput) return null;
 
@@ -250,9 +253,8 @@ export async function searchVerse(reference: string, translation?: string): Prom
 
   // 2. Validate exact Bible reference parsing
   const parsed = parseReference(reference);
-  const isSpanish = translation && (translation.includes('RVR') || translation.includes('NVI') || translation.includes('NBLA'));
 
-  if (!parsed) {
+  if (!parsed || !parsed.book) {
     throw new Error(
       "PARSE_ERROR:" + (isSpanish 
         ? "Formato de cita bíblica no válido. Citas válidas ej: 'Efesios 2:8', 'eph 2 8' o 'EPH.2.8'." 
@@ -261,11 +263,28 @@ export async function searchVerse(reference: string, translation?: string): Prom
   }
 
   const bookCleaned = parsed.book.toLowerCase().trim();
-  const usfmBook = BOOK_TO_USFM[bookCleaned];
+  
+  // Custom case-insensitive and accent-insensitive book lookup helper
+  const findUsfmForBook = (bookName: string): string | null => {
+    const cleanWord = bookName.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+    
+    for (const [key, usfm] of Object.entries(BOOK_TO_USFM)) {
+      const cleanKey = key.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+      if (cleanKey === cleanWord) {
+        return usfm;
+      }
+    }
+    return null;
+  };
+
+  const usfmBook = findUsfmForBook(bookCleaned);
+
   if (!usfmBook) {
     const suggestedBook = findSuggestedBook(parsed.book, !!isSpanish);
     if (suggestedBook) {
-      const suggestedRef = `${suggestedBook} ${parsed.chapter}:${parsed.verse}`;
+      const ch = parsed.chapter || "1";
+      const vs = parsed.verse || "1";
+      const suggestedRef = `${suggestedBook} ${ch}:${vs}`;
       const err = new Error(
         "PARSE_ERROR:" + (isSpanish 
           ? `Libro bíblico no reconocido: "${parsed.book}". ¿Quisiste decir "${suggestedBook}"?` 
@@ -275,15 +294,89 @@ export async function searchVerse(reference: string, translation?: string): Prom
       throw err;
     }
     
+    // Fallback/example suggestions are ONLY used when the input cannot be understood as any valid book
     throw new Error(
       "PARSE_ERROR:" + (isSpanish 
-        ? `Libro bíblico no reconocido: "${parsed.book}". Intenta verificar la ortografía.` 
-        : `Unrecognized Bible book name: "${parsed.book}". Please check your spelling.`)
+        ? `Libro bíblico no reconocido: "${parsed.book}". Intenta verificar la ortografía o prueba con un ejemplo como "Juan 3:16".` 
+        : `Unrecognized Bible book name: "${parsed.book}". Please check your spelling or try searching "John 3:16".`)
     );
   }
 
-  // 3. Fallback to API.Bible
-  return await fetchVerseFromApi(reference, translation || "KJV");
+  const canonicalNames = CANONICAL_USFM_NAMES[usfmBook];
+  const bookNameDisplay = isSpanish ? canonicalNames.es : canonicalNames.en;
+
+  // 3. Validate chapter
+  if (parsed.chapter === null) {
+    const err = new Error(
+      "PARSE_ERROR:" + (isSpanish 
+        ? `Por favor, especifica un capítulo para ${bookNameDisplay}, por ejemplo: "${bookNameDisplay} 1:1".` 
+        : `Please specify a chapter for ${bookNameDisplay}, e.g. "${bookNameDisplay} 1:1".`)
+    );
+    (err as any).suggestion = `${bookNameDisplay} 1:1`;
+    throw err;
+  }
+
+  const chapterNum = parseInt(parsed.chapter);
+  const chapterCounts = BIBLE_VERSE_COUNTS[usfmBook];
+  if (!chapterCounts) {
+    throw new Error(
+      "PARSE_ERROR:" + (isSpanish 
+        ? `Error interno al validar ${bookNameDisplay}.` 
+        : `Internal error validating ${bookNameDisplay}.`)
+    );
+  }
+
+  const maxChapters = chapterCounts.length;
+  if (isNaN(chapterNum) || chapterNum < 1 || chapterNum > maxChapters) {
+    throw new Error(
+      "PARSE_ERROR:" + (isSpanish 
+        ? `${bookNameDisplay} solo tiene ${maxChapters} capítulos.` 
+        : `${bookNameDisplay} only has ${maxChapters} chapters.`)
+    );
+  }
+
+  // 4. Validate verse
+  if (parsed.verse === null) {
+    const err = new Error(
+      "PARSE_ERROR:" + (isSpanish 
+        ? `Por favor, especifica un versículo para ${bookNameDisplay} ${chapterNum}, por ejemplo: "${bookNameDisplay} ${chapterNum}:1".` 
+        : `Please specify a verse for ${bookNameDisplay} ${chapterNum}, e.g. "${bookNameDisplay} ${chapterNum}:1".`)
+    );
+    (err as any).suggestion = `${bookNameDisplay} ${chapterNum}:1`;
+    throw err;
+  }
+
+  // Support ranges like 16-18 by extracting and validating the first digit segment
+  const firstVerseMatch = String(parsed.verse).match(/^(\d+)/);
+  if (!firstVerseMatch) {
+    throw new Error(
+      "PARSE_ERROR:" + (isSpanish 
+        ? `Versículo no válido para ${bookNameDisplay} ${chapterNum}.` 
+        : `Invalid verse for ${bookNameDisplay} ${chapterNum}.`)
+    );
+  }
+
+  const firstVerseNum = parseInt(firstVerseMatch[1]);
+  const maxVerses = chapterCounts[chapterNum - 1];
+
+  if (isNaN(firstVerseNum) || firstVerseNum < 1 || firstVerseNum > maxVerses) {
+    throw new Error(
+      "PARSE_ERROR:" + (isSpanish 
+        ? `${bookNameDisplay} ${chapterNum} solo tiene ${maxVerses} versículos.` 
+        : `${bookNameDisplay} ${chapterNum} only has ${maxVerses} verses.`)
+    );
+  }
+
+  // Now reference is 100% valid!
+  const stdRef = `${canonicalNames.en} ${chapterNum}:${parsed.verse}`;
+  const stdRefEs = `${canonicalNames.es} ${chapterNum}:${parsed.verse}`;
+
+  // Try mock data with clean canonical names
+  const secondMockCheck = MOCK_BIBLE_DATA[stdRef] || MOCK_BIBLE_DATA[stdRefEs];
+  if (secondMockCheck) return secondMockCheck;
+
+  // 5. Fallback to API.Bible
+  return await fetchVerseFromApi(stdRef, translation || "KJV");
 }
 
 /**
