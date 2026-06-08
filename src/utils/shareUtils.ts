@@ -96,11 +96,18 @@ export const handleShare = async (
 
     // Check if sharing is supported
     if (navigator.share) {
-      const dataToShare: ShareData = { ...shareData };
+      let dataToShare: ShareData;
       
       // Add files if supported
       if (files.length > 0 && navigator.canShare && navigator.canShare({ files })) {
-        dataToShare.files = files;
+        // If sharing a generated verse image, pass only files (and optionally a short title)
+        // Do NOT pass text or url to avoid "1 Link and 1 Image" behavior or AirDrop failures.
+        dataToShare = {
+          files,
+          title,
+        };
+      } else {
+        dataToShare = { ...shareData };
       }
 
       await navigator.share(dataToShare);
