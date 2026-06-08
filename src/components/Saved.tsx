@@ -89,7 +89,7 @@ export default function Saved({ state, setState, onStartMemorizing, onGoToFlashc
     setIsShareModalOpen(true);
   };
 
-  const onNativeShare = async (elementId?: string) => {
+  const onNativeShare = async (elementId?: string, filename?: string) => {
     if (!selectedVerseForShare) return;
     const { esText, enText } = getValidatedVerse(selectedVerseForShare, state);
     const locBook = getLocalizedBookName(selectedVerseForShare.book, state.primaryLanguage === 'es' ? 'es' : 'en');
@@ -101,7 +101,7 @@ export default function Saved({ state, setState, onStartMemorizing, onGoToFlashc
       setToastMessage(msg === "Shared successfully!" ? (state.primaryLanguage === 'es' ? "¡Compartido!" : "Shared!") : (msg === "Copied to clipboard!" ? (state.primaryLanguage === 'es' ? "¡Copiado!" : "Copied!") : msg));
       setShowToast(true);
       setTimeout(() => setShowToast(false), 2000);
-    }, elementId);
+    }, elementId, filename);
     setIsShareModalOpen(false);
   };
 

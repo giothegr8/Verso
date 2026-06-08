@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { X, Download, Share2, Sparkles, BookOpen } from "lucide-react";
 import { AppState, TRANSLATION_DETAILS, Verse } from "../types";
 import { getCurrentTranslationPair, getLocalizedBookName, getValidatedVerse } from "../utils/verseUtils";
+import { getVerseFilename } from "../utils/shareUtils";
 import VersoLogo from "./VersoLogo";
 
 interface ShareModalProps {
@@ -10,7 +11,7 @@ interface ShareModalProps {
   onClose: () => void;
   verse: Verse;
   state: AppState;
-  onNativeShare: (elementId: string) => void;
+  onNativeShare: (elementId: string, filename: string) => void;
 }
 
 export default function ShareModal({ isOpen, onClose, verse, state, onNativeShare }: ShareModalProps) {
@@ -21,6 +22,8 @@ export default function ShareModal({ isOpen, onClose, verse, state, onNativeShar
   if (!verse) return null;
 
   const cardId = "share-card-preview";
+  const isSpanish = state.primaryLanguage === 'es';
+  const filename = getVerseFilename(verse.book, verse.chapter, verse.verse, isSpanish);
 
   return (
     <AnimatePresence>
@@ -120,7 +123,7 @@ export default function ShareModal({ isOpen, onClose, verse, state, onNativeShar
             {/* Actions */}
             <div className="p-6 bg-earth/5 dark:bg-white/5 flex flex-col gap-3">
               <button 
-                onClick={() => onNativeShare(cardId)}
+                onClick={() => onNativeShare(cardId, filename)}
                 className="w-full btn-primary flex items-center justify-center gap-2 py-4 shadow-xl shadow-playful-purple/20"
               >
                 <Share2 size={20} />
@@ -146,19 +149,9 @@ export default function ShareModal({ isOpen, onClose, verse, state, onNativeShar
                         transformOrigin: 'top left'
                       }
                     });
-                    const reference = `${getLocalizedBookName(verse.book, state.primaryLanguage === 'es' ? 'es' : 'en')} ${verse.chapter}:${verse.verse}`;
-                    const slug = reference
-                      .toLowerCase()
-                      .trim()
-                      .replace(/:/g, "-")
-                      .replace(/,/g, "")
-                      .replace(/\./g, "")
-                      .replace(/[^a-z0-9]+/g, "-")
-                      .replace(/-+/g, "-")
-                      .replace(/^-|-$/g, "");
-                      
+                    
                     const link = document.createElement('a');
-                    link.download = slug ? `verso-${slug}.png` : "verso-verse.png";
+                    link.download = filename;
                     link.href = dataUrl;
                     link.click();
                   }

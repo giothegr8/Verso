@@ -412,11 +412,11 @@ export default function PathSelection({ state, setState, onSelectPath, onBack, o
             onClose={() => setIsShareModalOpen(false)}
             verse={currentReviewVerse}
             state={state}
-            onNativeShare={async (elementId) => {
+            onNativeShare={async (elementId, filename) => {
               const locBook = getLocalizedBookName(currentReviewVerse.book, state.primaryLanguage === 'es' ? 'es' : 'en');
               const title = `Verso: ${locBook} ${currentReviewVerse.chapter}:${currentReviewVerse.verse}`;
               const text = `${locBook} ${currentReviewVerse.chapter}:${currentReviewVerse.verse}\n\nShared via Verso`;
-              await handleShare(title, text, window.location.href, () => {}, elementId);
+              await handleShare(title, text, window.location.href, () => {}, elementId, filename);
               setIsShareModalOpen(false);
             }}
           />

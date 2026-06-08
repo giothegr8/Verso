@@ -356,7 +356,7 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
     setIsShareModalOpen(true);
   };
 
-  const onNativeShare = async (elementId?: string) => {
+  const onNativeShare = async (elementId?: string, filename?: string) => {
     const locBook = getLocalizedBookName(currentVerse.book, state.primaryLanguage === 'es' ? 'es' : 'en');
     const title = `Verso: ${locBook} ${currentVerse.chapter}:${currentVerse.verse}`;
     const text = `${locBook} ${currentVerse.chapter}:${currentVerse.verse}\n\n${esText ? `ES: ${esText}\n` : ''}${enText ? `EN: ${enText}` : ''}\n\nShared via Verso`;
@@ -366,7 +366,7 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
       setToastMessage(msg === "Shared successfully!" ? (state.primaryLanguage === 'es' ? "¡Compartido!" : "Shared!") : (msg === "Copied to clipboard!" ? (state.primaryLanguage === 'es' ? "¡Copiado!" : "Copied!") : msg));
       setShowToast(true);
       setTimeout(() => setShowToast(false), 2000);
-    }, elementId);
+    }, elementId, filename);
     setIsShareModalOpen(false);
   };
 

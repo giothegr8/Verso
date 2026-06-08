@@ -795,7 +795,7 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
             </div>
             <div className="space-y-3">
               <h3 className="text-2xl font-serif font-black text-earth dark:text-ivory">
-                {state.primaryLanguage === 'es' ? 'Cita Bloqueada' : 'Citation Locked'}
+                {state.primaryLanguage === 'es' ? 'Nivel bloqueado' : 'Level locked'}
               </h3>
               <p className="text-sm text-earth-light dark:text-lavender-muted leading-relaxed max-w-xs mx-auto font-medium font-serif">
                 {state.primaryLanguage === 'es' 
@@ -900,6 +900,12 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
                           disabled={isCorrect || attemptsLeft === 0}
                           onFocus={() => setActiveLanguage('es')}
                           onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              if (isEligible && canSubmit) {
+                                handleSubmit();
+                              }
+                            }
                             if (e.key === 'Backspace' && inputRefEs.current) {
                               const start = inputRefEs.current.selectionStart;
                               const end = inputRefEs.current.selectionEnd;
@@ -979,6 +985,12 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
                           disabled={isCorrect || attemptsLeft === 0}
                           onFocus={() => setActiveLanguage('en')}
                           onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              if (isEligible && canSubmit) {
+                                handleSubmit();
+                              }
+                            }
                             if (e.key === 'Backspace' && inputRefEn.current) {
                               const start = inputRefEn.current.selectionStart;
                               const end = inputRefEn.current.selectionEnd;

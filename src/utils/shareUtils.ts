@@ -1,11 +1,35 @@
 import { toPng, toBlob } from 'html-to-image';
+import { getLocalizedBookName } from './verseUtils';
+
+export function getVerseFilename(book: string, chapter: string | number, verse: string | number, isSpanish: boolean): string {
+  const locBook = getLocalizedBookName(book, isSpanish ? 'es' : 'en');
+  const normalizedBook = locBook
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
+  const cleanBook = normalizedBook
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+
+  const cleanChapter = String(chapter).replace(/[^0-9]+/g, "-");
+  
+  const cleanVerse = String(verse)
+    .replace(/[^0-9\-]+/g, "")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+
+  return `verso-${cleanBook}-${cleanChapter}-${cleanVerse}.png`;
+}
 
 export const handleShare = async (
   title: string, 
   text: string, 
   url: string, 
   onToast: (msg: string) => void,
-  elementId?: string
+  elementId?: string,
+  filename?: string
 ) => {
   const shareData: ShareData = {
     title,
@@ -36,7 +60,7 @@ export const handleShare = async (
         skipAutoScale: true,
       });
       const link = document.createElement('a');
-      link.download = `verso-${Date.now()}.png`;
+      link.download = filename || `verso-${Date.now()}.png`;
       link.href = dataUrl;
       link.click();
       onToast("Image downloaded!");
@@ -60,7 +84,8 @@ export const handleShare = async (
             skipAutoScale: true,
           });
           if (blob) {
-            const file = new File([blob], `verso-${Date.now()}.png`, { type: 'image/png' });
+            const actualFilename = filename || `verso-${Date.now()}.png`;
+            const file = new File([blob], actualFilename, { type: 'image/png' });
             files = [file];
           }
         } catch (imgErr) {
