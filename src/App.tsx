@@ -125,6 +125,7 @@ const INITIAL_STATE: AppState = {
   isSubscribed: false,
   isLoadingAnotherVerse: false,
   anotherVerseError: null,
+  loadingTranslations: {},
   activeAttempt: null,
 };
 
@@ -173,6 +174,7 @@ function AppInner() {
         if (!merged.recentVerseIds) merged.recentVerseIds = [];
         if (!merged.customVerses) merged.customVerses = [];
         if (!merged.customPaths) merged.customPaths = [];
+        merged.loadingTranslations = {};
         if (merged.activeSource === undefined) merged.activeSource = "daily";
         if (merged.selectedCustomVerse === undefined) merged.selectedCustomVerse = null;
         if (!merged.onboardingProfile) merged.onboardingProfile = {};
@@ -285,11 +287,11 @@ function AppInner() {
             progress: newProgress,
             pathProgress: {
               ...prev.pathProgress,
-              pathCompletedToday: false
+              pathCompletedToday: prev.pathProgress.lastCompletedAt === today
             },
             customPathProgress: {
               ...prev.customPathProgress,
-              pathCompletedToday: false
+              pathCompletedToday: prev.customPathProgress.lastCompletedAt === today
             }
           };
         }
@@ -626,26 +628,23 @@ function AppInner() {
     handleSetActiveTab("home");
   };
 
-  const handleCompletePathDay = () => {
+  const handleCompletePathDay = (): boolean => {
     const today = getLocalDateString();
     
     // Check which path is currently "active" in the progress tracker
     const customPathId = state.customPathProgress.selectedPathId;
     const presetPathId = state.pathProgress.selectedPathId;
     
-    // If we're in "path" source, we need to know which path we are completing
-    // Usually, the one that was most recently selected/active.
-    // For VERSO, custom paths are integrated into the same "Path" flow.
+    // Determine the active path ID exactly like Home.tsx
+    const currentPathId = presetPathId || customPathId;
+    if (!currentPathId) {
+      return false;
+    }
+
+    const activeCustomPath = state.customPaths.find(p => p.id === currentPathId);
+    const activePresetPath = PATHS.find(p => p.id === currentPathId);
     
-    // Determine which path to update
-    const activeCustomPath = state.customPaths.find(p => p.id === customPathId);
-    const activePresetPath = PATHS.find(p => p.id === presetPathId);
-    
-    // We update both if they have active selection, but usually only one is "Current"
-    // Let's check which one the user is actually on based on some logic. 
-    // Here we'll check if customPathId exists and was selected last.
-    
-    const isCustomActive = !!customPathId; 
+    const isCustomActive = !!activeCustomPath;
 
     if (isCustomActive && activeCustomPath) {
       setState(s => {
@@ -653,12 +652,12 @@ function AppInner() {
         const isLastDay = dayNum >= activeCustomPath.verses.length;
         const nextDay = isLastDay ? dayNum : dayNum + 1;
         
-        const currentSaved = (s.customPathProgress?.savedProgress || {})[customPathId] || { currentDay: 1, completedDays: [] };
+        const currentSaved = (s.customPathProgress?.savedProgress || {})[currentPathId] || { currentDay: 1, completedDays: [] };
         const newCompletedDays = Array.from(new Set([...currentSaved.completedDays, dayNum]));
         
         const newSavedProgress = {
           ...(s.customPathProgress?.savedProgress || {}),
-          [customPathId]: { currentDay: nextDay, completedDays: newCompletedDays }
+          [currentPathId]: { currentDay: nextDay, completedDays: newCompletedDays }
         };
 
         return {
@@ -668,28 +667,28 @@ function AppInner() {
             currentDay: nextDay,
             lastCompletedAt: today,
             pathCompletedToday: true,
-            completedPathIds: isLastDay && !(s.customPathProgress?.completedPathIds || []).includes(customPathId)
-              ? [...(s.customPathProgress?.completedPathIds || []), customPathId]
+            completedPathIds: isLastDay && !(s.customPathProgress?.completedPathIds || []).includes(currentPathId)
+              ? [...(s.customPathProgress?.completedPathIds || []), currentPathId]
               : (s.customPathProgress?.completedPathIds || []),
             savedProgress: newSavedProgress
           }
         };
       });
-      return;
+      return true;
     }
 
-    if (activePresetPath && presetPathId) {
+    if (activePresetPath) {
       setState(s => {
         const dayNum = s.pathProgress.currentDay;
         const isLastDay = dayNum >= activePresetPath.duration;
         const nextDay = isLastDay ? dayNum : dayNum + 1;
         
-        const currentSaved = (s.pathProgress?.savedProgress || {})[presetPathId] || { currentDay: 1, completedDays: [] };
+        const currentSaved = (s.pathProgress?.savedProgress || {})[currentPathId] || { currentDay: 1, completedDays: [] };
         const newCompletedDays = Array.from(new Set([...currentSaved.completedDays, dayNum]));
         
         const newSavedProgress = {
           ...(s.pathProgress?.savedProgress || {}),
-          [presetPathId]: { currentDay: nextDay, completedDays: newCompletedDays }
+          [currentPathId]: { currentDay: nextDay, completedDays: newCompletedDays }
         };
 
         return {
@@ -699,14 +698,17 @@ function AppInner() {
             currentDay: nextDay,
             lastCompletedAt: today,
             pathCompletedToday: true,
-            completedPathIds: isLastDay && !(s.pathProgress?.completedPathIds || []).includes(presetPathId)
-              ? [...(s.pathProgress?.completedPathIds || []), presetPathId]
+            completedPathIds: isLastDay && !(s.pathProgress?.completedPathIds || []).includes(currentPathId)
+              ? [...(s.pathProgress?.completedPathIds || []), currentPathId]
               : (s.pathProgress?.completedPathIds || []),
             savedProgress: newSavedProgress
           }
         };
       });
+      return true;
     }
+
+    return false;
   };
 
   const handleSaveCustomPath = (path: CustomPath) => {
@@ -811,6 +813,7 @@ function AppInner() {
         return (
           <PathSelection 
             state={state} 
+            setState={setState}
             onSelectPath={handleSelectPath} 
             onBack={() => handleSetActiveTab("home")} 
             onMemorize={(id, source) => startMemorizing(id, source || "path")}

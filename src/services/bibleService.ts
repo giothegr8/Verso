@@ -300,89 +300,120 @@ export async function loadVerseAndMerge(
   const esTrans = activePair.es;
   const enTrans = activePair.en;
   
+  const keyEs = `${verseId}_${esTrans}`;
+  const keyEn = `${verseId}_${enTrans}`;
+
+  // Mark as loading immediately
+  setState(prev => ({
+    ...prev,
+    loadingTranslations: {
+      ...(prev.loadingTranslations || {}),
+      [keyEs]: true,
+      [keyEn]: true
+    }
+  }));
+
   let esRes: { text: string; reference: string; copyright: string } | null = null;
   let enRes: { text: string; reference: string; copyright: string } | null = null;
 
   try {
-    const esBibleId = BIBLE_VERSIONS[esTrans] || BIBLE_VERSIONS.es;
-    esRes = await getVerseFromApiBible(reference, esBibleId);
-  } catch (error) {
-    console.error("Spanish verse fetching failed:", error);
-  }
-
-  try {
-    const enBibleId = BIBLE_VERSIONS[enTrans] || BIBLE_VERSIONS.en;
-    enRes = await getVerseFromApiBible(reference, enBibleId);
-  } catch (error) {
-    console.error("English verse fetching failed:", error);
-  }
-  
-  const bookName = (esRes?.reference || enRes?.reference || reference).split(' ').slice(0, -1).join(' ');
-  const chAndV = (esRes?.reference || enRes?.reference || reference).split(' ').pop() || "1:1";
-  const [chapter, verseNum] = chAndV.split(':').map(n => parseInt(n) || 1);
-  
-  const initialEs: Record<Translation, string> = {
-    RVR1960: esTrans === "RVR1960" ? (esRes ? esRes.text : "Error al cargar la traducción en Español.") : "",
-    NVI: esTrans === "NVI" ? (esRes ? esRes.text : "Error al cargar la traducción en Español.") : "",
-    NBLA: esTrans === "NBLA" ? (esRes ? esRes.text : "Error al cargar la traducción en Español.") : "",
-    KJV: "", NIV: "", NASB: ""
-  };
-
-  const initialEn: Record<Translation, string> = {
-    KJV: enTrans === "KJV" ? (enRes ? enRes.text : "Error loading English translation.") : "",
-    NIV: enTrans === "NIV" ? (enRes ? enRes.text : "Error loading English translation.") : "",
-    NASB: enTrans === "NASB" ? (enRes ? enRes.text : "Error loading English translation.") : "",
-    RVR1960: "", NVI: "", NBLA: ""
-  };
-
-  const esUpdate = { [esTrans]: esRes ? esRes.text : "Error al cargar la traducción en Español." } as Partial<Record<Translation, string>>;
-  const enUpdate = { [enTrans]: enRes ? enRes.text : "Error loading English translation." } as Partial<Record<Translation, string>>;
-
-  const verseObj: Verse = {
-    id: verseId,
-    book: bookName,
-    chapter,
-    verse: verseNum,
-    text: {
-      es: initialEs,
-      en: initialEn
-    },
-    copyright: esRes?.copyright || enRes?.copyright,
-    source: "api-bible"
-  };
-  
-  setState(prev => {
-    const exists = prev.customVerses.some(v => v.id === verseId);
-    let updatedCustom;
-    if (exists) {
-      updatedCustom = prev.customVerses.map(v => {
-        if (v.id === verseId) {
-          return {
-            ...v,
-            text: {
-              es: { ...v.text.es, ...esUpdate },
-              en: { ...v.text.en, ...enUpdate }
-            }
-          };
-        }
-        return v;
-      });
-    } else {
-      updatedCustom = [...prev.customVerses, verseObj];
+    try {
+      const esBibleId = BIBLE_VERSIONS[esTrans] || BIBLE_VERSIONS.es;
+      esRes = await getVerseFromApiBible(reference, esBibleId);
+    } catch (error) {
+      console.error("Spanish verse fetching failed:", error);
     }
-      
-    return {
-      ...prev,
-      customVerses: updatedCustom,
-      selectedCustomVerse: prev.activeSource === "custom" && prev.selectedCustomVerse?.id === verseId
-        ? {
-            ...prev.selectedCustomVerse,
-            text: {
-              es: { ...prev.selectedCustomVerse.text.es, ...esUpdate },
-              en: { ...prev.selectedCustomVerse.text.en, ...enUpdate }
-            }
-          }
-        : prev.selectedCustomVerse
+
+    try {
+      const enBibleId = BIBLE_VERSIONS[enTrans] || BIBLE_VERSIONS.en;
+      enRes = await getVerseFromApiBible(reference, enBibleId);
+    } catch (error) {
+      console.error("English verse fetching failed:", error);
+    }
+    
+    const bookName = (esRes?.reference || enRes?.reference || reference).split(' ').slice(0, -1).join(' ');
+    const chAndV = (esRes?.reference || enRes?.reference || reference).split(' ').pop() || "1:1";
+    const [chapter, verseNum] = chAndV.split(':').map(n => parseInt(n) || 1);
+    
+    const initialEs: Record<Translation, string> = {
+      RVR1960: esTrans === "RVR1960" ? (esRes ? esRes.text : "Error al cargar la traducción en Español.") : "",
+      NVI: esTrans === "NVI" ? (esRes ? esRes.text : "Error al cargar la traducción en Español.") : "",
+      NBLA: esTrans === "NBLA" ? (esRes ? esRes.text : "Error al cargar la traducción en Español.") : "",
+      KJV: "", NIV: "", NASB: ""
     };
-  });
+
+    const initialEn: Record<Translation, string> = {
+      KJV: enTrans === "KJV" ? (enRes ? enRes.text : "Error loading English translation.") : "",
+      NIV: enTrans === "NIV" ? (enRes ? enRes.text : "Error loading English translation.") : "",
+      NASB: enTrans === "NASB" ? (enRes ? enRes.text : "Error loading English translation.") : "",
+      RVR1960: "", NVI: "", NBLA: ""
+    };
+
+    const esUpdate = { [esTrans]: esRes ? esRes.text : "Error al cargar la traducción en Español." } as Partial<Record<Translation, string>>;
+    const enUpdate = { [enTrans]: enRes ? enRes.text : "Error loading English translation." } as Partial<Record<Translation, string>>;
+
+    const verseObj: Verse = {
+      id: verseId,
+      book: bookName,
+      chapter,
+      verse: verseNum,
+      text: {
+        es: initialEs,
+        en: initialEn
+      },
+      copyright: esRes?.copyright || enRes?.copyright,
+      source: "api-bible"
+    };
+    
+    setState(prev => {
+      const exists = prev.customVerses.some(v => v.id === verseId);
+      let updatedCustom;
+      if (exists) {
+        updatedCustom = prev.customVerses.map(v => {
+          if (v.id === verseId) {
+            return {
+              ...v,
+              text: {
+                es: { ...v.text.es, ...esUpdate },
+                en: { ...v.text.en, ...enUpdate }
+              }
+            };
+          }
+          return v;
+        });
+      } else {
+        updatedCustom = [...prev.customVerses, verseObj];
+      }
+      
+      const newLoading = { ...(prev.loadingTranslations || {}) };
+      delete newLoading[keyEs];
+      delete newLoading[keyEn];
+        
+      return {
+        ...prev,
+        loadingTranslations: newLoading,
+        customVerses: updatedCustom,
+        selectedCustomVerse: prev.activeSource === "custom" && prev.selectedCustomVerse?.id === verseId
+          ? {
+              ...prev.selectedCustomVerse,
+              text: {
+                es: { ...prev.selectedCustomVerse.text.es, ...esUpdate },
+                en: { ...prev.selectedCustomVerse.text.en, ...enUpdate }
+              }
+            }
+          : prev.selectedCustomVerse
+      };
+    });
+  } catch (err) {
+    console.error("General error inside loadVerseAndMerge:", err);
+    setState(prev => {
+      const newLoading = { ...(prev.loadingTranslations || {}) };
+      delete newLoading[keyEs];
+      delete newLoading[keyEn];
+      return {
+        ...prev,
+        loadingTranslations: newLoading
+      };
+    });
+  }
 }

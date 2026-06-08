@@ -1,14 +1,16 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { AppState, Path, Translation, TRANSLATION_DETAILS, Verse, CustomPath, CustomPathVerse } from "../types";
 import { PATHS, MOCK_VERSES } from "../constants";
 import { ArrowLeft, Compass, Clock, ChevronRight, Sprout, CheckCircle2, Lock, Flower2, RotateCw, BookOpen, RotateCcw, X, Share2, Sparkles, Trash2, Plus } from "lucide-react";
 import { getCurrentTranslationPair, getLocalizedBookName, getValidatedVerse, getLocalizedPathDay, formatReferenceForLocale } from "../utils/verseUtils";
 import { handleShare } from "../utils/shareUtils";
+import { loadVerseAndMerge } from "../services/bibleService";
 import ShareModal from "./ShareModal";
 
 interface PathSelectionProps {
   state: AppState;
+  setState: React.Dispatch<React.SetStateAction<AppState>>;
   onSelectPath: (pathId: string) => void;
   onBack: () => void;
   onMemorize: (verseId: string, source?: "path" | "saved" | "extra") => void;
@@ -19,7 +21,7 @@ interface PathSelectionProps {
   setSelectedPath: (path: Path | CustomPath | null) => void;
 }
 
-export default function PathSelection({ state, onSelectPath, onBack, onMemorize, onCreateCustom, onEditCustom, onDeleteCustom, selectedPath, setSelectedPath }: PathSelectionProps) {
+export default function PathSelection({ state, setState, onSelectPath, onBack, onMemorize, onCreateCustom, onEditCustom, onDeleteCustom, selectedPath, setSelectedPath }: PathSelectionProps) {
   const isEs = state.primaryLanguage === "es";
   const [flippedDay, setFlippedDay] = useState<number | null>(null);
   const [reviewDay, setReviewDay] = useState<number | null>(null);
@@ -28,7 +30,7 @@ export default function PathSelection({ state, onSelectPath, onBack, onMemorize,
   const selectedPathId = state.pathProgress.selectedPathId || state.customPathProgress.selectedPathId;
 
   const getVerseByRef = (ref: string) => {
-    // If we're in a custom path, we might have the verse text already
+    // 1. If we're in a custom path, we might have the verse text already
     if (selectedPath && 'verses' in selectedPath && typeof selectedPath.verses[0] === 'object') {
        const found = (selectedPath as CustomPath).verses.find(v => v.reference === ref);
        if (found && found.text) {
@@ -45,21 +47,49 @@ export default function PathSelection({ state, onSelectPath, onBack, onMemorize,
        }
     }
 
-    return MOCK_VERSES.find(v => {
+    // 2. Look in state.customVerses for ref-based ID
+    const fromCustomId = state.customVerses.find(v => v.id === `ref-${ref}`);
+    if (fromCustomId) return fromCustomId;
+
+    // 3. Look in state.customVerses by matching reference text itself
+    const fromCustomByRef = state.customVerses.find(v => {
       const parts = v.book.split(' / ');
       const esBook = parts[0];
       const enBook = parts[1] || parts[0];
-      // Check for exact matches first
+      const vEsRef = `${esBook} ${v.chapter}:${v.verse}`;
+      const vEnRef = `${enBook} ${v.chapter}:${v.verse}`;
+      return ref === vEsRef || ref === vEnRef;
+    });
+    if (fromCustomByRef) return fromCustomByRef;
+
+    // 4. Look in MOCK_VERSES
+    const fromMock = MOCK_VERSES.find(v => {
+      const parts = v.book.split(' / ');
+      const esBook = parts[0];
+      const enBook = parts[1] || parts[0];
       const vEsRef = `${esBook} ${v.chapter}:${v.verse}`;
       const vEnRef = `${enBook} ${v.chapter}:${v.verse}`;
       return ref === vEsRef || ref === vEnRef;
     }) || MOCK_VERSES.find(v => {
-      // Fallback: look if reference contains both book name and numbers
       const parts = v.book.split(' / ');
       const esBook = parts[0];
       const enBook = parts[1] || parts[0];
       return (ref.includes(esBook) || ref.includes(enBook)) && ref.includes(`${v.chapter}:${v.verse}`);
     });
+    if (fromMock) return fromMock;
+
+    // 5. Safe Fallback: construct skeleton
+    return {
+      id: `ref-${ref}`,
+      book: ref.split(' ').slice(0, -1).join(' '),
+      chapter: parseInt(ref.split(' ').pop()?.split(':')[0] || '1'),
+      verse: parseInt(ref.split(' ').pop()?.split(':')[1] || '1'),
+      text: {
+        es: { RVR1960: '', NVI: '', NBLA: '', KJV: '', NIV: '', NASB: '' },
+        en: { KJV: '', NIV: '', NASB: '', RVR1960: '', NVI: '', NBLA: '' }
+      },
+      source: "api-bible"
+    } as Verse;
   };
 
   const currentReviewVerse = useMemo(() => {
@@ -71,7 +101,42 @@ export default function PathSelection({ state, onSelectPath, onBack, onMemorize,
       const dayData = (selectedPath as CustomPath).verses.find(v => v.dayNumber === reviewDay);
       return dayData ? getVerseByRef(dayData.reference) : null;
     }
-  }, [selectedPath, reviewDay]);
+  }, [selectedPath, reviewDay, state.customVerses]);
+
+  // Load missing verse text automatically on-the-fly for the review modal
+  useEffect(() => {
+    if (!currentReviewVerse) return;
+    
+    const activePair = getCurrentTranslationPair(state);
+    const mode = state.memorizeMode;
+    
+    let needsEs = false;
+    let needsEn = false;
+    
+    if (mode === "es" || mode === "both") {
+      const txt = currentReviewVerse.text.es[activePair.es];
+      if (!txt || txt.toLowerCase().includes("coming soon") || txt.toLowerCase().includes("próximamente") || txt.toLowerCase().includes("proximamente")) {
+        needsEs = true;
+      }
+    }
+    
+    if (mode === "en" || mode === "both") {
+      const txt = currentReviewVerse.text.en[activePair.en];
+      if (!txt || txt.toLowerCase().includes("coming soon") || txt.toLowerCase().includes("próximamente") || txt.toLowerCase().includes("proximamente")) {
+        needsEn = true;
+      }
+    }
+    
+    if (needsEs || needsEn) {
+      const ref = `${currentReviewVerse.book} ${currentReviewVerse.chapter}:${currentReviewVerse.verse}`;
+      loadVerseAndMerge(ref, currentReviewVerse.id, state, setState);
+    }
+  }, [
+    currentReviewVerse?.id,
+    state.memorizeMode,
+    state.selectedTranslations?.es,
+    state.selectedTranslations?.en
+  ]);
 
   // Sort paths to move currently selected path to the top, then alphabetize the rest
   const sortedPaths = [...PATHS].sort((a, b) => {
@@ -415,7 +480,7 @@ export default function PathSelection({ state, onSelectPath, onBack, onMemorize,
                                   (isCustom ? state.customPathProgress.currentDay : state.pathProgress.currentDay || 1) > dayNum);
               const isActive = (selectedPathId === selectedPath.id) && 
                               (isCustom ? state.customPathProgress.currentDay === dayNum : state.pathProgress.currentDay === dayNum);
-              const isFlipped = flippedDay === dayNum && isActive;
+              const isFlipped = flippedDay === dayNum && isActive && !isCompleted;
 
               const verse = dayData ? getVerseByRef(dayData.reference) : null;
               const previewText = verse ? (isEs ? (verse.text.es[state.selectedTranslations.es] || verse.text.es.RVR1960) : (verse.text.en[state.selectedTranslations.en] || verse.text.en.NIV)) : null;
@@ -428,10 +493,10 @@ export default function PathSelection({ state, onSelectPath, onBack, onMemorize,
                     transition={{ type: "spring", stiffness: 260, damping: 20 }}
                     className="w-full h-full preserve-3d cursor-pointer"
                     onClick={() => {
-                      if (isActive) {
-                        setFlippedDay(isFlipped ? null : dayNum);
-                      } else if (isCompleted) {
+                      if (isCompleted) {
                         setReviewDay(dayNum);
+                      } else if (isActive) {
+                        setFlippedDay(isFlipped ? null : dayNum);
                       }
                     }}
                   >
@@ -481,7 +546,7 @@ export default function PathSelection({ state, onSelectPath, onBack, onMemorize,
 
                     {/* Back Side (Only for Active Day) */}
                     <div className="absolute inset-0 backface-hidden rotate-y-180">
-                      <div className={`w-full h-full p-4 rounded-[20px] border border-teal-400/20 bg-teal/10 dark:bg-teal-950/20 flex flex-col justify-center`}>
+                      <div className="w-full h-full p-3 rounded-[20px] border border-teal-400/20 bg-teal/10 dark:bg-teal-950/20 flex flex-col justify-center overflow-hidden">
                         <div className="overflow-hidden">
                           <div className="flex items-center justify-between mb-1">
                             <p className="text-[8px] font-black uppercase tracking-widest text-teal/60 whitespace-nowrap">
@@ -489,7 +554,7 @@ export default function PathSelection({ state, onSelectPath, onBack, onMemorize,
                             </p>
                             <RotateCw size={10} className="text-teal/40" />
                           </div>
-                          <p className="text-[10px] sm:text-[11px] font-serif font-black text-earth/90 dark:text-ivory/90 line-clamp-2 leading-relaxed">
+                          <p className="text-[9.5px] sm:text-[10px] font-serif font-black text-earth/95 dark:text-ivory/95 line-clamp-3 leading-snug">
                             {previewText || (isEs ? "Versículo de la serie..." : "Verse of the path...")}
                           </p>
                         </div>

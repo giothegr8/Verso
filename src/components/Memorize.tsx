@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { AppState, TRANSLATION_PAIRS, TRANSLATION_DETAILS, Verse } from "../types";
 import { loadVerseAndMerge } from "../services/bibleService";
 import { MOCK_VERSES, getVerseByDate } from "../constants";
-import { CheckCircle2, RotateCcw, Eye, EyeOff, ArrowRight, ArrowLeft, Star, Trophy, Languages, Sparkles, AlertCircle, Bookmark, Layers, MessageCircle, BookOpen, Sprout } from "lucide-react";
+import { CheckCircle2, RotateCcw, Eye, EyeOff, ArrowRight, ArrowLeft, Star, Trophy, Languages, Sparkles, AlertCircle, Bookmark, Layers, MessageCircle, BookOpen, Sprout, Loader2 } from "lucide-react";
 import React from "react";
 import confetti from "canvas-confetti";
 import { getCurrentTranslationPair, getValidatedVerse, getLocalizedBookName, getLocalDateString, getVerseLines, removeAccents, VERSE_LAYOUT } from "../utils/verseUtils";
@@ -339,7 +339,11 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
     return text.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ]/g, "");
   };
 
-  const { esText, enText, esError, enError } = getValidatedVerse(verse, state);
+  const { esText, enText, esError, enError, activePair: validatedPair } = getValidatedVerse(verse, state);
+  const esTransToUse = validatedPair?.es || (state.selectedTranslations?.es || "RVR1960");
+  const enTransToUse = validatedPair?.en || (state.selectedTranslations?.en || "KJV");
+  const isEsLoading = !!(verse && state.loadingTranslations && state.loadingTranslations[`${verse.id}_${esTransToUse}`]);
+  const isEnLoading = !!(verse && state.loadingTranslations && state.loadingTranslations[`${verse.id}_${enTransToUse}`]);
 
   const isEditable = (idx: number, lang: 'es' | 'en') => {
     const text = lang === 'es' ? esText : enText;
@@ -727,6 +731,17 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
       }
     }
   }, [showHalfwayTransition, activeLanguage, didFailFlowEs, didFailFlowEn, verse.id]);
+
+  if (verse && ((state.memorizeMode === 'es' && isEsLoading) || (state.memorizeMode === 'en' && isEnLoading) || (state.memorizeMode === 'both' && (isEsLoading || isEnLoading)))) {
+    return (
+      <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-4">
+        <Loader2 className="animate-spin text-teal-600 dark:text-teal-400" size={36} />
+        <p className="text-earth-light dark:text-lavender-muted text-sm font-medium">
+          {state.primaryLanguage === 'es' ? 'Cargando traducción...' : 'Loading translation...'}
+        </p>
+      </div>
+    );
+  }
 
   if (!verse || (!esText && !enText)) {
     return (

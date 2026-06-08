@@ -93,7 +93,11 @@ export default function Saved({ state, setState, onStartMemorizing, onGoToFlashc
   const completedList = filteredList.filter(v => state.progress.completedVerses.includes(v.id));
 
   const renderVerseCard = (verse: any, idx: number) => {
-    const { esText, enText, esError, enError } = getValidatedVerse(verse, state);
+    const { esText, enText, esError, enError, activePair: validatedPair } = getValidatedVerse(verse, state);
+    const esTransToUse = validatedPair?.es || activePair.es;
+    const enTransToUse = validatedPair?.en || activePair.en;
+    const isEsLoading = !!(state.loadingTranslations && state.loadingTranslations[`${verse.id}_${esTransToUse}`]);
+    const isEnLoading = !!(state.loadingTranslations && state.loadingTranslations[`${verse.id}_${enTransToUse}`]);
     const isMemorized = state.progress.completedVerses.includes(verse.id);
     const memorizationStage = state.progress.verseStages?.[verse.id] || 0;
 
@@ -226,6 +230,11 @@ export default function Saved({ state, setState, onStartMemorizing, onGoToFlashc
                 <p className="text-xl font-serif leading-relaxed text-earth dark:text-ivory font-black">
                   {esText}
                 </p>
+              ) : isEsLoading ? (
+                <div className="space-y-1.5 animate-pulse py-1">
+                  <div className="h-5 bg-earth/10 dark:bg-white/10 rounded-lg w-full" />
+                  <div className="h-5 bg-earth/10 dark:bg-white/10 rounded-lg w-4/5" />
+                </div>
               ) : (
                 <div className="p-3 bg-coral/10 rounded-xl flex items-center gap-2 text-coral border border-coral/20">
                   <AlertCircle size={16} />
@@ -245,6 +254,11 @@ export default function Saved({ state, setState, onStartMemorizing, onGoToFlashc
                 <p className="text-lg font-serif leading-relaxed text-earth/80 dark:text-lavender-muted border-l-4 border-playful-purple/30 dark:border-plum/40 pl-4 bg-playful-purple/5 dark:bg-plum/5 py-3 rounded-r-xl font-medium">
                   {enText}
                 </p>
+              ) : isEnLoading ? (
+                <div className="space-y-1.5 animate-pulse py-1">
+                  <div className="h-5 bg-earth/10 dark:bg-white/10 rounded-lg w-full" />
+                  <div className="h-5 bg-earth/10 dark:bg-white/10 rounded-lg w-4/5" />
+                </div>
               ) : (
                 <div className="p-3 bg-coral/10 rounded-xl flex items-center gap-2 text-coral border border-coral/20">
                   <AlertCircle size={16} />

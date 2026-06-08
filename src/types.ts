@@ -173,6 +173,7 @@ export interface AppState {
   isSubscribed: boolean;
   isLoadingAnotherVerse?: boolean;
   anotherVerseError?: string | null;
+  loadingTranslations?: Record<string, boolean>;
   activeAttempt?: ActiveAttemptSnapshot | null;
 }
 

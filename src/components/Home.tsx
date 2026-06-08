@@ -18,7 +18,7 @@ interface HomeProps {
   onGetAnotherVerse: () => void;
   onGoToSaved: () => void;
   onGoToPaths: (path?: Path | CustomPath) => void;
-  onCompletePathDay: () => void;
+  onCompletePathDay: () => boolean;
 }
 
 export default function Home({ state, setState, onStartMemorizing, onGetAnotherVerse, onGoToSaved, onGoToPaths, onCompletePathDay }: HomeProps) {
@@ -314,7 +314,11 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
   const isCustomMode = state.activeSource === "custom";
   const isVotd = currentVerse.id === votd.id && !isCustomMode;
 
-  const { esText, enText, esError, enError } = getValidatedVerse(currentVerse, state);
+  const { esText, enText, esError, enError, activePair: validatedPair } = getValidatedVerse(currentVerse, state);
+  const esTransToUse = validatedPair?.es || esDetail.id;
+  const enTransToUse = validatedPair?.en || enDetail.id;
+  const isEsLoading = !!(currentVerse && state.loadingTranslations && state.loadingTranslations[`${currentVerse.id}_${esTransToUse}`]);
+  const isEnLoading = !!(currentVerse && state.loadingTranslations && state.loadingTranslations[`${currentVerse.id}_${enTransToUse}`]);
 
   const onShareClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -790,6 +794,11 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
                         <p className={`text-2xl sm:text-3xl font-serif leading-relaxed text-earth dark:text-ivory ${VERSE_LAYOUT.FONT_WEIGHT} tracking-tight`}>
                           {esText}
                         </p>
+                      ) : isEsLoading ? (
+                        <div className="space-y-2 animate-pulse py-2">
+                          <div className="h-6 bg-earth/10 dark:bg-white/10 rounded-lg w-full" />
+                          <div className="h-6 bg-earth/10 dark:bg-white/10 rounded-lg w-5/6" />
+                        </div>
                       ) : (
                         <div className="p-4 bg-coral/10 rounded-2xl flex items-center gap-3 text-coral border border-coral/20">
                           <AlertCircle size={20} />
@@ -812,6 +821,11 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
                         <p className={`text-2xl sm:text-3xl font-serif leading-relaxed text-earth dark:text-ivory ${VERSE_LAYOUT.FONT_WEIGHT} tracking-tight`}>
                           {enText}
                         </p>
+                      ) : isEnLoading ? (
+                        <div className="space-y-2 animate-pulse py-2">
+                          <div className="h-6 bg-earth/10 dark:bg-white/10 rounded-lg w-full" />
+                          <div className="h-6 bg-earth/10 dark:bg-white/10 rounded-lg w-5/6" />
+                        </div>
                       ) : (
                         <div className="p-4 bg-coral/10 rounded-2xl flex items-center gap-3 text-coral border border-coral/20">
                           <AlertCircle size={20} />
@@ -980,6 +994,11 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
                         <p className={`text-2xl sm:text-3xl font-serif leading-relaxed text-earth dark:text-ivory ${VERSE_LAYOUT.FONT_WEIGHT} tracking-tight`}>
                           {esText}
                         </p>
+                      ) : isEsLoading ? (
+                        <div className="space-y-2 animate-pulse py-2">
+                          <div className="h-6 bg-earth/10 dark:bg-white/10 rounded-lg w-full" />
+                          <div className="h-6 bg-earth/10 dark:bg-white/10 rounded-lg w-5/6" />
+                        </div>
                       ) : (
                         <div className="p-4 bg-coral/10 rounded-2xl flex items-center gap-3 text-coral border border-coral/20">
                           <AlertCircle size={20} />
@@ -1002,6 +1021,11 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
                         <p className={`text-2xl sm:text-3xl font-serif leading-relaxed text-earth dark:text-ivory ${VERSE_LAYOUT.FONT_WEIGHT} tracking-tight`}>
                           {enText}
                         </p>
+                      ) : isEnLoading ? (
+                        <div className="space-y-2 animate-pulse py-2">
+                          <div className="h-6 bg-earth/10 dark:bg-white/10 rounded-lg w-full" />
+                          <div className="h-6 bg-earth/10 dark:bg-white/10 rounded-lg w-5/6" />
+                        </div>
                       ) : (
                         <div className="p-4 bg-coral/10 rounded-2xl flex items-center gap-3 text-coral border border-coral/20">
                           <AlertCircle size={20} />
@@ -1228,9 +1252,11 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
                       pathProgress: JSON.parse(JSON.stringify(state.pathProgress)),
                       customPathProgress: JSON.parse(JSON.stringify(state.customPathProgress))
                     });
-                    onCompletePathDay();
+                    const success = onCompletePathDay();
                     setIsConfirmingComplete(false);
-                    setShowUndoToast(true);
+                    if (success) {
+                      setShowUndoToast(true);
+                    }
                   }}
                   className="w-full py-3 bg-amber-500 hover:bg-amber-600 dark:bg-amber-500 dark:hover:bg-amber-600 text-white font-black text-xs uppercase tracking-wider rounded-2xl active:scale-98 transition-all shadow-md shadow-amber-500/20"
                 >
