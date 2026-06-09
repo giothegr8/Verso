@@ -182,11 +182,7 @@ export default function Saved({ state, setState, onStartMemorizing, onGoToFlashc
     return (
       <motion.div 
         key={verse.id}
-        layout
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
-        transition={{ delay: idx * 0.05 }}
         whileHover={{ scale: 1.01, y: -2 }}
         className="card p-6 space-y-4 border border-earth/10 dark:border-white/10 bg-white dark:bg-charcoal shadow-lg relative overflow-hidden group"
       >

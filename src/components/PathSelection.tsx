@@ -579,14 +579,6 @@ export default function PathSelection({ state, setState, onSelectPath, onBack, o
                   <div className="w-12 h-12 rounded-2xl bg-teal/10 flex items-center justify-center text-teal mb-2">
                     <Sprout size={24} />
                   </div>
-                  {!isCustom && selectedPath.id === "surprising-moments" && (
-                    <div className="flex items-center gap-1.5 px-3 py-1 bg-amber-500/10 dark:bg-amber-500/20 rounded-full border border-amber-500/20 dark:border-amber-400/20 text-xs mb-2 select-none animate-in fade-in duration-300">
-                      <span>🤔</span>
-                      <span className="font-black uppercase tracking-[0.1em] text-amber-700 dark:text-amber-300 text-[9px]">
-                        {isEs ? "Curioso" : "Curious"}
-                      </span>
-                    </div>
-                  )}
                 </div>
                 {isCustom && (
                   <div className="flex items-center gap-2">
@@ -816,7 +808,7 @@ export default function PathSelection({ state, setState, onSelectPath, onBack, o
   }
 
   return (
-    <div id="paths-content" className="flex flex-col pb-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div id="paths-content" className="flex flex-col pb-12">
       {/* Page Header - Refined for Consistency and Left Aligned */}
       <div className="w-full mb-8 sm:mb-12">
         <div className="flex flex-col space-y-2 sm:space-y-3">
@@ -886,9 +878,6 @@ export default function PathSelection({ state, setState, onSelectPath, onBack, o
                 return (
                   <motion.button
                     key={path.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: idx * 0.05 }}
                     onClick={() => setSelectedPath(path)}
                     className={`group relative flex flex-col items-start p-6 bg-white dark:bg-charcoal border transition-all text-left overflow-hidden ring-1 ${
                       isPathCompleted
@@ -991,9 +980,6 @@ export default function PathSelection({ state, setState, onSelectPath, onBack, o
           return (
             <motion.button
               key={path.id}
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: index * 0.03 }}
               onClick={() => setSelectedPath(path)}
               className={`group relative flex flex-col items-start p-6 bg-white dark:bg-charcoal border transition-all text-left overflow-hidden ring-1 ${
                 isPathCompleted
@@ -1028,53 +1014,39 @@ export default function PathSelection({ state, setState, onSelectPath, onBack, o
                     {path.duration} {isEs ? (path.duration === 1 ? "día" : "días") : (path.duration === 1 ? "day" : "days")}
                   </span>
                 </div>
-                {path.id === "surprising-moments" && (
-                  <div className="flex items-center gap-1 px-2.5 py-1 bg-amber-500/10 dark:bg-amber-500/20 rounded-full border border-amber-500/20 dark:border-amber-400/20 text-xs shrink-0 select-none animate-in fade-in duration-300" title={isEs ? "¡Sorprendente!" : "Intriguing!"}>
-                    <span>🤔</span>
-                    <span className="hidden sm:inline font-black uppercase tracking-[0.1em] text-amber-600 dark:text-amber-400 text-[9px]">
-                      {isEs ? "Curioso" : "Curious"}
-                    </span>
-                  </div>
-                )}
               </div>
 
               {/* Current Status Badge - Independent of duration pill */}
               <div className="mb-4 min-h-[1.5rem] relative z-10 flex gap-2">
                 {isPathCompleted && (
-                  <motion.div 
-                    initial={{ opacity: 0, y: 5 }}
-                    animate={{ opacity: 1, y: 0 }}
+                  <div 
                     className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/10 dark:bg-amber-500/20 rounded-lg border border-amber-500/20 dark:border-amber-400/20"
                   >
                     <Flower2 size={10} className="text-amber-600 dark:text-amber-400" />
                     <span className="text-[9px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-400">
                       {isEs ? "Completado" : "Completed"}
                     </span>
-                  </motion.div>
+                  </div>
                 )}
                 {!isPathCompleted && getPathWasCompletedBefore(path) && (
-                  <motion.div 
-                    initial={{ opacity: 0, y: 5 }}
-                    animate={{ opacity: 1, y: 0 }}
+                  <div 
                     className="flex items-center gap-1.5 px-2.5 py-1 bg-earth/5 dark:bg-white/5 rounded-lg border border-earth/10 dark:border-white/10"
                   >
                     <Flower2 size={10} className="text-earth/45 dark:text-ivory/45" />
                     <span className="text-[9px] font-black uppercase tracking-widest text-earth/50 dark:text-ivory/50">
                       {isEs ? "Completada" : "Completed"}
                     </span>
-                  </motion.div>
+                  </div>
                 )}
                 {isActive && (
-                  <motion.div 
-                    initial={{ opacity: 0, y: 5 }}
-                    animate={{ opacity: 1, y: 0 }}
+                  <div 
                     className="flex items-center gap-1.5 px-2.5 py-1 bg-teal/10 dark:bg-teal/20 rounded-lg border border-teal/20 dark:border-teal-400/20"
                   >
                     <div className="w-1.5 h-1.5 rounded-full bg-teal dark:bg-teal-400 animate-pulse" />
                     <span className="text-[9px] font-black uppercase tracking-widest text-teal dark:text-teal-400">
                       {isEs ? "Actual" : "Current"}
                     </span>
-                  </motion.div>
+                  </div>
                 )}
               </div>
 
