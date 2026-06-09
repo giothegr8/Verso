@@ -987,7 +987,7 @@ function AppInner() {
           </div>
         </header>
 
-        <main className="flex-1 flex flex-col pt-4 sm:pt-6 pb-32">
+        <main className="flex-1 flex flex-col pt-4 sm:pt-6 pb-24 sm:pb-32">
           <div className="content-column flex-1">
             <AnimatePresence mode="wait">
               <motion.div
@@ -1004,7 +1004,10 @@ function AppInner() {
           </div>
         </main>
 
-        <div className="fixed bottom-0 left-0 right-0 z-40 px-6 pb-8 pointer-events-none">
+        <div 
+          className="fixed bottom-0 left-0 right-0 z-40 px-6 pointer-events-none"
+          style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))" }}
+        >
           <nav className="max-w-xl mx-auto bg-white dark:bg-charcoal border border-earth/10 dark:border-white/10 px-6 sm:px-10 py-3.5 flex justify-around items-center rounded-[32px] shadow-[0_15px_50px_rgba(0,0,0,0.15)] pointer-events-auto transition-colors duration-500">
             <NavButton id="nav-home" active={activeTab === 'home'} activeColor="text-playful-purple" onClick={() => handleSetActiveTab('home')} icon={<HomeIcon size={22} />} label={state.primaryLanguage === 'es' ? 'Inicio' : 'Home'} />
             <NavButton id="nav-memorize" active={activeTab === 'memorize'} activeColor="text-gold" onClick={() => setActiveTab('memorize')} icon={<BookOpen size={22} />} label={state.primaryLanguage === 'es' ? 'Memorizar' : 'Memorize'} />

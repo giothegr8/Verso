@@ -200,6 +200,10 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
     return !!(hasAllCompleted || inCompletedIds);
   }, [selectedPath, isCustomPath, state.customPathProgress, state.pathProgress, pathDuration]);
 
+  const displayedPathDayNum = (isPathDayComplete && !isPathFullyCompleted)
+    ? Math.max(1, currentPathDayNum - 1)
+    : currentPathDayNum;
+
   const savedProgressForSelected = selectedPath 
     ? (isCustomPath 
         ? (state.customPathProgress?.savedProgress || {})[selectedPath.id] 
@@ -207,11 +211,13 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
     : null;
   const shuffledDayOrder = savedProgressForSelected?.shuffledDayOrder;
 
-  const nextPathDayNum = currentPathDayNum < pathDuration ? currentPathDayNum + 1 : null;
+  const nextPathDayNum = isPathDayComplete
+    ? (currentPathDayNum <= pathDuration ? currentPathDayNum : null)
+    : (currentPathDayNum < pathDuration ? currentPathDayNum + 1 : null);
 
   const originalCurrentDayNum = shuffledDayOrder && shuffledDayOrder.length === pathDuration
-    ? (shuffledDayOrder[currentPathDayNum - 1] || currentPathDayNum)
-    : currentPathDayNum;
+    ? (shuffledDayOrder[displayedPathDayNum - 1] || displayedPathDayNum)
+    : displayedPathDayNum;
 
   const originalNextDayNum = nextPathDayNum
     ? (shuffledDayOrder && shuffledDayOrder.length === pathDuration
@@ -344,6 +350,17 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
 
   const isCustomMode = state.activeSource === "custom";
   const isVotd = currentVerse.id === votd.id && !isCustomMode;
+
+  const isCurrentVerseCompleted = (() => {
+    if (isCustomMode) return false;
+    if (state.activeSource === 'path') {
+      return isPathDayComplete;
+    }
+    if (isVotd) {
+      return state.progress.lastCompletedDailyVerseDate === today;
+    }
+    return false;
+  })();
 
   const { esText, enText, esError, enError, activePair: validatedPair } = getValidatedVerse(currentVerse, state);
   const esTransToUse = validatedPair?.es || esDetail.id;
@@ -571,7 +588,7 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
                     </h3>
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] font-black uppercase tracking-[0.15em] text-amber-500 dark:text-amber-400">
-                        {isEs ? `Día ${currentPathDayNum} de ${pathDuration}` : `Day ${currentPathDayNum} of ${pathDuration}`}
+                        {isEs ? `Día ${displayedPathDayNum} de ${pathDuration}` : `Day ${displayedPathDayNum} of ${pathDuration}`}
                       </span>
                     </div>
                   </div>
@@ -586,9 +603,9 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
                       
                       const isCompleted = isPathFullyCompleted || 
                                           pathSaved?.completedDays?.includes(dayNum) || 
-                                          dayNum < currentPathDayNum || 
-                                          (dayNum === currentPathDayNum && isPathDayComplete);
-                      const isActive = !isPathFullyCompleted && dayNum === currentPathDayNum && !isPathDayComplete;
+                                          dayNum < displayedPathDayNum || 
+                                          (dayNum === displayedPathDayNum && isPathDayComplete);
+                      const isActive = !isPathFullyCompleted && dayNum === displayedPathDayNum && !isPathDayComplete;
                       
                       return (
                         <div key={i} className="relative flex items-center justify-center w-3 h-3">
@@ -629,7 +646,7 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
 
                 {/* Body Content Section */}
                 {isPathDayComplete ? (
-                  <div className="space-y-2 pt-2">
+                  <div className="space-y-3 pt-2">
                     <div className="flex items-center gap-2.5 text-teal dark:text-teal-400">
                       <div className="w-8 h-8 rounded-full bg-teal/10 flex items-center justify-center text-teal dark:text-teal-400">
                         <CheckCircle2 size={16} />
@@ -638,14 +655,42 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
                         {isEs ? "Día completado" : "Day completed"}
                       </h4>
                     </div>
+                    <p className="text-sm text-earth-light/70 dark:text-lavender-muted/70 font-medium leading-relaxed">
+                      {isEs ? (
+                        "Puedes volver mañana o seguir con el siguiente día."
+                      ) : (
+                        "You can return tomorrow or continue with the next day."
+                      )}
+                    </p>
                     {nextPathDay && (
-                      <p className="text-sm text-earth-light/60 dark:text-lavender-muted/60">
-                        {isEs ? (
-                          <span>Vuelve mañana para <span className="font-serif italic font-bold text-amber-600 dark:text-amber-400 whitespace-nowrap">{formatReferenceForLocale(nextPathDay.reference, 'es')}</span>.</span>
-                        ) : (
-                          <span>Come back tomorrow for <span className="font-serif italic font-bold text-amber-500 dark:text-amber-400 whitespace-nowrap">{formatReferenceForLocale(nextPathDay.reference, 'en')}</span>.</span>
-                        )}
-                      </p>
+                      <button
+                        id="next-path-day-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setState(s => {
+                            if (isCustomPath) {
+                              return {
+                                ...s,
+                                customPathProgress: {
+                                  ...s.customPathProgress,
+                                  pathCompletedToday: false
+                                }
+                              };
+                            } else {
+                              return {
+                                ...s,
+                                pathProgress: {
+                                  ...s.pathProgress,
+                                  pathCompletedToday: false
+                                }
+                              };
+                            }
+                          });
+                        }}
+                        className="py-2.5 px-5 bg-teal text-white hover:bg-teal-dark dark:bg-teal dark:text-white dark:hover:bg-teal/90 text-xs font-black uppercase tracking-wider rounded-xl inline-flex items-center justify-center gap-2 mt-1 shadow-md hover:bg-opacity-95 select-none active:scale-95 transition-all cursor-pointer"
+                      >
+                        {isEs ? "siguiente día" : "next day"}
+                      </button>
                     )}
                   </div>
                 ) : (
@@ -887,22 +932,35 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
                           : (state.primaryLanguage === 'es' ? 'Versículo extra' : 'Extra verse'))}
                     </p>
                   </div>
-                    <button 
-                      id="memorize-btn-main"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (esText || enText) {
-                          onStartMemorizing(currentVerse.id);
-                        }
-                      }}
-                      disabled={!esText && !enText}
-                      className={`relative overflow-hidden group flex items-center gap-2.5 py-3.5 px-10 bg-teal/10 hover:bg-teal/20 text-teal dark:text-teal-400 rounded-full font-bold border border-teal/20 transition-all shadow-sm active:scale-95 ${(!esText && !enText) ? 'opacity-50 grayscale cursor-not-allowed' : ''}`}
-                    >
-                      <BookOpen size={16} className="text-teal" />
-                      <span className="text-sm sm:text-base tracking-tight lowercase">
-                        {state.primaryLanguage === 'es' ? 'memorizar' : 'memorize'}
-                      </span>
-                    </button>
+                    {isCurrentVerseCompleted ? (
+                      <div className="flex flex-col sm:flex-row items-center gap-3">
+                        <span className="text-sm font-semibold text-teal dark:text-teal-400 font-serif">
+                          {state.activeSource === 'path'
+                            ? (isEs ? "Día completado." : "Day completed.")
+                            : (isEs ? "Completaste el versículo de hoy." : "You completed today’s verse.")}
+                        </span>
+                        <div className="flex items-center gap-2 py-2 px-5 bg-teal/15 text-teal dark:text-teal-400 rounded-full font-bold border border-teal/30 select-none">
+                          <span>✓ {isEs ? "completado" : "completed"}</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <button 
+                        id="memorize-btn-main"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (esText || enText) {
+                            onStartMemorizing(currentVerse.id);
+                          }
+                        }}
+                        disabled={!esText && !enText}
+                        className={`relative overflow-hidden group flex items-center gap-2.5 py-3.5 px-10 bg-teal/10 hover:bg-teal/20 text-teal dark:text-teal-400 rounded-full font-bold border border-teal/20 transition-all shadow-sm active:scale-95 ${(!esText && !enText) ? 'opacity-50 grayscale cursor-not-allowed' : ''}`}
+                      >
+                        <BookOpen size={16} className="text-teal" />
+                        <span className="text-sm sm:text-base tracking-tight lowercase">
+                          {state.primaryLanguage === 'es' ? 'memorizar' : 'memorize'}
+                        </span>
+                      </button>
+                    )}
                 </div>
               </div>
             </motion.div>
@@ -1087,22 +1145,35 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
                           : (state.primaryLanguage === 'es' ? 'Versículo extra' : 'Extra verse'))}
                     </p>
                   </div>
-                    <button 
-                      id="memorize-btn-main"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (esText || enText) {
-                          onStartMemorizing(currentVerse.id);
-                        }
-                      }}
-                      disabled={!esText && !enText}
-                      className={`relative overflow-hidden group flex items-center gap-2.5 py-3.5 px-10 bg-teal/10 hover:bg-teal/20 text-teal dark:text-teal-400 rounded-full font-bold border border-teal/20 transition-all shadow-sm active:scale-95 ${(!esText && !enText) ? 'opacity-50 grayscale cursor-not-allowed' : ''}`}
-                    >
-                      <BookOpen size={16} className="text-teal" />
-                      <span className="text-sm sm:text-base tracking-tight lowercase">
-                        {state.primaryLanguage === 'es' ? 'memorizar' : 'memorize'}
-                      </span>
-                    </button>
+                    {isCurrentVerseCompleted ? (
+                      <div className="flex flex-col sm:flex-row items-center gap-3">
+                        <span className="text-sm font-semibold text-teal dark:text-teal-400 font-serif">
+                          {state.activeSource === 'path'
+                            ? (isEs ? "Día completado de la serie." : "Series day completed.")
+                            : (isEs ? "Completaste el versículo de hoy." : "You completed today’s verse.")}
+                        </span>
+                        <div className="flex items-center gap-2 py-2 px-5 bg-teal/15 text-teal dark:text-teal-400 rounded-full font-bold border border-teal/30 select-none">
+                          <span>✓ {isEs ? "completado" : "completed"}</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <button 
+                        id="memorize-btn-main"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (esText || enText) {
+                            onStartMemorizing(currentVerse.id);
+                          }
+                        }}
+                        disabled={!esText && !enText}
+                        className={`relative overflow-hidden group flex items-center gap-2.5 py-3.5 px-10 bg-teal/10 hover:bg-teal/20 text-teal dark:text-teal-400 rounded-full font-bold border border-teal/20 transition-all shadow-sm active:scale-95 ${(!esText && !enText) ? 'opacity-50 grayscale cursor-not-allowed' : ''}`}
+                      >
+                        <BookOpen size={16} className="text-teal" />
+                        <span className="text-sm sm:text-base tracking-tight lowercase">
+                          {state.primaryLanguage === 'es' ? 'memorizar' : 'memorize'}
+                        </span>
+                      </button>
+                    )}
                 </div>
               </div>
             </motion.div>

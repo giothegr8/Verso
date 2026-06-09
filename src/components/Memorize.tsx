@@ -1789,9 +1789,9 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
   }
 
   return (
-    <div id="memorize-content" className="flex-1 flex flex-col pt-4 pb-12">
+    <div id="memorize-content" className="flex-1 flex flex-col pt-4 pb-6 sm:pb-12">
       {/* Top Section - Premium Header (Refined Size) */}
-      <div className="px-6 sm:px-12 mb-8 sm:mb-10 flex-shrink-0">
+      <div className="px-6 sm:px-12 mb-4 sm:mb-10 flex-shrink-0">
         <div className="space-y-2 sm:space-y-3">
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-2">
@@ -1853,7 +1853,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
         </div>
         
         {/* Dotted Progress Indicator - Organic Seed Trail */}
-        <div className="w-full flex justify-center items-center pt-10 pb-8 overflow-hidden">
+        <div className="w-full flex justify-center items-center pt-4 pb-3 sm:pt-10 sm:pb-8 overflow-hidden">
           <div className="relative flex items-center justify-center gap-2 sm:gap-3 px-4">
             {Array.from({ length: 21 }).map((_, i) => {
               // Every 5th dot is a main node (0, 5, 10, 15, 20)
@@ -1929,7 +1929,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
           {/* Card Body - DYNAMIC BUT STABLE HEIGHT */}
           <div 
             ref={cardRef}
-            style={cardHeight ? { height: `${cardHeight}px`, minHeight: isMobile ? '360px' : '520px' } : { height: 'auto', minHeight: isMobile ? '360px' : '520px' }}
+            style={cardHeight ? { height: `${cardHeight}px`, minHeight: isMobile ? '320px' : '520px' } : { height: 'auto', minHeight: isMobile ? '320px' : '520px' }}
             className="w-full flex flex-col items-center relative bg-white dark:bg-charcoal border-none rounded-[40px] overflow-visible transition-[height] duration-500 ease-in-out"
           >
             {/* Input Overlay for Stage 5 */}
@@ -2414,7 +2414,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
         className="w-full flex-shrink-0 px-6 sm:px-12 pb-6 sm:pb-8 pt-4 relative z-10"
       >
         {/* Feedback Area (Reserved: 16/20) */}
-        <div className="h-12 w-full flex items-center justify-center mb-2">
+        <div className={`w-full flex items-center justify-center mb-1 overflow-hidden transition-[height] duration-300 ${stage === 5 && feedback ? 'h-12' : 'h-0'}`}>
           <AnimatePresence mode="wait">
             {stage === 5 && feedback ? (
               <motion.div 

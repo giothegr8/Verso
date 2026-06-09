@@ -825,8 +825,8 @@ export const PATHS: Path[] = [
   },
   {
     id: "surprising-moments",
-    title: "Surprising Bible",
-    titleEs: "Sorprendente Biblia",
+    title: "That’s in the Bible?",
+    titleEs: "¿Eso está en la Biblia?",
     description: "Curious, unexpected, and even humorous moments in Scripture.",
     descriptionEs: "Momentos curiosos, inesperados e incluso divertidos de la Biblia.",
     duration: 7,

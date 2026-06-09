@@ -574,9 +574,19 @@ export default function PathSelection({ state, setState, onSelectPath, onBack, o
 
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6">
             <div className="space-y-3 flex-1">
-              <div className="flex items-center justify-between gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-teal/10 flex items-center justify-center text-teal mb-2">
-                  <Sprout size={24} />
+              <div className="flex items-center justify-between gap-4 flex-wrap">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-teal/10 flex items-center justify-center text-teal mb-2">
+                    <Sprout size={24} />
+                  </div>
+                  {!isCustom && selectedPath.id === "surprising-moments" && (
+                    <div className="flex items-center gap-1.5 px-3 py-1 bg-amber-500/10 dark:bg-amber-500/20 rounded-full border border-amber-500/20 dark:border-amber-400/20 text-xs mb-2 select-none animate-in fade-in duration-300">
+                      <span>🤔</span>
+                      <span className="font-black uppercase tracking-[0.1em] text-amber-700 dark:text-amber-300 text-[9px]">
+                        {isEs ? "Curioso" : "Curious"}
+                      </span>
+                    </div>
+                  )}
                 </div>
                 {isCustom && (
                   <div className="flex items-center gap-2">
@@ -603,7 +613,7 @@ export default function PathSelection({ state, setState, onSelectPath, onBack, o
                   </div>
                 )}
               </div>
-              <h2 className="text-4xl sm:text-5xl font-serif font-black text-earth dark:text-ivory tracking-tight leading-tight">
+              <h2 className="text-2xl xs:text-3xl sm:text-4xl md:text-5xl font-serif font-black text-earth dark:text-ivory tracking-tight leading-tight">
                 {pathTitle}
               </h2>
               <p className="text-lg text-earth-light/80 dark:text-lavender-muted/80 font-medium max-w-xl">
@@ -949,7 +959,7 @@ export default function PathSelection({ state, setState, onSelectPath, onBack, o
                     </div>
 
                     <div className="flex-1 space-y-3 relative z-10 w-full mb-6 text-left">
-                      <h3 className="text-xl sm:text-2xl font-serif font-black transition-colors leading-tight text-earth dark:text-ivory min-h-[4.5rem] sm:min-h-[4rem] line-clamp-2">
+                      <h3 className="text-[17px] sm:text-[21px] md:text-2xl font-serif font-black transition-colors leading-tight text-earth dark:text-ivory min-h-[3rem] sm:min-h-[3.5rem] md:min-h-[4rem] line-clamp-2">
                         {path.title}
                       </h3>
                       <p className="text-sm text-earth-light/70 dark:text-lavender-muted/60 leading-relaxed line-clamp-2 min-h-[2.5rem]">
@@ -1018,6 +1028,14 @@ export default function PathSelection({ state, setState, onSelectPath, onBack, o
                     {path.duration} {isEs ? (path.duration === 1 ? "día" : "días") : (path.duration === 1 ? "day" : "days")}
                   </span>
                 </div>
+                {path.id === "surprising-moments" && (
+                  <div className="flex items-center gap-1 px-2.5 py-1 bg-amber-500/10 dark:bg-amber-500/20 rounded-full border border-amber-500/20 dark:border-amber-400/20 text-xs shrink-0 select-none animate-in fade-in duration-300" title={isEs ? "¡Sorprendente!" : "Intriguing!"}>
+                    <span>🤔</span>
+                    <span className="hidden sm:inline font-black uppercase tracking-[0.1em] text-amber-600 dark:text-amber-400 text-[9px]">
+                      {isEs ? "Curioso" : "Curious"}
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Current Status Badge - Independent of duration pill */}
@@ -1061,7 +1079,7 @@ export default function PathSelection({ state, setState, onSelectPath, onBack, o
               </div>
 
               <div className="flex-1 space-y-3 relative z-10 w-full mb-6">
-                <h3 className="text-xl sm:text-2xl font-serif font-black transition-colors leading-tight text-earth dark:text-ivory min-h-[4.5rem] sm:min-h-[4rem] line-clamp-2">
+                <h3 className="text-[17px] sm:text-[21px] md:text-2xl font-serif font-black transition-colors leading-tight text-earth dark:text-ivory min-h-[3rem] sm:min-h-[3.5rem] md:min-h-[4rem] line-clamp-2">
                   {isEs ? path.titleEs : path.title}
                 </h3>
                 <p className="text-sm text-earth-light/70 dark:text-lavender-muted/60 leading-relaxed line-clamp-2 min-h-[2.5rem]">
