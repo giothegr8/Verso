@@ -202,39 +202,8 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
   const celebratedHalfwayRef = useRef<string>("");
   const celebratedAlmostDoneRef = useRef<string>("");
 
-  // Persist current typing/recall state on modification to remain robust to browser reloads
-  useEffect(() => {
-    const stateObj = {
-      bilingualPass,
-      activeLanguage,
-      userInputEs,
-      userInputEn,
-      cursorIndexEs,
-      cursorIndexEn,
-      clueCountEs,
-      clueCountEn,
-      revealedIndicesEs,
-      revealedIndicesEn,
-      isWrongEs,
-      isWrongEn,
-      hasSubmittedEs,
-      hasSubmittedEn,
-      incorrectIndicesEs,
-      incorrectIndicesEn,
-      submittedWrongCharsEs,
-      submittedWrongCharsEn,
-      isCorrectEs,
-      isCorrectEn,
-      didFailFlowEs,
-      didFailFlowEn,
-    };
-    try {
-      localStorage.setItem(typingStateKey, JSON.stringify(stateObj));
-    } catch (e) {
-      console.warn("Failed to save typing state", e);
-    }
-  }, [
-    typingStateKey,
+  // Refs and helper to always hold the latest state values for non-reactive access in debounced save
+  const stateRef = useRef({
     bilingualPass,
     activeLanguage,
     userInputEs,
@@ -257,7 +226,87 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
     isCorrectEn,
     didFailFlowEs,
     didFailFlowEn,
+  });
+
+  // Keep stateRef up to date on every render
+  stateRef.current = {
+    bilingualPass,
+    activeLanguage,
+    userInputEs,
+    userInputEn,
+    cursorIndexEs,
+    cursorIndexEn,
+    clueCountEs,
+    clueCountEn,
+    revealedIndicesEs,
+    revealedIndicesEn,
+    isWrongEs,
+    isWrongEn,
+    hasSubmittedEs,
+    hasSubmittedEn,
+    incorrectIndicesEs,
+    incorrectIndicesEn,
+    submittedWrongCharsEs,
+    submittedWrongCharsEn,
+    isCorrectEs,
+    isCorrectEn,
+    didFailFlowEs,
+    didFailFlowEn,
+  };
+
+  const saveStateImmediately = () => {
+    try {
+      localStorage.setItem(typingStateKey, JSON.stringify(stateRef.current));
+    } catch (e) {
+      console.warn("Failed to save typing state", e);
+    }
+  };
+
+  // 1. Debounced save for the hot path (typing)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      saveStateImmediately();
+    }, 800); // 800ms debounce
+    return () => clearTimeout(timer);
+  }, [
+    typingStateKey,
+    userInputEs,
+    userInputEn,
+    cursorIndexEs,
+    cursorIndexEn,
+    clueCountEs,
+    clueCountEn,
+    revealedIndicesEs,
+    revealedIndicesEn,
+    isWrongEs,
+    isWrongEn,
+    incorrectIndicesEs,
+    incorrectIndicesEn,
+    submittedWrongCharsEs,
+    submittedWrongCharsEn,
   ]);
+
+  // 2. Instantly save state on checkpoints, or on unmount
+  useEffect(() => {
+    saveStateImmediately();
+  }, [
+    stage,
+    activeLanguage,
+    typingStateKey,
+    isCorrectEs,
+    isCorrectEn,
+    didFailFlowEs,
+    didFailFlowEn,
+    hasSubmittedEs,
+    hasSubmittedEn,
+    bilingualPass,
+  ]);
+
+  useEffect(() => {
+    return () => {
+      saveStateImmediately();
+    };
+  }, [typingStateKey]);
 
   const attempts = activeLanguage === 'es' ? attemptsEs : attemptsEn;
   const isWrong = activeLanguage === 'es' ? isWrongEs : isWrongEn;
@@ -334,9 +383,18 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
   const esDetail = TRANSLATION_DETAILS[activePair?.es || "RVR1960"] || TRANSLATION_DETAILS["RVR1960"];
   const enDetail = TRANSLATION_DETAILS[activePair?.en || "KJV"] || TRANSLATION_DETAILS["KJV"];
 
+  const cleanCacheRef = useRef<Record<string, string>>({});
   const getCleanLetters = (text: string | null | undefined) => {
     if (!text) return "";
-    return text.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ]/g, "");
+    if (cleanCacheRef.current[text] !== undefined) {
+      return cleanCacheRef.current[text];
+    }
+    const clean = text.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ]/g, "");
+    if (Object.keys(cleanCacheRef.current).length > 200) {
+      cleanCacheRef.current = {};
+    }
+    cleanCacheRef.current[text] = clean;
+    return clean;
   };
 
   const { esText, enText, esError, enError, activePair: validatedPair } = getValidatedVerse(verse, state);
@@ -345,10 +403,18 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
   const isEsLoading = !!(verse && state.loadingTranslations && state.loadingTranslations[`${verse.id}_${esTransToUse}`]);
   const isEnLoading = !!(verse && state.loadingTranslations && state.loadingTranslations[`${verse.id}_${enTransToUse}`]);
 
+  const esTextCleanLen = useMemo(() => {
+    return getCleanLetters(esText).length;
+  }, [esText]);
+
+  const enTextCleanLen = useMemo(() => {
+    return getCleanLetters(enText).length;
+  }, [enText]);
+
   const isEditable = (idx: number, lang: 'es' | 'en') => {
     const text = lang === 'es' ? esText : enText;
     if (!text) return false;
-    const cleanLen = getCleanLetters(text).length;
+    const cleanLen = lang === 'es' ? esTextCleanLen : enTextCleanLen;
     const revealedIndices = lang === 'es' ? revealedIndicesEs : revealedIndicesEn;
     return idx >= 0 && idx < cleanLen && !revealedIndices.includes(idx);
   };
@@ -356,7 +422,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
   const isValidCursorIndex = (p: number, lang: 'es' | 'en') => {
     const text = lang === 'es' ? esText : enText;
     if (!text) return false;
-    const cleanLen = getCleanLetters(text).length;
+    const cleanLen = lang === 'es' ? esTextCleanLen : enTextCleanLen;
     if (p < 0 || p > cleanLen) return false;
     
     // Position is valid if we can stand before an editable letter at p
@@ -380,7 +446,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
   const findNextEditableIndex = (cursorPosition: number, lang: 'es' | 'en') => {
     const text = lang === 'es' ? esText : enText;
     if (!text) return -1;
-    const cleanLen = getCleanLetters(text).length;
+    const cleanLen = lang === 'es' ? esTextCleanLen : enTextCleanLen;
     for (let i = cursorPosition; i < cleanLen; i++) {
       if (isEditable(i, lang)) {
         return i;
@@ -392,7 +458,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
   const getNearestCursorIndex = (p: number, lang: 'es' | 'en') => {
     const text = lang === 'es' ? esText : enText;
     if (!text) return 0;
-    const cleanLen = getCleanLetters(text).length;
+    const cleanLen = lang === 'es' ? esTextCleanLen : enTextCleanLen;
     p = Math.max(0, Math.min(p, cleanLen));
     
     if (isValidCursorIndex(p, lang)) return p;
@@ -1951,7 +2017,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
 
                   const getNextIdx = (idx: number, dir: number) => {
                     if (!text) return 0;
-                    const cleanLen = getCleanLetters(text).length;
+                    const cleanLen = activeLanguage === 'es' ? esTextCleanLen : enTextCleanLen;
                     let next = idx + dir;
                     while (next >= 0 && next <= cleanLen) {
                       if (isValidCursorIndex(next, activeLanguage)) {
@@ -2177,7 +2243,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                   const cursor = activeLanguage === 'es' ? cursorIndexEs : cursorIndexEn;
                   const setCursor = activeLanguage === 'es' ? setCursorIndexEs : setCursorIndexEn;
                   const text = activeLanguage === 'es' ? esText : enText;
-                  const targetClean = getCleanLetters(text || "");
+                  const targetCleanLen = activeLanguage === 'es' ? esTextCleanLen : enTextCleanLen;
                   const setter = activeLanguage === 'es' ? setUserInputEs : setUserInputEn;
                   const userInput = activeLanguage === 'es' ? userInputEs : userInputEn;
                   
@@ -2205,7 +2271,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                       return;
                     }
                     
-                    const cleanLen = targetClean.length;
+                    const cleanLen = targetCleanLen;
                     if (cursor < cleanLen && isEditable(cursor, activeLanguage)) {
                       // Update state
                       setter(prev => {
