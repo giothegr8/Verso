@@ -818,7 +818,7 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
         ) : (
           <>
             {/* Card Container - Restored to wider width with balanced height */}
-            <div className="relative w-full h-[660px] sm:h-[720px] lg:h-[780px] perspective-1000 mb-10 mx-auto">
+            <div className={`relative w-full ${state.memorizeMode === 'both' ? 'h-[720px] sm:h-[740px] lg:h-[780px]' : 'h-[660px] sm:h-[720px] lg:h-[780px]'} perspective-1000 mb-10 mx-auto`}>
           <motion.div
             className="w-full h-full preserve-3d"
             animate={{ rotateY: isFlipped ? 180 : 0 }}
@@ -1167,7 +1167,7 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
                         const esBlock = (state.memorizeMode === 'es' || state.memorizeMode === 'both') && (
                           <div key="es" className={`space-y-1 font-serif font-bold text-earth/80 dark:text-ivory/80 ${VERSE_LAYOUT.LINE_HEIGHT}`}>
                             {getVerseLines(esText).map((line, i) => (
-                              <p key={i} className="text-base sm:text-xl leading-relaxed">
+                              <p key={i} className={`${state.memorizeMode === 'both' ? 'text-sm sm:text-lg' : 'text-base sm:text-xl'} leading-relaxed text-balance`}>
                                 {line}
                               </p>
                             ))}
@@ -1177,7 +1177,7 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
                         const enBlock = (state.memorizeMode === 'en' || state.memorizeMode === 'both') && (
                           <div key="en" className={`space-y-1 font-serif font-bold text-earth/80 dark:text-ivory/80 ${VERSE_LAYOUT.LINE_HEIGHT}`}>
                             {getVerseLines(enText).map((line, i) => (
-                              <p key={i} className="text-base sm:text-xl leading-relaxed">
+                              <p key={i} className={`${state.memorizeMode === 'both' ? 'text-sm sm:text-lg' : 'text-base sm:text-xl'} leading-relaxed text-balance`}>
                                 {line}
                               </p>
                             ))}

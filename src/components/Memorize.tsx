@@ -1551,7 +1551,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                           else setCursorIndexEn(targetIdx);
                           setTimeout(() => inputRef.current?.focus(), 0);
                         }}
-                        className={`${baseSlotClasses} cursor-text transition-all duration-200 ${
+                        className={`${baseSlotClasses} cursor-text transition-colors duration-200 ${
                           isRevealedByClue || userChar
                             ? isWrongChar ? 'text-coral' : isCorrect || isRevealedByClue ? 'text-teal' : 'text-playful-purple'
                             : 'text-transparent'
@@ -1572,7 +1572,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                         )}
                         <span className="opacity-0 pointer-events-none select-none">{char}</span>
                         <span 
-                          className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center select-none transition-all duration-200 ${(userChar || isRevealedByClue) ? 'opacity-100' : 'opacity-0'} overflow-visible`}
+                          className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center select-none ${(userChar || isRevealedByClue) ? 'opacity-100' : 'opacity-0'} overflow-visible`}
                           style={{ width: 'max-content', minWidth: 'max-content', maxWidth: 'none' }}
                         >
                           <span 
