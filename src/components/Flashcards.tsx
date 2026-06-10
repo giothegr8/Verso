@@ -36,6 +36,17 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
   const inputRefEs = React.useRef<HTMLInputElement>(null);
   const inputRefEn = React.useRef<HTMLInputElement>(null);
 
+  const cursorPositionEsRef = React.useRef(0);
+  const cursorPositionEnRef = React.useRef(0);
+
+  useEffect(() => {
+    cursorPositionEsRef.current = cursorPositionEs;
+  }, [cursorPositionEs]);
+
+  useEffect(() => {
+    cursorPositionEnRef.current = cursorPositionEn;
+  }, [cursorPositionEn]);
+
   // Clear errors on any input change
   useEffect(() => {
     if (hasSubmitted || showError) {
@@ -171,7 +182,8 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
         if (refToFocus.current) {
           refToFocus.current.focus();
           setActiveLanguage(targetLang);
-          refToFocus.current.setSelectionRange(0, 1);
+          const currentCursor = targetLang === 'es' ? cursorPositionEsRef.current : cursorPositionEnRef.current;
+          refToFocus.current.setSelectionRange(currentCursor, currentCursor + 1);
         }
       }, 350);
       return () => clearTimeout(timer);
@@ -303,17 +315,21 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
   
   // Initialize user inputs with spaces when verse or mode changes
   useEffect(() => {
-    const esTarget = getTargetChars(esRef, revealedIndices.es);
-    const enTarget = getTargetChars(enRef, revealedIndices.en);
+    const esTarget = isCorrect || state.activeAttempt?.citationCorrect
+      ? getTargetChars(esRef, [])
+      : getTargetChars(esRef, revealedIndices.es);
+    const enTarget = isCorrect || state.activeAttempt?.citationCorrect
+      ? getTargetChars(enRef, [])
+      : getTargetChars(enRef, revealedIndices.en);
     
-    if (isCorrect) {
+    if (isCorrect || state.activeAttempt?.citationCorrect) {
       setUserInputEs(esTarget);
       setUserInputEn(enTarget);
     } else {
       setUserInputEs(" ".repeat(esTarget.length));
       setUserInputEn(" ".repeat(enTarget.length));
     }
-  }, [verse.id, state.memorizeMode, isCorrect]);
+  }, [verse.id, state.memorizeMode, isCorrect, state.activeAttempt?.citationCorrect]);
 
   const handleReset = (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
@@ -338,10 +354,54 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
       .trim();
   };
 
+  const hasClueEsAvailable = useMemo(() => {
+    if (clueCount.es >= 1 || isCorrect || isCompleted || attemptsLeft === 0) return false;
+    const ref = esRef;
+    const userInput = userInputEs;
+    const fillableIndices = getFillableIndices(ref, revealedIndices.es);
+    const parts = ref.split(' ');
+    const numbersPart = parts[parts.length - 1]; 
+    const numberStartIdx = ref.lastIndexOf(numbersPart);
+
+    const eligibleIndices = fillableIndices.filter(idx => {
+      const char = ref[idx];
+      const fillIdx = fillableIndices.indexOf(idx);
+      const userChar = userInput[fillIdx];
+      return !userChar || userChar === " " || normalize(userChar) !== normalize(char);
+    });
+
+    return eligibleIndices.length > 0;
+  }, [clueCount.es, isCorrect, isCompleted, esRef, userInputEs, revealedIndices.es, attemptsLeft]);
+
+  const hasClueEnAvailable = useMemo(() => {
+    if (clueCount.en >= 1 || isCorrect || isCompleted || attemptsLeft === 0) return false;
+    const ref = enRef;
+    const userInput = userInputEn;
+    const fillableIndices = getFillableIndices(ref, revealedIndices.en);
+    const parts = ref.split(' ');
+    const numbersPart = parts[parts.length - 1]; 
+    const numberStartIdx = ref.lastIndexOf(numbersPart);
+
+    const eligibleIndices = fillableIndices.filter(idx => {
+      const char = ref[idx];
+      const fillIdx = fillableIndices.indexOf(idx);
+      const userChar = userInput[fillIdx];
+      return !userChar || userChar === " " || normalize(userChar) !== normalize(char);
+    });
+
+    return eligibleIndices.length > 0;
+  }, [clueCount.en, isCorrect, isCompleted, enRef, userInputEn, revealedIndices.en, attemptsLeft]);
+
   // Citation clue logic: exactly 1 random useful clue per language
   const handleClue = (e: React.MouseEvent, lang: 'es' | 'en') => {
     e.stopPropagation();
-    if (clueCount[lang] >= 1) return;
+    if (clueCount[lang] >= 1 || isCorrect || isCompleted || attemptsLeft === 0) {
+      const inputRef = lang === 'es' ? inputRefEs : inputRefEn;
+      if (inputRef.current) {
+        inputRef.current.focus();
+      }
+      return;
+    }
 
     const ref = lang === 'es' ? esRef : enRef;
     const userInput = lang === 'es' ? userInputEs : userInputEn;
@@ -361,7 +421,13 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
       return !userChar || userChar === " " || normalize(userChar) !== normalize(char);
     });
 
-    if (eligibleIndices.length === 0) return;
+    if (eligibleIndices.length === 0) {
+      const inputRef = lang === 'es' ? inputRefEs : inputRefEn;
+      if (inputRef.current) {
+        inputRef.current.focus();
+      }
+      return;
+    }
 
     // Prioritize letters (book name) over digits (chapter/verse)
     const letterIndices = eligibleIndices.filter(idx => idx < numberStartIdx && /[\p{L}]/u.test(ref[idx]));
@@ -381,6 +447,8 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
     const setInput = lang === 'es' ? setUserInputEs : setUserInputEn;
     const removedFillIdx = fillableIndices.indexOf(chosenIdx);
     
+    let newCursorPosition = lang === 'es' ? cursorPositionEs : cursorPositionEn;
+
     if (removedFillIdx !== -1) {
       let newUserInput = userInput.split('');
       newUserInput.splice(removedFillIdx, 1);
@@ -389,12 +457,24 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
       const setCursor = lang === 'es' ? setCursorPositionEs : setCursorPositionEn;
       const currentCursor = lang === 'es' ? cursorPositionEs : cursorPositionEn;
       if (currentCursor > removedFillIdx) {
-        setCursor(currentCursor - 1);
+        newCursorPosition = currentCursor - 1;
+        setCursor(newCursorPosition);
       }
     }
 
     setRevealedIndices(newRevealed);
     setClueCount(prev => ({ ...prev, [lang]: prev[lang] + 1 }));
+
+    // Refocus correct input & restore cursor position
+    const inputRef = lang === 'es' ? inputRefEs : inputRefEn;
+    if (inputRef.current) {
+      inputRef.current.focus();
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.setSelectionRange(newCursorPosition, newCursorPosition + 1);
+        }
+      }, 50);
+    }
   };
 
   const getFillableIndices = (ref: string, revealed: number[]) => {
@@ -485,16 +565,16 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
                       key={i} 
                       onClick={(e) => { e.stopPropagation(); if (fillIdx !== -1) handleCharClick(lang, fillIdx); }}
                       className={`w-6 sm:w-7 h-12 sm:h-14 flex items-center justify-center text-2xl sm:text-3xl font-serif font-black border-b-[3px] transition-all duration-300 leading-none cursor-text relative ${
-                        isRevealedByClue || (userChar && userChar !== " ")
+                        isCorrect || state.activeAttempt?.citationCorrect || isRevealedByClue || (userChar && userChar !== " ")
                           ? isWrong 
                             ? 'border-coral text-coral bg-coral/5' 
-                            : isCorrect || (hasSubmitted && !isWrong)
+                            : isCorrect || state.activeAttempt?.citationCorrect || (hasSubmitted && !isWrong)
                               ? 'border-teal text-teal'
                               : 'border-playful-purple text-playful-purple' 
                           : 'border-earth/20 dark:border-white/20 text-transparent hover:border-earth/40'
                       }`}
                     >
-                      {isRevealedByClue ? char : (userChar === " " ? "" : userChar)}
+                      {isCorrect || state.activeAttempt?.citationCorrect ? char : (isRevealedByClue ? char : (userChar === " " ? "" : userChar))}
                       {isSlotActive && !isRevealedByClue && !isCorrect && (
                         <div className="absolute inset-x-0 -bottom-[2.5px] h-[2.5px] bg-coral animate-pulse shadow-[0_0_8px_rgba(255,111,97,0.5)]" />
                       )}
@@ -544,16 +624,16 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
                 key={i} 
                 onClick={(e) => { e.stopPropagation(); if (fillIdx !== -1) handleCharClick(lang, fillIdx); }}
                 className={`w-6 sm:w-7 h-12 flex items-center justify-center text-2xl sm:text-3xl font-serif font-black border-b-[3px] transition-all duration-300 leading-none cursor-text relative ${
-                  isRevealedByClue || (userChar && userChar !== " ")
+                  isCorrect || state.activeAttempt?.citationCorrect || isRevealedByClue || (userChar && userChar !== " ")
                     ? isWrong 
                       ? 'border-coral text-coral bg-coral/5' 
-                      : isCorrect || (hasSubmitted && !isWrong)
+                      : isCorrect || state.activeAttempt?.citationCorrect || (hasSubmitted && !isWrong)
                         ? 'border-teal text-teal'
                         : 'border-playful-purple text-playful-purple' 
                     : 'border-earth/20 dark:border-white/20 text-transparent hover:border-earth/40'
                 }`}
               >
-                {isRevealedByClue ? char : (userChar === " " ? "" : userChar)}
+                {isCorrect || state.activeAttempt?.citationCorrect ? char : (isRevealedByClue ? char : (userChar === " " ? "" : userChar))}
                 {isSlotActive && !isRevealedByClue && !isCorrect && (
                   <div className="absolute inset-x-0 -bottom-[2.5px] h-[2.5px] bg-coral animate-pulse shadow-[0_0_8px_rgba(255,111,97,0.5)]" />
                 )}
@@ -936,16 +1016,19 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
                             <motion.button
                               initial={{ opacity: 0, scale: 0.8 }}
                               animate={{ opacity: 1, scale: 1 }}
+                              onPointerDown={(e) => {
+                                e.preventDefault();
+                              }}
                               onClick={(e) => handleClue(e, 'es')}
-                              disabled={clueCount.es >= 1}
+                              disabled={clueCount.es >= 1 || !hasClueEsAvailable}
                               className={`ml-2 p-1.5 rounded-lg transition-all ${
-                                clueCount.es >= 1
+                                (clueCount.es >= 1 || !hasClueEsAvailable)
                                   ? 'text-earth/10 dark:text-white/10 opacity-0 pointer-events-none'
                                   : 'text-amber-500 hover:bg-amber-500/10 active:scale-95'
                               }`}
                               title={state.primaryLanguage === 'es' ? `Pista (${1 - clueCount.es})` : `Clue (${1 - clueCount.es})`}
                             >
-                              <Sparkles size={14} className={clueCount.es >= 1 ? '' : 'animate-pulse'} />
+                              <Sparkles size={14} className={(clueCount.es >= 1 || !hasClueEsAvailable) ? '' : 'animate-pulse'} />
                             </motion.button>
                           )}
                         </div>
@@ -997,6 +1080,7 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
                             setShowError(false);
                           }}
                           className="sr-only"
+                          style={{ opacity: 0, pointerEvents: 'none', caretColor: 'transparent' }}
                         />
                         <div className="flex justify-center w-full">
                           {renderPlaceholder(esRef, revealedIndices.es, userInputEs, 'es')}
@@ -1021,16 +1105,19 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
                             <motion.button
                               initial={{ opacity: 0, scale: 0.8 }}
                               animate={{ opacity: 1, scale: 1 }}
+                              onPointerDown={(e) => {
+                                e.preventDefault();
+                              }}
                               onClick={(e) => handleClue(e, 'en')}
-                              disabled={clueCount.en >= 1}
+                              disabled={clueCount.en >= 1 || !hasClueEnAvailable}
                               className={`ml-2 p-1.5 rounded-lg transition-all ${
-                                clueCount.en >= 1
+                                (clueCount.en >= 1 || !hasClueEnAvailable)
                                   ? 'text-earth/10 dark:text-white/10 opacity-0 pointer-events-none'
                                   : 'text-amber-500 hover:bg-amber-500/10 active:scale-95'
                               }`}
                               title={state.primaryLanguage === 'es' ? `Pista (${1 - clueCount.en})` : `Clue (${1 - clueCount.en})`}
                             >
-                              <Sparkles size={14} className={clueCount.en >= 1 ? '' : 'animate-pulse'} />
+                              <Sparkles size={14} className={(clueCount.en >= 1 || !hasClueEnAvailable) ? '' : 'animate-pulse'} />
                             </motion.button>
                           )}
                         </div>
@@ -1082,6 +1169,7 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
                             setShowError(false);
                           }}
                           className="sr-only"
+                          style={{ opacity: 0, pointerEvents: 'none', caretColor: 'transparent' }}
                         />
                         <div className="flex justify-center w-full">
                           {renderPlaceholder(enRef, revealedIndices.en, userInputEn, 'en')}

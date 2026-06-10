@@ -1615,69 +1615,32 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
     return (
       <motion.div 
         className="h-full flex flex-col items-center justify-center text-center space-y-10 py-12"
-        initial={{ opacity: 0, scale: 0.8 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ type: "spring", damping: 15 }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.3 }}
       >
         <div className="relative">
-          <motion.div 
-            className="w-40 h-40 bg-teal/10 dark:bg-teal/5 border border-teal/20 rounded-[48px] flex items-center justify-center shadow-2xl shadow-teal/5"
-            animate={{ 
-              scale: [1, 1.05, 1],
-              y: [0, -6, 0]
-            }}
-            transition={{ duration: 4, repeat: Infinity }}
-          >
+          <div className="w-40 h-40 bg-teal/10 dark:bg-teal/5 border border-teal/20 rounded-[48px] flex items-center justify-center shadow-2xl shadow-teal/5">
             <CheckCircle2 size={80} className="text-teal" strokeWidth={1.2} />
-          </motion.div>
-          
-          {[...Array(6)].map((_, i) => (
-            <motion.div
-              key={i}
-              className="absolute top-1/2 left-1/2"
-              initial={{ opacity: 0, scale: 0 }}
-              animate={{ 
-                x: Math.cos(i * 60 * Math.PI / 180) * 110,
-                y: Math.sin(i * 60 * Math.PI / 180) * 110,
-                opacity: [0, 0.7, 0],
-                scale: [0, 1, 0],
-              }}
-              transition={{ duration: 3, repeat: Infinity, delay: i * 0.3 }}
-            >
-              <div className="w-2 h-2 rounded-full bg-teal/30" />
-            </motion.div>
-          ))}
+          </div>
         </div>
 
         <div className="space-y-4 px-6">
-          <motion.h2 
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.3 }}
-            className="text-3xl sm:text-4xl font-serif font-black text-earth dark:text-ivory leading-tight"
-          >
+          <h2 className="text-3xl sm:text-4xl font-serif font-black text-earth dark:text-ivory leading-tight">
             {state.primaryLanguage === 'es' ? '¡Versículo aprendido!' : 'Verse Learned!'}
-          </motion.h2>
-          <motion.div 
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.4 }}
-            className="text-lg text-earth-light dark:text-lavender-muted font-medium max-w-md mx-auto space-y-4 px-4 py-6 bg-earth/[0.02] dark:bg-white/[0.02] rounded-3xl border border-earth/5 dark:border-white/5"
-          >
+          </h2>
+          <div className="text-lg text-earth-light dark:text-lavender-muted font-medium max-w-md mx-auto space-y-4 px-4 py-6 bg-earth/[0.02] dark:bg-white/[0.02] rounded-3xl border border-earth/5 dark:border-white/5">
             <p className="font-serif leading-relaxed italic text-earth dark:text-ivory">
               "{state.memorizeMode === 'en' ? enText : (state.memorizeMode === 'es' ? esText : `${esText} / ${enText}`)}"
             </p>
             <p className="text-sm font-black uppercase tracking-widest text-teal dark:text-teal-400">
               {getLocalizedBookName(verse.book, state.primaryLanguage === 'es' ? 'es' : 'en')} {verse.chapter}:{verse.verse}
             </p>
-          </motion.div>
+          </div>
         </div>
 
         <div className="w-full max-w-sm space-y-4 px-6">
-          <motion.button 
-            initial={{ x: -25, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            transition={{ delay: 0.5 }}
+          <button 
             onClick={() => {
               // Explicitly reset the memory progress for a clean repeat attempt
               localStorage.removeItem(`memorize_failed_${verse.id}`);
@@ -1727,12 +1690,9 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
             <span className="text-lg font-bold tracking-tight lowercase">
               {state.primaryLanguage === 'es' ? 'repetir memorización' : 'repeat memorization'}
             </span>
-          </motion.button>
+          </button>
           
-          <motion.button 
-            initial={{ x: 25, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            transition={{ delay: 0.6 }}
+          <button 
             onClick={onComplete}
             className="w-full bg-teal/10 hover:bg-teal/20 text-teal dark:text-teal-400 border border-teal/20 shadow-sm rounded-full flex items-center justify-center gap-3 py-4 px-8 transition-all hover:scale-[1.01] active:scale-95 group"
           >
@@ -1740,7 +1700,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
             <span className="font-bold tracking-tight lowercase">
               {state.primaryLanguage === 'es' ? 'ver guardados' : 'view saved'}
             </span>
-          </motion.button>
+          </button>
         </div>
       </motion.div>
     );
