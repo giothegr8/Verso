@@ -177,7 +177,9 @@ export default function Saved({ state, setState, onStartMemorizing, onGoToFlashc
         ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
         : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20 shadow-[0_0_10px_rgba(244,63,94,0.15)]';
 
-    const isActiveInProgress = state.activeAttempt && state.activeAttempt.verseId === verse.id;
+    const isActiveInProgress = !!(state.activeAttempt && state.activeAttempt.verseId === verse.id);
+    const isUnfinishedCitationPending = memorizationStage === 6 && !isMemorized;
+    const shouldBlur = isActiveInProgress || isUnfinishedCitationPending;
 
     return (
       <motion.div 
@@ -229,13 +231,13 @@ export default function Saved({ state, setState, onStartMemorizing, onGoToFlashc
               </div>
             </motion.div>
             <div className="space-y-1">
-              <h3 className={`text-2xl font-serif font-black text-earth dark:text-ivory tracking-tight whitespace-nowrap transition-all duration-300 ${isActiveInProgress ? 'blur-md select-none pointer-events-none' : ''}`}>
+              <h3 className={`text-2xl font-serif font-black text-earth dark:text-ivory tracking-tight whitespace-nowrap transition-all duration-300 ${shouldBlur ? 'blur-md select-none pointer-events-none' : ''}`}>
                 {getLocalizedBookName(verse.book, state.primaryLanguage === 'es' ? 'es' : 'en')} {verse.chapter}:{verse.verse}
               </h3>
             </div>
           </div>
           <div className="flex gap-2">
-            {isMemorized && !isActiveInProgress && (
+            {isMemorized && !shouldBlur && (
               <motion.button 
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
@@ -245,7 +247,7 @@ export default function Saved({ state, setState, onStartMemorizing, onGoToFlashc
                 <Share2 size={18} />
               </motion.button>
             )}
-            {!isActiveInProgress && (
+            {!shouldBlur && (
               <motion.button 
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
@@ -259,7 +261,7 @@ export default function Saved({ state, setState, onStartMemorizing, onGoToFlashc
         </div>
 
         <div className="space-y-4 relative z-10">
-          {isActiveInProgress && (
+          {shouldBlur && (
             <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-white/60 dark:bg-charcoal/60 backdrop-blur-md rounded-xl p-4">
               <motion.button
                 whileHover={{ scale: 1.05 }}
@@ -276,7 +278,9 @@ export default function Saved({ state, setState, onStartMemorizing, onGoToFlashc
               >
                 <BookOpen size={14} />
                 <span>
-                  {state.primaryLanguage === 'es' ? 'continuar reto' : 'continue challenge'}
+                  {state.primaryLanguage === 'es' 
+                    ? (memorizationStage === 6 ? 'reto: cita bíblica' : 'continuar reto')
+                    : (memorizationStage === 6 ? 'challenge: citation' : 'continue challenge')}
                 </span>
               </motion.button>
             </div>
@@ -289,7 +293,7 @@ export default function Saved({ state, setState, onStartMemorizing, onGoToFlashc
                 </span>
               </div>
               {esText ? (
-                <p className={`text-xl font-serif leading-relaxed text-earth dark:text-ivory font-black transition-all duration-300 ${isActiveInProgress ? 'blur-md select-none pointer-events-none' : ''}`}>
+                <p className={`text-xl font-serif leading-relaxed text-earth dark:text-ivory font-black transition-all duration-300 ${shouldBlur ? 'blur-md select-none pointer-events-none' : ''}`}>
                   {esText}
                 </p>
               ) : isEsLoading ? (
@@ -313,7 +317,7 @@ export default function Saved({ state, setState, onStartMemorizing, onGoToFlashc
                 </span>
               </div>
               {enText ? (
-                <p className={`text-lg font-serif leading-relaxed text-earth/80 dark:text-lavender-muted border-l-4 border-playful-purple/30 dark:border-plum/40 pl-4 bg-playful-purple/5 dark:bg-plum/5 py-3 rounded-r-xl font-medium transition-all duration-300 ${isActiveInProgress ? 'blur-md select-none pointer-events-none' : ''}`}>
+                <p className={`text-lg font-serif leading-relaxed text-earth/80 dark:text-lavender-muted border-l-4 border-playful-purple/30 dark:border-plum/40 pl-4 bg-playful-purple/5 dark:bg-plum/5 py-3 rounded-r-xl font-medium transition-all duration-300 ${shouldBlur ? 'blur-md select-none pointer-events-none' : ''}`}>
                   {enText}
                 </p>
               ) : isEnLoading ? (
@@ -331,7 +335,7 @@ export default function Saved({ state, setState, onStartMemorizing, onGoToFlashc
           )}
         </div>
 
-        {!isActiveInProgress && (memorizationStage === 6 && !isMemorized ? (
+        {!shouldBlur && (memorizationStage === 6 && !isMemorized ? (
           <motion.button 
             whileHover={{ scale: 1.01 }}
             whileTap={{ scale: 0.99 }}

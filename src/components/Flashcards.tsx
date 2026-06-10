@@ -23,9 +23,13 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
   const [activeLanguage, setActiveLanguage] = useState<'es' | 'en' | null>(null);
   const [cursorPositionEs, setCursorPositionEs] = useState<number>(0);
   const [cursorPositionEn, setCursorPositionEn] = useState<number>(0);
-  const [isCorrect, setIsCorrect] = useState(false);
+  const [isCorrect, setIsCorrect] = useState(() => {
+    return !!state.activeAttempt?.citationCorrect;
+  });
   const [showError, setShowError] = useState(false);
-  const [hasSubmitted, setHasSubmitted] = useState(false);
+  const [hasSubmitted, setHasSubmitted] = useState(() => {
+    return !!state.activeAttempt?.citationCorrect;
+  });
   const [hasReviewed, setHasReviewed] = useState(false);
   const [attemptsLeft, setAttemptsLeft] = useState(2);
   
@@ -149,14 +153,30 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
     setActiveLanguage(null);
     setCursorPositionEs(0);
     setCursorPositionEn(0);
-    setUserInputEs("");
-    setUserInputEn("");
-    setIsCorrect(false);
+    setIsCorrect(!!state.activeAttempt?.citationCorrect);
     setShowError(false);
-    setHasSubmitted(false);
+    setHasSubmitted(!!state.activeAttempt?.citationCorrect);
     setHasReviewed(false);
     setAttemptsLeft(2);
-  }, [verse.id, state.selectedTranslations.es, state.selectedTranslations.en, state.memorizeMode]);
+  }, [verse.id, state.selectedTranslations.es, state.selectedTranslations.en, state.memorizeMode, state.activeAttempt?.citationCorrect]);
+
+  // Autofocus the appropriate hidden input for citation challenges when eligible and ready
+  useEffect(() => {
+    if (isEligible && !isCorrect && !isCompleted && !isFlipped && attemptsLeft > 0) {
+      const isEnOnly = state.memorizeMode === 'en';
+      const refToFocus = isEnOnly ? inputRefEn : inputRefEs;
+      const targetLang = isEnOnly ? 'en' : 'es';
+      
+      const timer = setTimeout(() => {
+        if (refToFocus.current) {
+          refToFocus.current.focus();
+          setActiveLanguage(targetLang);
+          refToFocus.current.setSelectionRange(0, 1);
+        }
+      }, 350);
+      return () => clearTimeout(timer);
+    }
+  }, [verse.id, isEligible, isCorrect, isCompleted, isFlipped, attemptsLeft, state.memorizeMode]);
 
   useEffect(() => {
     const isFailedSession = localStorage.getItem(`memorize_failed_${verse.id}`) === "true";
@@ -269,9 +289,14 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
     const esTarget = getTargetChars(esRef, revealedIndices.es);
     const enTarget = getTargetChars(enRef, revealedIndices.en);
     
-    setUserInputEs(" ".repeat(esTarget.length));
-    setUserInputEn(" ".repeat(enTarget.length));
-  }, [verse.id, state.memorizeMode]);
+    if (isCorrect) {
+      setUserInputEs(esTarget);
+      setUserInputEn(enTarget);
+    } else {
+      setUserInputEs(" ".repeat(esTarget.length));
+      setUserInputEn(" ".repeat(enTarget.length));
+    }
+  }, [verse.id, state.memorizeMode, isCorrect]);
 
   const handleReset = (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
@@ -562,6 +587,18 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
     if (esMatch && enMatch) {
       setIsCorrect(true);
       setShowError(false);
+      setState(s => {
+        if (s.activeAttempt) {
+          return {
+            ...s,
+            activeAttempt: {
+              ...s.activeAttempt,
+              citationCorrect: true
+            }
+          };
+        }
+        return s;
+      });
       // Success confetti
       confetti({
         particleCount: 100,

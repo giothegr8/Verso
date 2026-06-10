@@ -892,8 +892,52 @@ function AppInner() {
           setState={setState} 
           onComplete={() => handleSetActiveTab("saved")} 
           onGoToFlashcards={(verseId) => {
-            setState(s => ({ ...s, selectedVerseId: verseId }));
+            setState(s => {
+              let nextAttempt = s.activeAttempt;
+              if (!nextAttempt || nextAttempt.verseId !== verseId) {
+                const resolvedVerse = MOCK_VERSES.find(v => v.id === verseId) || 
+                                      s.customVerses.find(v => v.id === verseId);
+                if (resolvedVerse) {
+                  const reference = `${resolvedVerse.book} ${resolvedVerse.chapter}:${resolvedVerse.verse}`;
+                  nextAttempt = {
+                    verseId: resolvedVerse.id,
+                    reference,
+                    translations: { ...s.selectedTranslations },
+                    memorizeMode: s.memorizeMode,
+                    verse: resolvedVerse,
+                    source: s.activeSource || "saved",
+                    pathId: s.pathProgress.selectedPathId || s.customPathProgress.selectedPathId,
+                    pathDay: s.activeSource === "path" ? (s.pathProgress.selectedPathId ? s.pathProgress.currentDay : s.customPathProgress.currentDay) : null,
+                  };
+                }
+              }
+              return {
+                ...s,
+                selectedVerseId: verseId,
+                activeAttempt: nextAttempt
+              };
+            });
             setActiveTab("flashcards");
+          }}
+          onAbandon={() => {
+            setState(s => {
+              const nextProgress = { ...s.progress };
+              if (nextProgress.verseStages && s.activeAttempt) {
+                const updatedStages = { ...nextProgress.verseStages };
+                if (s.progress.completedVerses.includes(s.activeAttempt.verseId)) {
+                  updatedStages[s.activeAttempt.verseId] = 7;
+                } else {
+                  delete updatedStages[s.activeAttempt.verseId];
+                }
+                nextProgress.verseStages = updatedStages;
+              }
+              return {
+                ...s,
+                activeAttempt: null,
+                progress: nextProgress
+              };
+            });
+            handleSetActiveTab("home");
           }}
           tourStepId={currentTourStepId}
         />

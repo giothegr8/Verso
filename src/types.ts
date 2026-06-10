@@ -190,4 +190,5 @@ export interface ActiveAttemptSnapshot {
   pathId?: string | null;
   pathDay?: number | null;
   dayReference?: string | null;
+  citationCorrect?: boolean;
 }

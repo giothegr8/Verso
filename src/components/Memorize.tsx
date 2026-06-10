@@ -13,6 +13,7 @@ interface MemorizeProps {
   setState: React.Dispatch<React.SetStateAction<AppState>>;
   onComplete?: () => void;
   onGoToFlashcards?: (verseId: string) => void;
+  onAbandon?: () => void;
   tourStepId?: string | null;
 }
 
@@ -24,7 +25,7 @@ const STAGES = [
   { id: 5, label: "Typing", es: "Escritura" },
 ];
 
-export default function Memorize({ state, setState, onComplete, onGoToFlashcards, tourStepId }: MemorizeProps) {
+export default function Memorize({ state, setState, onComplete, onGoToFlashcards, onAbandon, tourStepId }: MemorizeProps) {
   const today = getLocalDateString();
   const votd = getVerseByDate(today);
   
@@ -125,6 +126,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
   const [stage, setStage] = useState(() => state.progress.verseStages[verse.id] || 1);
   const [isRevealed, setIsRevealed] = useState(false);
   const [isAlmostDone, setIsAlmostDone] = useState(false);
+  const [showAbandonConfirm, setShowAbandonConfirm] = useState(false);
   const [showSparkles, setShowSparkles] = useState(false);
   const [coachType, setCoachType] = useState<'encouragement' | 'suggestion' | 'tip'>('encouragement');
   const activePair = getCurrentTranslationPair(state);
@@ -1743,14 +1745,64 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: 0.7 }}
-                  onClick={() => setIsAlmostDone(false)}
-                  className="text-xs font-black uppercase tracking-[0.2em] text-earth-light/40 dark:text-ivory/40 hover:text-teal dark:hover:text-teal-400 transition-colors py-2 flex items-center gap-2 group"
+                  onClick={() => setShowAbandonConfirm(true)}
+                  className="text-xs font-black uppercase tracking-[0.2em] text-coral/60 hover:text-coral transition-colors py-2 flex items-center gap-2 group"
                 >
-                  <span>{state.primaryLanguage === 'es' ? '← Volver al texto' : '← Back to text'}</span>
-                  <div className="relative w-4 h-4 opacity-40 group-hover:opacity-100 transition-opacity">
-                    <Star size={16} fill="currentColor" className="text-gold" />
-                  </div>
+                  <span>{state.primaryLanguage === 'es' ? '← abandonar reto' : '← abandon challenge'}</span>
                 </motion.button>
+
+                <AnimatePresence>
+                  {showAbandonConfirm && (
+                    <div className="fixed inset-0 z-[150] flex items-center justify-center p-6">
+                      <motion.div 
+                        initial={{ opacity: 0 }} 
+                        animate={{ opacity: 1 }} 
+                        exit={{ opacity: 0 }}
+                        className="absolute inset-0 bg-neutral-900/60 backdrop-blur-md"
+                        onClick={() => setShowAbandonConfirm(false)}
+                      />
+                      <motion.div 
+                        initial={{ opacity: 0, scale: 0.95, y: 20 }} 
+                        animate={{ opacity: 1, scale: 1, y: 0 }} 
+                        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                        className="relative w-full max-w-sm bg-white dark:bg-charcoal rounded-[40px] shadow-2xl border border-earth/10 dark:border-white/10 p-8 space-y-6 z-10"
+                      >
+                        <div className="space-y-3 text-center">
+                          <div className="w-16 h-16 bg-coral/10 rounded-2xl flex items-center justify-center text-coral mx-auto mb-4">
+                            <AlertCircle size={28} />
+                          </div>
+                          <h3 className="text-2xl font-serif font-black text-earth dark:text-ivory">
+                            {state.primaryLanguage === 'es' ? "¿Abandonar reto?" : "Abandon challenge?"}
+                          </h3>
+                          <p className="text-xs font-semibold text-earth-light dark:text-lavender-muted leading-relaxed text-center">
+                            {state.primaryLanguage === 'es' 
+                              ? "Si decides abandonar, se perderá tu progreso actual para este intento. No se otorgará crédito por completarlo."
+                              : "If you decide to abandon, your current progress for this attempt will be lost. No completion credit will be awarded."}
+                          </p>
+                        </div>
+                        <div className="flex flex-col gap-3 pt-2">
+                          <button 
+                            type="button"
+                            onClick={() => {
+                              setShowAbandonConfirm(false);
+                              onAbandon?.();
+                            }}
+                            className="w-full h-14 bg-coral text-white hover:bg-coral/90 rounded-3xl font-black uppercase tracking-widest text-xs transition-colors shadow-md shadow-coral/10 animate-none"
+                          >
+                            {state.primaryLanguage === 'es' ? "Sí, abandonar" : "Yes, abandon"}
+                          </button>
+                          <button 
+                            type="button"
+                            onClick={() => setShowAbandonConfirm(false)}
+                            className="w-full h-14 bg-earth/5 dark:bg-white/5 hover:bg-earth/10 dark:hover:bg-white/10 text-earth-light dark:text-ivory rounded-3xl font-black uppercase tracking-widest text-xs transition-colors animate-none"
+                          >
+                            {state.primaryLanguage === 'es' ? "Cancelar" : "Cancel"}
+                          </button>
+                        </div>
+                      </motion.div>
+                    </div>
+                  )}
+                </AnimatePresence>
               </>
             ) : (
               <motion.button 
