@@ -222,6 +222,15 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
   };
 
   const handleComplete = () => {
+    // Is Completed/Celebration guard - prevent duplicate execution or counting
+    if (isCompleted) return;
+
+    const globalStage = state.progress.verseStages?.[verse.id];
+    if (globalStage === 7) {
+      setIsCompleted(true);
+      return;
+    }
+
     setIsCompleted(true);
     
     const isFailedSession = localStorage.getItem(`memorize_failed_${verse.id}`) === "true";
@@ -231,6 +240,11 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
       
       // Mark as completed in global state
       setState(s => {
+        // Double defense: if global state has already finalized, return s
+        if (s.progress.verseStages?.[verse.id] === 7) {
+          return s;
+        }
+
         const isAlreadyCompleted = s.progress.completedVerses.includes(verse.id);
         const today = getLocalDateString();
         let newLastCompletedDailyVerseDate = s.progress.lastCompletedDailyVerseDate;
@@ -264,6 +278,9 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
           }
         };
       });
+
+      // Clear the failures so we don't carry stale state over
+      localStorage.removeItem(`memorize_failed_${verse.id}`);
 
       // Notify parent if completion handler exists
       if (onComplete) onComplete();
@@ -626,7 +643,9 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
     return esFilled && enFilled && !isCorrect && attemptsLeft > 0;
   }, [userInputEs, userInputEn, esRef, enRef, state.memorizeMode, revealedIndices, isCorrect, attemptsLeft]);
 
-  if (isCompleted) {
+  const isFullyCompleted = state.progress.verseStages?.[verse.id] === 7;
+
+  if (isCompleted || isFullyCompleted) {
     const isFailedSession = localStorage.getItem(`memorize_failed_${verse.id}`) === "true";
     
     // Compute the actual completion count from state
