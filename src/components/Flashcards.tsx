@@ -471,7 +471,7 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
       inputRef.current.focus();
       setTimeout(() => {
         if (inputRef.current) {
-          inputRef.current.setSelectionRange(newCursorPosition, newCursorPosition + 1);
+          inputRef.current.setSelectionRange(newCursorPosition, newCursorPosition);
         }
       }, 50);
     }
@@ -502,7 +502,7 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
       // Use a slightly longer timeout or requestAnimationFrame to ensure focus is solid
       setTimeout(() => {
         if (inputRef.current) {
-          inputRef.current.setSelectionRange(fillIdx, fillIdx + 1);
+          inputRef.current.setSelectionRange(fillIdx, fillIdx);
         }
       }, 50);
     }
@@ -769,44 +769,46 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
         transition={{ type: "spring", damping: 15 }}
       >
         <div className="relative">
-          <motion.div 
-            className={`w-40 h-40 ${
-              isFailedSession 
-                ? 'bg-sky-blue/10 dark:bg-sky-blue/5 border border-sky-blue/20' 
-                : count >= 2
-                  ? 'bg-rose-50 dark:bg-rose-950/20 shadow-2xl shadow-rose-500/10 border border-rose-200/50 dark:border-rose-500/20'
-                  : 'bg-amber-50 dark:bg-amber-950/20 shadow-2xl shadow-amber-500/10 border border-amber-200/50 dark:border-amber-500/20'
-            } rounded-[48px] flex items-center justify-center`}
-            animate={isFailedSession ? {
-              scale: [1, 1.02, 1],
-              y: [0, -3, 0]
-            } : { 
-              rotate: [0, 5, -5, 5, 0], 
-              scale: [1, 1.05, 1],
-              y: [0, -8, 0]
-            }}
-            transition={{ duration: 4, repeat: Infinity }}
-          >
-            {isFailedSession ? (
-              <Brain size={80} className="text-sky-blue" strokeWidth={1.2} />
-            ) : count >= 2 ? (
-              <div className="relative flex items-center justify-center">
-                <Grape size={80} className="text-rose-500 dark:text-rose-400" strokeWidth={1.2} />
-                {count >= 3 && (
-                  <motion.div 
-                    initial={{ scale: 0, rotate: -25 }}
-                    animate={{ scale: 1, rotate: 0 }}
-                    transition={{ delay: 0.5, type: "spring", stiffness: 200, damping: 12 }}
-                    className="absolute -bottom-3 -right-3 bg-gradient-to-br from-rose-500 to-rose-600 dark:from-rose-600 dark:to-rose-700 text-white font-serif font-black text-xs tracking-wider px-3 py-1.5 rounded-full shadow-lg shadow-rose-500/20 dark:shadow-rose-950/40 border-[2.5px] border-white dark:border-charcoal whitespace-nowrap min-w-[32px] flex items-center justify-center select-none"
-                  >
-                    ×{count}
-                  </motion.div>
-                )}
-              </div>
-            ) : (
-              <Flower2 size={80} className="text-amber-500 dark:text-amber-400" strokeWidth={1.2} />
-            )}
-          </motion.div>
+          <div className="transform-none">
+            <motion.div 
+              className={`w-40 h-40 ${
+                isFailedSession 
+                  ? 'bg-sky-blue/10 dark:bg-sky-blue/5 border border-sky-blue/20' 
+                  : count >= 2
+                    ? 'bg-rose-50 dark:bg-rose-950/20 shadow-2xl shadow-rose-500/10 border border-rose-200/50 dark:border-rose-500/20'
+                    : 'bg-amber-50 dark:bg-amber-950/20 shadow-2xl shadow-amber-500/10 border border-amber-200/50 dark:border-amber-500/20'
+              } rounded-[48px] flex items-center justify-center`}
+              animate={isFailedSession ? {
+                scale: [1, 1.02, 1],
+                y: [0, -3, 0]
+              } : { 
+                rotate: [0, 5, -5, 5, 0], 
+                scale: [1, 1.05, 1],
+                y: [0, -8, 0]
+              }}
+              transition={{ duration: 4, repeat: Infinity }}
+            >
+              {isFailedSession ? (
+                <Brain size={80} className="text-sky-blue" strokeWidth={1.2} />
+              ) : count >= 2 ? (
+                <div className="relative flex items-center justify-center">
+                  <Grape size={80} className="text-rose-500 dark:text-rose-400" strokeWidth={1.2} />
+                  {count >= 3 && (
+                    <motion.div 
+                      initial={{ scale: 0, rotate: -25 }}
+                      animate={{ scale: 1, rotate: 0 }}
+                      transition={{ delay: 0.5, type: "spring", stiffness: 200, damping: 12 }}
+                      className="absolute -bottom-3 -right-3 bg-gradient-to-br from-rose-500 to-rose-600 dark:from-rose-600 dark:to-rose-700 text-white font-serif font-black text-xs tracking-wider px-3 py-1.5 rounded-full shadow-lg shadow-rose-500/20 dark:shadow-rose-950/40 border-[2.5px] border-white dark:border-charcoal whitespace-nowrap min-w-[32px] flex items-center justify-center select-none"
+                    >
+                      ×{count}
+                    </motion.div>
+                  )}
+                </div>
+              ) : (
+                <Flower2 size={80} className="text-amber-500 dark:text-amber-400" strokeWidth={1.2} />
+              )}
+            </motion.div>
+          </div>
           
           {/* Animated "Pollen/Dust" stars in warm tones */}
           {!isFailedSession && [...Array(8)].map((_, i) => (
@@ -1016,7 +1018,7 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
                             <motion.button
                               initial={{ opacity: 0, scale: 0.8 }}
                               animate={{ opacity: 1, scale: 1 }}
-                              onPointerDown={(e) => {
+                              onMouseDown={(e) => {
                                 e.preventDefault();
                               }}
                               onClick={(e) => handleClue(e, 'es')}
@@ -1062,12 +1064,12 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
                             }
                           }}
                           onChange={(e) => {
-                            const val = e.target.value.replace(/[^\p{L}\p{N}]/gu, "");
+                            const rawValue = e.target.value;
                             const selectionStart = e.target.selectionStart;
                             
-                            if (selectionStart !== null) {
-                              const typedChar = val.charAt(selectionStart - 1);
-                              if (typedChar) {
+                            if (selectionStart !== null && selectionStart > 0) {
+                              const typedChar = rawValue.charAt(selectionStart - 1);
+                              if (/[\p{L}\p{N}]/u.test(typedChar)) {
                                 const newVal = userInputEs.split('');
                                 newVal[selectionStart - 1] = typedChar;
                                 setUserInputEs(newVal.join(''));
@@ -1105,7 +1107,7 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
                             <motion.button
                               initial={{ opacity: 0, scale: 0.8 }}
                               animate={{ opacity: 1, scale: 1 }}
-                              onPointerDown={(e) => {
+                              onMouseDown={(e) => {
                                 e.preventDefault();
                               }}
                               onClick={(e) => handleClue(e, 'en')}
@@ -1151,12 +1153,12 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
                             }
                           }}
                           onChange={(e) => {
-                            const val = e.target.value.replace(/[^\p{L}\p{N}]/gu, "");
+                            const rawValue = e.target.value;
                             const selectionStart = e.target.selectionStart;
                             
-                            if (selectionStart !== null) {
-                              const typedChar = val.charAt(selectionStart - 1);
-                              if (typedChar) {
+                            if (selectionStart !== null && selectionStart > 0) {
+                              const typedChar = rawValue.charAt(selectionStart - 1);
+                              if (/[\p{L}\p{N}]/u.test(typedChar)) {
                                 const newVal = userInputEn.split('');
                                 newVal[selectionStart - 1] = typedChar;
                                 setUserInputEn(newVal.join(''));

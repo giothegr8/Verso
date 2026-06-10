@@ -126,7 +126,14 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
   const globalVerseStage = state.progress.verseStages[verse.id] || 1;
   const [stage, setStage] = useState(() => Math.min(5, globalVerseStage));
   const [isRevealed, setIsRevealed] = useState(false);
-  const [isAlmostDone, setIsAlmostDone] = useState(() => globalVerseStage === 6);
+  const [isAlmostDone, setIsAlmostDone] = useState(() => {
+    try {
+      const failed = localStorage.getItem(`memorize_failed_${verse.id}`) === "true";
+      return globalVerseStage === 6 || failed;
+    } catch {
+      return globalVerseStage === 6;
+    }
+  });
   const [showAbandonConfirm, setShowAbandonConfirm] = useState(false);
   const [showSparkles, setShowSparkles] = useState(false);
   const [coachType, setCoachType] = useState<'encouragement' | 'suggestion' | 'tip'>('encouragement');
@@ -2560,6 +2567,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                       : 'opacity-0 translate-y-1 scale-95 pointer-events-none'
                   }`}>
                     <button 
+                      onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
                       onClick={(e) => { e.stopPropagation(); handleClue(activeLanguage); }}
                       disabled={!canUseClue}
                       className="flex items-center gap-2.5 px-4 py-2 rounded-xl bg-teal/10 dark:bg-teal-400/10 border border-teal/20 text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-teal dark:text-teal-400 shadow-sm hover:bg-teal/20 transition-all active:scale-95 disabled:opacity-20 disabled:grayscale"
