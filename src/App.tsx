@@ -352,12 +352,7 @@ function AppInner() {
     
     // 1. If we click on the SAME verse that is currently active, resume it
     if (state.activeAttempt && state.activeAttempt.verseId === verseId) {
-      const currentStage = state.progress.verseStages?.[verseId] || 1;
-      if (currentStage === 6) {
-        setActiveTab("flashcards");
-      } else {
-        setActiveTab("memorize");
-      }
+      setActiveTab("memorize");
       return;
     }
 

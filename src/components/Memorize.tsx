@@ -848,7 +848,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
     );
   }
 
-  const nextStage = () => {
+  const nextStage = (forceFailed?: boolean) => {
     // Rotate coach type for variety
     const types: ('encouragement' | 'suggestion' | 'tip')[] = ['encouragement', 'suggestion', 'tip'];
     setCoachType(types[Math.floor(Math.random() * types.length)]);
@@ -916,7 +916,8 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
         localStorage.removeItem(typingStateKey);
         
         // Success Persistence Fix: Save verse when successfully completed
-        if (!isAnyPartFailed) {
+        const effectiveFailed = forceFailed !== undefined ? forceFailed : isAnyPartFailed;
+        if (!effectiveFailed) {
           try {
             localStorage.setItem(`memorize_failed_${verse.id}`, "false");
           } catch (e) {
@@ -1430,7 +1431,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
 
         setFeedback(state.primaryLanguage === 'es' ? "Se acabaron los intentos. Revelando texto..." : "Out of attempts. Revealing text...");
         setTimeout(() => {
-          nextStage();
+          nextStage(true);
         }, 2000);
       } else {
         const remaining = 3 - nextAttempts;

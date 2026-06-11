@@ -301,10 +301,12 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
 
   const showBilingual = state.memorizeMode === 'both';
 
-  // Split book names
+  // Resolve book names for the challenge language, handling both bilingual ("Juan / John") and single-language ("Filipenses") formats
   const [esBook, enBook] = useMemo(() => {
-    const parts = verse.book.split(' / ');
-    return [parts[0], parts[1] || parts[0]];
+    return [
+      getLocalizedBookName(verse.book, 'es'),
+      getLocalizedBookName(verse.book, 'en'),
+    ];
   }, [verse.book]);
 
   const esRef = `${esBook} ${verse.chapter}:${verse.verse}`;
@@ -1296,7 +1298,7 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
                       {/* Revealed Reference Area */}
                       <div className="text-center">
                         <h3 className="text-2xl sm:text-3xl font-serif font-black text-earth dark:text-ivory tracking-tight whitespace-nowrap">
-                          {getLocalizedBookName(verse.book, state.primaryLanguage === 'es' ? 'es' : 'en')} {verse.chapter}:{verse.verse}
+                          {getLocalizedBookName(verse.book, state.memorizeMode === 'es' ? 'es' : state.memorizeMode === 'en' ? 'en' : (state.primaryLanguage === 'es' ? 'es' : 'en'))} {verse.chapter}:{verse.verse}
                         </h3>
                         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-sky-blue mt-1">
                           {state.memorizeMode === 'both' 
