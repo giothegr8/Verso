@@ -479,7 +479,7 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
     }
   };
 
-  const getFillableIndices = (ref: string, revealed: number[]) => {
+  function getFillableIndices(ref: string, revealed: number[]): number[] {
     const indices: number[] = [];
     for (let i = 0; i < ref.length; i++) {
       const char = ref[i];
@@ -489,7 +489,7 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
       }
     }
     return indices;
-  };
+  }
 
   const handleCharClick = (lang: 'es' | 'en', fillIdx: number) => {
     if (isCorrect || attemptsLeft === 0 || isFlipped) return;
