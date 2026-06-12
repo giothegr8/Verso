@@ -212,11 +212,21 @@ function AppInner() {
     return localStorage.getItem("verso_active_tab") || "home";
   });
   const [pendingAttempt, setPendingAttempt] = useState<{
-    type: "start" | "another";
+    type: "start" | "another" | "navigate";
     verseId?: string;
     source?: "daily" | "path" | "custom" | "extra" | "saved" | "daily";
+    destinationTab?: string;
   } | null>(null);
   const handleSetActiveTab = (tab: string) => {
+    if (state.activeAttempt) {
+      const activeVerseId = state.activeAttempt.verseId;
+      const currentStage = state.progress.verseStages?.[activeVerseId] || 1;
+      const safeTab = currentStage === 6 ? "flashcards" : "memorize";
+      if (tab !== safeTab) {
+        setPendingAttempt({ type: "navigate", destinationTab: tab });
+        return;
+      }
+    }
     setActiveTab(tab);
   };
   const handleGoToPaths = (path?: Path | CustomPath) => {
@@ -368,6 +378,7 @@ function AppInner() {
 
   const startMemorizingBypassingCheck = (verseId: string, source: "daily" | "path" | "custom" | "extra" | "saved" = "daily") => {
     localStorage.removeItem(`memorize_failed_${verseId}`);
+    localStorage.removeItem(`citation_failed_${verseId}`);
     setState(s => {
       let resolvedVerse: Verse;
       if (source === "custom" && s.selectedCustomVerse) {
@@ -938,10 +949,11 @@ function AppInner() {
         />
       );
       case "flashcards": return (
-        <Flashcards 
-          state={state} 
-          setState={setState} 
-          onMemorize={(id) => startMemorizing(id, state.activeSource)} 
+        <Flashcards
+          state={state}
+          setState={setState}
+          onMemorize={(id) => startMemorizing(id, state.activeSource)}
+          onRestartMemorization={(id) => startMemorizingBypassingCheck(id, state.activeSource)}
           onGoToSaved={() => handleSetActiveTab("saved")}
           onComplete={() => {
             if (state.activeSource === 'path') {
@@ -1014,9 +1026,15 @@ function AppInner() {
               <VersoLogo size="md" showText={true} />
             </div>
             <div className="flex items-center gap-4">
-              <button 
+              <button
                 id="nav-settings"
-                onClick={() => setShowSettings(true)}
+                onClick={() => {
+                  if (state.activeAttempt) {
+                    setPendingAttempt({ type: "navigate", destinationTab: "settings" });
+                    return;
+                  }
+                  setShowSettings(true);
+                }}
                 className="btn-icon bg-white dark:bg-charcoal border border-earth/10 dark:border-white/10 shadow-sm transition-colors duration-500"
                 aria-label="Settings"
               >
@@ -1049,8 +1067,8 @@ function AppInner() {
         >
           <nav className="max-w-xl mx-auto bg-white dark:bg-charcoal border border-earth/10 dark:border-white/10 px-6 sm:px-10 py-3.5 flex justify-around items-center rounded-[32px] shadow-[0_15px_50px_rgba(0,0,0,0.15)] pointer-events-auto transition-colors duration-500">
             <NavButton id="nav-home" active={activeTab === 'home'} activeColor="text-playful-purple" onClick={() => handleSetActiveTab('home')} icon={<HomeIcon size={22} />} label={state.primaryLanguage === 'es' ? 'Inicio' : 'Home'} />
-            <NavButton id="nav-memorize" active={activeTab === 'memorize'} activeColor="text-gold" onClick={() => setActiveTab('memorize')} icon={<BookOpen size={22} />} label={state.primaryLanguage === 'es' ? 'Memorizar' : 'Memorize'} />
-            <NavButton id="nav-flashcards" active={activeTab === 'flashcards'} activeColor="text-coral" onClick={() => setActiveTab('flashcards')} icon={<Layers size={22} />} label={state.primaryLanguage === 'es' ? 'Tarjetas' : 'Cards'} />
+            <NavButton id="nav-memorize" active={activeTab === 'memorize'} activeColor="text-gold" onClick={() => handleSetActiveTab('memorize')} icon={<BookOpen size={22} />} label={state.primaryLanguage === 'es' ? 'Memorizar' : 'Memorize'} />
+            <NavButton id="nav-flashcards" active={activeTab === 'flashcards'} activeColor="text-coral" onClick={() => handleSetActiveTab('flashcards')} icon={<Layers size={22} />} label={state.primaryLanguage === 'es' ? 'Tarjetas' : 'Cards'} />
             <NavButton id="nav-paths" active={activeTab === 'paths'} activeColor="text-sky-blue" onClick={() => { setSelectedPath(null); setEditingPath(null); handleSetActiveTab('paths'); }} icon={<Compass size={22} />} label={state.primaryLanguage === 'es' ? 'Series' : 'Paths'} />
             <NavButton id="nav-saved" active={activeTab === 'saved'} activeColor="text-teal" onClick={() => handleSetActiveTab('saved')} icon={<Sprout size={22} />} label={state.primaryLanguage === 'es' ? 'Guardados' : 'Saved'} />
           </nav>
@@ -1119,11 +1137,16 @@ function AppInner() {
                   >
                     {state.primaryLanguage === 'es' ? "continuar reto actual" : "continue current challenge"}
                   </button>
-                  <button 
+                  <button
                     onClick={() => {
                       const nextAction = pendingAttempt;
+                      const quitVerseId = state.activeAttempt?.verseId;
                       setPendingAttempt(null);
-                      
+
+                      if (quitVerseId) {
+                        localStorage.removeItem(`citation_failed_${quitVerseId}`);
+                      }
+
                       // Safety clear activeAttempt and reset stage for that verse
                       setState(s => {
                         const nextProgress = { ...s.progress };
@@ -1141,10 +1164,16 @@ function AppInner() {
 
                       // Trigger pending action using the updated / cleared state
                       setTimeout(() => {
-                        if (nextAction.type === "start" && nextAction.verseId) {
+                        if (nextAction?.type === "start" && nextAction.verseId) {
                           startMemorizingBypassingCheck(nextAction.verseId, nextAction.source || "daily");
-                        } else if (nextAction.type === "another") {
+                        } else if (nextAction?.type === "another") {
                           getAnotherVerseBypassingCheck();
+                        } else if (nextAction?.type === "navigate") {
+                          if (nextAction.destinationTab === "settings") {
+                            setShowSettings(true);
+                          } else if (nextAction.destinationTab) {
+                            setActiveTab(nextAction.destinationTab);
+                          }
                         }
                       }, 50);
                     }}

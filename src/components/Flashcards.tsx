@@ -11,11 +11,12 @@ interface FlashcardsProps {
   state: AppState;
   setState: React.Dispatch<React.SetStateAction<AppState>>;
   onMemorize: (verseId: string) => void;
+  onRestartMemorization?: (verseId: string) => void;
   onGoToSaved?: () => void;
   onComplete?: () => void;
 }
 
-export default function Flashcards({ state, setState, onMemorize, onGoToSaved, onComplete }: FlashcardsProps) {
+export default function Flashcards({ state, setState, onMemorize, onRestartMemorization, onGoToSaved, onComplete }: FlashcardsProps) {
   const [isFlipped, setIsFlipped] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
   const [clueCount, setClueCount] = useState<{ es: number, en: number }>({ es: 0, en: 0 });
@@ -168,7 +169,7 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
     setShowError(false);
     setHasSubmitted(!!state.activeAttempt?.citationCorrect);
     setHasReviewed(false);
-    setAttemptsLeft(2);
+    setAttemptsLeft(localStorage.getItem(`citation_failed_${verse.id}`) === 'true' ? 0 : 2);
   }, [verse.id, state.selectedTranslations.es, state.selectedTranslations.en, state.memorizeMode, state.activeAttempt?.citationCorrect]);
 
   // Autofocus the appropriate hidden input for citation challenges when eligible and ready
@@ -708,9 +709,13 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
     } else {
       setIsCorrect(false);
       setShowError(true);
-      setAttemptsLeft(prev => Math.max(0, prev - 1));
-      
-      // Shake effect or similar feedback could be added here
+      setAttemptsLeft(prev => {
+        const next = Math.max(0, prev - 1);
+        if (next === 0) {
+          localStorage.setItem(`citation_failed_${verse.id}`, 'true');
+        }
+        return next;
+      });
       setTimeout(() => setShowError(false), 3000);
     }
   };
@@ -1049,15 +1054,35 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
                                 handleSubmit();
                               }
                             }
+                            if (e.key === 'ArrowLeft') {
+                              e.preventDefault();
+                              const newPos = Math.max(0, cursorPositionEs - 1);
+                              setCursorPositionEs(newPos);
+                              setTimeout(() => inputRefEs.current?.setSelectionRange(newPos, newPos), 0);
+                            }
+                            if (e.key === 'ArrowRight') {
+                              e.preventDefault();
+                              const maxPos = Math.max(0, getFillableIndices(esRef, revealedIndices.es).length - 1);
+                              const newPos = Math.min(maxPos, cursorPositionEs + 1);
+                              setCursorPositionEs(newPos);
+                              setTimeout(() => inputRefEs.current?.setSelectionRange(newPos, newPos), 0);
+                            }
                             if (e.key === 'Backspace' && inputRefEs.current) {
                               const start = inputRefEs.current.selectionStart;
                               const end = inputRefEs.current.selectionEnd;
                               if (start !== null && end !== null) {
                                 e.preventDefault();
-                                const newStart = start === end ? Math.max(0, start - 1) : start;
                                 const newVal = userInputEs.split('');
-                                for (let i = newStart; i < end || (start === end && i === newStart); i++) {
-                                  newVal[i] = ' ';
+                                let newStart: number;
+                                if (start !== end) {
+                                  newStart = start;
+                                  for (let i = start; i < end; i++) newVal[i] = ' ';
+                                } else if (start < newVal.length && newVal[start] && newVal[start] !== ' ') {
+                                  newStart = start;
+                                  newVal[start] = ' ';
+                                } else {
+                                  newStart = Math.max(0, start - 1);
+                                  newVal[newStart] = ' ';
                                 }
                                 setUserInputEs(newVal.join(''));
                                 setCursorPositionEs(newStart);
@@ -1068,7 +1093,7 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
                           onChange={(e) => {
                             const rawValue = e.target.value;
                             const selectionStart = e.target.selectionStart;
-                            
+
                             if (selectionStart !== null && selectionStart > 0) {
                               const typedChar = rawValue.charAt(selectionStart - 1);
                               if (/[\p{L}\p{N}]/u.test(typedChar)) {
@@ -1079,7 +1104,7 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
                                 setTimeout(() => inputRefEs.current?.setSelectionRange(selectionStart, selectionStart), 0);
                               }
                             }
-                            
+
                             setHasSubmitted(false);
                             setShowError(false);
                           }}
@@ -1138,15 +1163,35 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
                                 handleSubmit();
                               }
                             }
+                            if (e.key === 'ArrowLeft') {
+                              e.preventDefault();
+                              const newPos = Math.max(0, cursorPositionEn - 1);
+                              setCursorPositionEn(newPos);
+                              setTimeout(() => inputRefEn.current?.setSelectionRange(newPos, newPos), 0);
+                            }
+                            if (e.key === 'ArrowRight') {
+                              e.preventDefault();
+                              const maxPos = Math.max(0, getFillableIndices(enRef, revealedIndices.en).length - 1);
+                              const newPos = Math.min(maxPos, cursorPositionEn + 1);
+                              setCursorPositionEn(newPos);
+                              setTimeout(() => inputRefEn.current?.setSelectionRange(newPos, newPos), 0);
+                            }
                             if (e.key === 'Backspace' && inputRefEn.current) {
                               const start = inputRefEn.current.selectionStart;
                               const end = inputRefEn.current.selectionEnd;
                               if (start !== null && end !== null) {
                                 e.preventDefault();
-                                const newStart = start === end ? Math.max(0, start - 1) : start;
                                 const newVal = userInputEn.split('');
-                                for (let i = newStart; i < end || (start === end && i === newStart); i++) {
-                                  newVal[i] = ' ';
+                                let newStart: number;
+                                if (start !== end) {
+                                  newStart = start;
+                                  for (let i = start; i < end; i++) newVal[i] = ' ';
+                                } else if (start < newVal.length && newVal[start] && newVal[start] !== ' ') {
+                                  newStart = start;
+                                  newVal[start] = ' ';
+                                } else {
+                                  newStart = Math.max(0, start - 1);
+                                  newVal[newStart] = ' ';
                                 }
                                 setUserInputEn(newVal.join(''));
                                 setCursorPositionEn(newStart);
@@ -1157,7 +1202,7 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
                           onChange={(e) => {
                             const rawValue = e.target.value;
                             const selectionStart = e.target.selectionStart;
-                            
+
                             if (selectionStart !== null && selectionStart > 0) {
                               const typedChar = rawValue.charAt(selectionStart - 1);
                               if (/[\p{L}\p{N}]/u.test(typedChar)) {
@@ -1168,7 +1213,7 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
                                 setTimeout(() => inputRefEn.current?.setSelectionRange(selectionStart, selectionStart), 0);
                               }
                             }
-                            
+
                             setHasSubmitted(false);
                             setShowError(false);
                           }}
@@ -1377,8 +1422,10 @@ export default function Flashcards({ state, setState, onMemorize, onGoToSaved, o
                 onClick={() => {
                   if (isCorrect) {
                     handleComplete();
+                  } else if (onRestartMemorization) {
+                    onRestartMemorization(verse.id);
                   } else {
-                    onMemorize(verse.id); // Default carry over for incorrect review
+                    onMemorize(verse.id);
                   }
                 }}
                 disabled={!hasReviewed || isFlipped}
