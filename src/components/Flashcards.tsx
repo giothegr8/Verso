@@ -1067,6 +1067,25 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
                               setCursorPositionEs(newPos);
                               setTimeout(() => inputRefEs.current?.setSelectionRange(newPos, newPos), 0);
                             }
+                            if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                              e.preventDefault();
+                              const fillableAll = getFillableIndices(esRef, revealedIndices.es);
+                              const bookStr = esRef.split(' ').slice(0, -1).join(' ');
+                              const bookCharsCount = bookStr.length + (bookStr.length > 0 ? 1 : 0);
+                              const firstNumFillIdx = fillableAll.findIndex(gi => gi >= bookCharsCount);
+                              const bookFillCount = firstNumFillIdx === -1 ? fillableAll.length : firstNumFillIdx;
+                              const numFillCount = firstNumFillIdx === -1 ? 0 : fillableAll.length - firstNumFillIdx;
+                              let newPos = cursorPositionEs;
+                              if (e.key === 'ArrowDown' && cursorPositionEs < bookFillCount && numFillCount > 0) {
+                                newPos = firstNumFillIdx + Math.min(numFillCount - 1, cursorPositionEs);
+                              } else if (e.key === 'ArrowUp' && firstNumFillIdx !== -1 && cursorPositionEs >= firstNumFillIdx && bookFillCount > 0) {
+                                newPos = Math.min(bookFillCount - 1, cursorPositionEs - firstNumFillIdx);
+                              }
+                              if (newPos !== cursorPositionEs) {
+                                setCursorPositionEs(newPos);
+                                setTimeout(() => inputRefEs.current?.setSelectionRange(newPos, newPos), 0);
+                              }
+                            }
                             if (e.key === 'Backspace' && inputRefEs.current) {
                               const start = inputRefEs.current.selectionStart;
                               const end = inputRefEs.current.selectionEnd;
@@ -1175,6 +1194,25 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
                               const newPos = Math.min(maxPos, cursorPositionEn + 1);
                               setCursorPositionEn(newPos);
                               setTimeout(() => inputRefEn.current?.setSelectionRange(newPos, newPos), 0);
+                            }
+                            if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                              e.preventDefault();
+                              const fillableAll = getFillableIndices(enRef, revealedIndices.en);
+                              const bookStr = enRef.split(' ').slice(0, -1).join(' ');
+                              const bookCharsCount = bookStr.length + (bookStr.length > 0 ? 1 : 0);
+                              const firstNumFillIdx = fillableAll.findIndex(gi => gi >= bookCharsCount);
+                              const bookFillCount = firstNumFillIdx === -1 ? fillableAll.length : firstNumFillIdx;
+                              const numFillCount = firstNumFillIdx === -1 ? 0 : fillableAll.length - firstNumFillIdx;
+                              let newPos = cursorPositionEn;
+                              if (e.key === 'ArrowDown' && cursorPositionEn < bookFillCount && numFillCount > 0) {
+                                newPos = firstNumFillIdx + Math.min(numFillCount - 1, cursorPositionEn);
+                              } else if (e.key === 'ArrowUp' && firstNumFillIdx !== -1 && cursorPositionEn >= firstNumFillIdx && bookFillCount > 0) {
+                                newPos = Math.min(bookFillCount - 1, cursorPositionEn - firstNumFillIdx);
+                              }
+                              if (newPos !== cursorPositionEn) {
+                                setCursorPositionEn(newPos);
+                                setTimeout(() => inputRefEn.current?.setSelectionRange(newPos, newPos), 0);
+                              }
                             }
                             if (e.key === 'Backspace' && inputRefEn.current) {
                               const start = inputRefEn.current.selectionStart;
@@ -1439,21 +1477,13 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
               >
                 {isCorrect ? <CheckCircle2 size={24} /> : <BookOpen size={24} />}
                 <span className="text-lg font-bold tracking-tight lowercase">
-                  {isCorrect 
+                  {isCorrect
                     ? (localStorage.getItem(`memorize_failed_${verse.id}`) === "true"
                         ? (state.primaryLanguage === 'es' ? 'terminar práctica' : 'finish practice')
                         : (state.primaryLanguage === 'es' ? 'versículo memorizado' : 'verse memorized'))
                     : (state.primaryLanguage === 'es' ? 'repasar versículo' : 'review verse')}
                 </span>
-                {hasReviewed && !isFlipped && (
-                  <motion.div 
-                    className="absolute right-6"
-                    animate={{ x: [0, 5, 0] }}
-                    transition={{ repeat: Infinity, duration: 1.5 }}
-                  >
-                    <ArrowRight size={20} />
-                  </motion.div>
-                )}
+                {isCorrect && hasReviewed && !isFlipped && <ArrowRight size={20} />}
               </button>
             </motion.div>
           ) : (
