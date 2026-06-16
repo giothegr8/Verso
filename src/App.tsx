@@ -395,15 +395,24 @@ function AppInner() {
           for (const p of s.customPaths) {
             const vData = p.verses.find(v => v.id === verseId);
             if (vData) {
+              // Place the stored single-language text only in its own translation slot,
+              // leaving the other language empty so the lazy fetch can fill the missing language.
+              // (A real fetched bilingual verse is already preferred above via fromCustomList.)
+              const isEsText = vData.translation
+                ? ["RVR1960", "NVI", "NBLA"].includes(vData.translation)
+                : p.language === 'es';
+              const slotKey = vData.translation || (isEsText ? "RVR1960" : "KJV");
+              const ptext = {
+                es: { RVR1960: "", NVI: "", NBLA: "", KJV: "", NIV: "", NASB: "" },
+                en: { KJV: "", NIV: "", NASB: "", RVR1960: "", NVI: "", NBLA: "" }
+              };
+              if (vData.text) (ptext as any)[isEsText ? 'es' : 'en'][slotKey] = vData.text;
               pathVerse = {
                 id: vData.id,
                 book: vData.reference.split(' ').slice(0, -1).join(' '),
                 chapter: parseInt(vData.reference.split(' ').pop()?.split(':')[0] || '1'),
                 verse: parseInt(vData.reference.split(' ').pop()?.split(':')[1] || '1'),
-                text: {
-                  es: { RVR1960: vData.text || "", NVI: vData.text || "", NBLA: vData.text || "", KJV: "", NIV: "", NASB: "" },
-                  en: { KJV: vData.text || "", NIV: vData.text || "", NASB: vData.text || "", RVR1960: "", NVI: "", NBLA: "" }
-                },
+                text: ptext,
                 copyright: vData.copyright
               } as Verse;
               break;

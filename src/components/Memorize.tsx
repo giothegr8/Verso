@@ -1642,7 +1642,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
               "{state.memorizeMode === 'en' ? enText : (state.memorizeMode === 'es' ? esText : `${esText} / ${enText}`)}"
             </p>
             <p className="text-sm font-black uppercase tracking-widest text-teal dark:text-teal-400">
-              {getLocalizedBookName(verse.book, state.primaryLanguage === 'es' ? 'es' : 'en')} {verse.chapter}:{verse.verse}
+              {getLocalizedBookName(verse.book, state.memorizeMode === 'es' ? 'es' : state.memorizeMode === 'en' ? 'en' : (state.primaryLanguage === 'es' ? 'es' : 'en'))} {verse.chapter}:{verse.verse}
             </p>
           </div>
         </div>
@@ -2042,7 +2042,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
           
           <div className="flex flex-row items-center justify-between gap-4 w-full">
             <h2 className="text-2xl sm:text-4xl lg:text-5xl font-serif font-black text-earth dark:text-ivory tracking-tight leading-tight whitespace-nowrap">
-              {getLocalizedBookName(verse.book, state.primaryLanguage === 'es' ? 'es' : 'en')} {verse.chapter}:{verse.verse}
+              {getLocalizedBookName(verse.book, state.memorizeMode === 'es' ? 'es' : state.memorizeMode === 'en' ? 'en' : (state.primaryLanguage === 'es' ? 'es' : 'en'))} {verse.chapter}:{verse.verse}
             </h2>
             
             {/* Progress Indicator */}

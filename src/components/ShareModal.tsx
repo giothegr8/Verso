@@ -105,7 +105,7 @@ export default function ShareModal({ isOpen, onClose, verse, state, onNativeShar
                 <div className="mt-8 pt-6 sm:pt-8 border-t border-white/10 flex justify-between items-end relative z-10">
                   <div className="space-y-1">
                     <h4 className="text-lg sm:text-xl font-serif font-black text-ivory whitespace-nowrap">
-                      {getLocalizedBookName(verse.book, state.primaryLanguage === 'es' ? 'es' : 'en')} {verse.chapter}:{verse.verse}
+                      {getLocalizedBookName(verse.book, state.memorizeMode === 'es' ? 'es' : state.memorizeMode === 'en' ? 'en' : (state.primaryLanguage === 'es' ? 'es' : 'en'))} {verse.chapter}:{verse.verse}
                     </h4>
                     <p className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-ivory/40">
                       {state.primaryLanguage === 'es' ? 'Memorizado con Verso' : 'Memorized with Verso'}

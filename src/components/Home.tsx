@@ -247,25 +247,26 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
     if (!currentPathDay) return null;
     if (isCustomPath) {
       const v = currentPathDay as any;
+      // Prefer a real bilingual verse already fetched/merged by loadVerseAndMerge
+      const fetched = state.customVerses.find(c => c.id === v.id);
+      if (fetched) return fetched;
+      // Otherwise place the stored single-language text only in its own translation slot,
+      // leaving the other language empty so the lazy fetch can fill the missing language.
+      const isEsText = v.translation
+        ? ["RVR1960", "NVI", "NBLA"].includes(v.translation)
+        : (selectedPath as CustomPath)?.language === 'es';
+      const slotKey = v.translation || (isEsText ? "RVR1960" : "KJV");
+      const text = {
+        es: { RVR1960: "", NVI: "", NBLA: "", KJV: "", NIV: "", NASB: "" },
+        en: { KJV: "", NIV: "", NASB: "", RVR1960: "", NVI: "", NBLA: "" }
+      };
+      if (v.text) (text as any)[isEsText ? 'es' : 'en'][slotKey] = v.text;
       return {
         id: v.id,
         book: v.reference.split(' ').slice(0, -1).join(' '),
         chapter: parseInt(v.reference.split(' ').pop()?.split(':')[0] || '1'),
         verse: parseInt(v.reference.split(' ').pop()?.split(':')[1] || '1'),
-        text: {
-          es: { 
-            RVR1960: v.text || "", 
-            NVI: v.text || "", 
-            NBLA: v.text || "",
-            KJV: "", NIV: "", NASB: "" 
-          },
-          en: { 
-            KJV: v.text || "", 
-            NIV: v.text || "", 
-            NASB: v.text || "",
-            RVR1960: "", NVI: "", NBLA: "" 
-          }
-        },
+        text,
         copyright: v.copyright
       };
     }
@@ -374,7 +375,7 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
   };
 
   const onNativeShare = async (elementId?: string, filename?: string) => {
-    const locBook = getLocalizedBookName(currentVerse.book, state.primaryLanguage === 'es' ? 'es' : 'en');
+    const locBook = getLocalizedBookName(currentVerse.book, state.memorizeMode === 'es' ? 'es' : state.memorizeMode === 'en' ? 'en' : (state.primaryLanguage === 'es' ? 'es' : 'en'));
     const title = `Verso: ${locBook} ${currentVerse.chapter}:${currentVerse.verse}`;
     const text = `${locBook} ${currentVerse.chapter}:${currentVerse.verse}\n\n${esText ? `ES: ${esText}\n` : ''}${enText ? `EN: ${enText}` : ''}\n\nShared via Verso`;
     const url = window.location.href;
@@ -715,7 +716,7 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
                           {isEs ? "Versículo de memorización:" : "Memory verse:"}
                         </p>
                         <p className="text-base sm:text-lg font-serif italic font-bold text-earth dark:text-ivory leading-snug whitespace-nowrap overflow-x-auto scrollbar-thin">
-                          {getLocalizedBookName(activePathVerse.book, state.primaryLanguage === 'es' ? 'es' : 'en')} {activePathVerse.chapter}:{activePathVerse.verse}
+                          {getLocalizedBookName(activePathVerse.book, state.memorizeMode === 'es' ? 'es' : state.memorizeMode === 'en' ? 'en' : (state.primaryLanguage === 'es' ? 'es' : 'en'))} {activePathVerse.chapter}:{activePathVerse.verse}
                         </p>
                       </div>
 
@@ -725,7 +726,7 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
                           <BookOpen size={13} className="text-teal/70 shrink-0" />
                           <p className="truncate">
                             {isEs ? "Lectura de contexto: " : "Context reading: "}
-                            <span className="font-serif italic font-bold text-teal whitespace-nowrap">{formatReferenceForLocale((currentPathDay as any).contextPassage, isEs ? 'es' : 'en')}</span>
+                            <span className="font-serif italic font-bold text-teal whitespace-nowrap">{formatReferenceForLocale((currentPathDay as any).contextPassage, state.memorizeMode === 'es' ? 'es' : state.memorizeMode === 'en' ? 'en' : (isEs ? 'es' : 'en'))}</span>
                           </p>
                         </div>
                       )}
@@ -922,7 +923,7 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
                 <div className="flex flex-col sm:flex-row justify-between items-center sm:items-end gap-6 sm:gap-0 pt-6 border-t border-earth/5 dark:border-white/5">
                   <div className="space-y-1 text-center sm:text-left">
                     <h3 className="text-xl sm:text-2xl font-serif font-black text-earth dark:text-ivory tracking-tight">
-                      {getLocalizedBookName(currentVerse.book, state.primaryLanguage === 'es' ? 'es' : 'en')} {currentVerse.chapter}:{currentVerse.verse}
+                      {getLocalizedBookName(currentVerse.book, state.memorizeMode === 'es' ? 'es' : state.memorizeMode === 'en' ? 'en' : (state.primaryLanguage === 'es' ? 'es' : 'en'))} {currentVerse.chapter}:{currentVerse.verse}
                     </h3>
                     <p className="text-[10px] font-black uppercase tracking-widest text-earth-light/60 dark:text-lavender-muted/60">
                       {isCustomMode
@@ -1135,7 +1136,7 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
                 <div className="flex flex-col sm:flex-row justify-between items-center sm:items-end gap-6 sm:gap-0 pt-6 border-t border-earth/5 dark:border-white/5">
                   <div className="space-y-1 text-center sm:text-left">
                     <h3 className="text-xl sm:text-2xl font-serif font-black text-earth dark:text-ivory tracking-tight">
-                      {getLocalizedBookName(currentVerse.book, state.primaryLanguage === 'es' ? 'es' : 'en')} {currentVerse.chapter}:{currentVerse.verse}
+                      {getLocalizedBookName(currentVerse.book, state.memorizeMode === 'es' ? 'es' : state.memorizeMode === 'en' ? 'en' : (state.primaryLanguage === 'es' ? 'es' : 'en'))} {currentVerse.chapter}:{currentVerse.verse}
                     </h3>
                     <p className="text-[10px] font-black uppercase tracking-widest text-earth-light/60 dark:text-lavender-muted/60">
                       {isCustomMode
@@ -1283,7 +1284,7 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
                   <div className="flex justify-between items-start">
                     <div className="space-y-1">
                       <h4 className="text-lg font-serif font-black text-earth dark:text-ivory">
-                        {getLocalizedBookName(searchResult.book, state.primaryLanguage === 'es' ? 'es' : 'en')} {searchResult.chapter}:{searchResult.verse}
+                        {getLocalizedBookName(searchResult.book, state.memorizeMode === 'es' ? 'es' : state.memorizeMode === 'en' ? 'en' : (state.primaryLanguage === 'es' ? 'es' : 'en'))} {searchResult.chapter}:{searchResult.verse}
                       </h4>
                       <p className="text-[10px] font-black uppercase tracking-widest text-playful-purple/60">
                         {isEs ? "Versículo encontrado" : "Verse found"}

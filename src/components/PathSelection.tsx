@@ -144,15 +144,26 @@ export default function PathSelection({ state, setState, onSelectPath, onBack, o
     if (selectedPath && 'verses' in selectedPath && typeof selectedPath.verses[0] === 'object') {
        const found = (selectedPath as CustomPath).verses.find(v => v.reference === ref);
        if (found && found.text) {
+          // Prefer a real bilingual verse already fetched/merged by loadVerseAndMerge
+          const fetched = state.customVerses.find(c => c.id === found.id);
+          if (fetched) return fetched;
+          // Otherwise place the stored single-language text only in its own translation slot,
+          // leaving the other language empty so the lazy fetch can fill the missing language.
+          const isEsText = found.translation
+            ? ["RVR1960", "NVI", "NBLA"].includes(found.translation)
+            : (selectedPath as CustomPath).language === 'es';
+          const slotKey = found.translation || (isEsText ? "RVR1960" : "KJV");
+          const text = {
+            es: { RVR1960: "", NVI: "", NBLA: "", KJV: "", NIV: "", NASB: "" },
+            en: { KJV: "", NIV: "", NASB: "", RVR1960: "", NVI: "", NBLA: "" }
+          };
+          if (found.text) (text as any)[isEsText ? 'es' : 'en'][slotKey] = found.text;
           return {
             id: found.id,
             book: found.reference.split(' ').slice(0, -1).join(' '),
             chapter: parseInt(found.reference.split(' ').pop()?.split(':')[0] || '1'),
             verse: parseInt(found.reference.split(' ').pop()?.split(':')[1] || '1'),
-            text: {
-              es: { RVR1960: found.text, NVI: found.text, NBLA: found.text, KJV: "", NIV: "", NASB: "" },
-              en: { KJV: found.text, NIV: found.text, NASB: found.text, RVR1960: "", NVI: "", NBLA: "" }
-            }
+            text
           } as Verse;
        }
     }
@@ -413,7 +424,7 @@ export default function PathSelection({ state, setState, onSelectPath, onBack, o
             verse={currentReviewVerse}
             state={state}
             onNativeShare={async (elementId, filename) => {
-              const locBook = getLocalizedBookName(currentReviewVerse.book, state.primaryLanguage === 'es' ? 'es' : 'en');
+              const locBook = getLocalizedBookName(currentReviewVerse.book, state.memorizeMode === 'es' ? 'es' : state.memorizeMode === 'en' ? 'en' : (state.primaryLanguage === 'es' ? 'es' : 'en'));
               const title = `Verso: ${locBook} ${currentReviewVerse.chapter}:${currentReviewVerse.verse}`;
               const text = `${locBook} ${currentReviewVerse.chapter}:${currentReviewVerse.verse}\n\nShared via Verso`;
               await handleShare(title, text, window.location.href, () => {}, elementId, filename);
@@ -503,7 +514,7 @@ export default function PathSelection({ state, setState, onSelectPath, onBack, o
 
                     <div className="pt-4">
                       <h5 className="text-lg font-serif font-black text-teal-400 whitespace-nowrap">
-                        {getLocalizedBookName(currentReviewVerse.book, state.primaryLanguage === 'es' ? 'es' : 'en')} {currentReviewVerse.chapter}:{currentReviewVerse.verse}
+                        {getLocalizedBookName(currentReviewVerse.book, state.memorizeMode === 'es' ? 'es' : state.memorizeMode === 'en' ? 'en' : (state.primaryLanguage === 'es' ? 'es' : 'en'))} {currentReviewVerse.chapter}:{currentReviewVerse.verse}
                       </h5>
                     </div>
                   </div>
@@ -733,11 +744,11 @@ export default function PathSelection({ state, setState, onSelectPath, onBack, o
                             isCompleted ? "text-amber-600/60 dark:text-amber-400/60" : isActive ? "text-teal" : "text-earth-light/30"
                           }`}>
                             {(dayData as any)?.title 
-                              ? <span>{isEs ? `Día ${dayNum}` : `Day ${dayNum}`} • <span className="whitespace-nowrap">{formatReferenceForLocale((dayData as any).reference, isEs ? 'es' : 'en')}</span></span>
+                              ? <span>{isEs ? `Día ${dayNum}` : `Day ${dayNum}`} • <span className="whitespace-nowrap">{formatReferenceForLocale((dayData as any).reference, state.memorizeMode === 'es' ? 'es' : state.memorizeMode === 'en' ? 'en' : (isEs ? 'es' : 'en'))}</span></span>
                               : (isEs ? `Día ${dayNum}` : `Day ${dayNum}`)}
                           </span>
                           <span className={`font-serif font-bold text-base truncate ${isActive ? "text-teal-900 dark:text-teal-50" : isCompleted ? "text-earth/60 dark:text-ivory/60" : "text-earth dark:text-ivory"}`}>
-                            {(dayData as any)?.title || (dayData as any)?.reference ? <span className={!(dayData as any)?.title ? "whitespace-nowrap" : undefined}>{(dayData as any)?.title || formatReferenceForLocale((dayData as any)?.reference, isEs ? 'es' : 'en')}</span> : (isEs ? "Versículo" : "Verse")}
+                            {(dayData as any)?.title || (dayData as any)?.reference ? <span className={!(dayData as any)?.title ? "whitespace-nowrap" : undefined}>{(dayData as any)?.title || formatReferenceForLocale((dayData as any)?.reference, state.memorizeMode === 'es' ? 'es' : state.memorizeMode === 'en' ? 'en' : (isEs ? 'es' : 'en'))}</span> : (isEs ? "Versículo" : "Verse")}
                           </span>
                         </div>
                         {isActive && (
@@ -760,7 +771,7 @@ export default function PathSelection({ state, setState, onSelectPath, onBack, o
                         <div className="overflow-hidden">
                           <div className="flex items-center justify-between mb-1">
                             <p className="text-[8px] font-black uppercase tracking-widest text-teal/60 whitespace-nowrap">
-                              {formatReferenceForLocale(dayData?.reference || '', isEs ? 'es' : 'en')}
+                              {formatReferenceForLocale(dayData?.reference || '', state.memorizeMode === 'es' ? 'es' : state.memorizeMode === 'en' ? 'en' : (isEs ? 'es' : 'en'))}
                             </p>
                             <RotateCw size={10} className="text-teal/40" />
                           </div>
