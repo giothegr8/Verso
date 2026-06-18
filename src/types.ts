@@ -191,4 +191,8 @@ export interface ActiveAttemptSnapshot {
   pathDay?: number | null;
   dayReference?: string | null;
   citationCorrect?: boolean;
+  // Latches to true once the attempt advances past Step 1 (stage >= 2). Used by
+  // the challenge-in-progress guard so protection survives reviewing back to
+  // Step 1. Optional/undefined for older saved attempts (treated as not started).
+  started?: boolean;
 }

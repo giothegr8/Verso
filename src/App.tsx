@@ -218,14 +218,12 @@ function AppInner() {
     destinationTab?: string;
   } | null>(null);
   // An attempt is only "protected" (guarded by the challenge-in-progress warning)
-  // once it has advanced past Step 1 and before completion. Step 1 (stage 1) stays
-  // unguarded, and completed verses (stage 7) are excluded. This mirrors the
-  // stage 2-6 window used by the Memorize/Flashcards restore effects.
-  const activeAttemptInProgress = (() => {
-    if (!state.activeAttempt) return false;
-    const stage = state.progress.verseStages?.[state.activeAttempt.verseId];
-    return stage !== undefined && stage >= 2 && stage <= 6;
-  })();
+  // once it has advanced past Step 1. The `started` flag latches the first time the
+  // verse reaches stage >= 2 (see the latch effect below) and survives reviewing
+  // back to Step 1, so we rely on it rather than the live (non-monotonic) stage.
+  // Step 1 of a fresh attempt stays unguarded; the flag clears naturally whenever
+  // activeAttempt is cleared/replaced (abandon, confirmed exit, completion, new verse).
+  const activeAttemptInProgress = !!state.activeAttempt && state.activeAttempt.started === true;
   const handleSetActiveTab = (tab: string) => {
     if (activeAttemptInProgress && state.activeAttempt) {
       const activeVerseId = state.activeAttempt.verseId;
@@ -365,6 +363,23 @@ function AppInner() {
       }
     }));
   }, [state.selectedTranslations.es, state.selectedTranslations.en, state.memorizeMode]);
+
+  // Latch activeAttempt.started once the verse advances past Step 1 (stage 2-6).
+  // Once latched it stays set even if the user reviews back to Step 1, so the
+  // challenge-in-progress guard keeps protecting the attempt. It clears naturally
+  // when activeAttempt is cleared/replaced (abandon, confirmed exit, completion,
+  // starting another verse).
+  useEffect(() => {
+    if (!state.activeAttempt || state.activeAttempt.started) return;
+    const stage = state.progress.verseStages?.[state.activeAttempt.verseId];
+    if (stage === undefined || stage < 2 || stage > 6) return;
+    setState(s => {
+      if (!s.activeAttempt || s.activeAttempt.started) return s;
+      const liveStage = s.progress.verseStages?.[s.activeAttempt.verseId];
+      if (liveStage === undefined || liveStage < 2 || liveStage > 6) return s;
+      return { ...s, activeAttempt: { ...s.activeAttempt, started: true } };
+    });
+  }, [state.activeAttempt, state.progress.verseStages]);
 
   const startMemorizing = (verseId: string, source: "daily" | "path" | "custom" | "extra" | "saved" = "daily") => {
     localStorage.removeItem(`memorize_failed_${verseId}`);
