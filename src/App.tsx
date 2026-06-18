@@ -1203,6 +1203,13 @@ function AppInner() {
                           getAnotherVerseBypassingCheck();
                         } else if (nextAction?.type === "navigate") {
                           if (nextAction.destinationTab === "settings") {
+                            // Settings is an overlay and does not change the tab, so the
+                            // Memorize/Flashcards deck would stay mounted with its stale
+                            // Step 2/3 local state and could rewrite verseStages, letting
+                            // the restore effects recreate the attempt we just quit. Move
+                            // off the live deck first (raw setter, no guard re-prompt) so
+                            // it unmounts before opening Settings.
+                            setActiveTab("home");
                             setShowSettings(true);
                           } else if (nextAction.destinationTab) {
                             setActiveTab(nextAction.destinationTab);
