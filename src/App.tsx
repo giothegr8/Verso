@@ -217,8 +217,17 @@ function AppInner() {
     source?: "daily" | "path" | "custom" | "extra" | "saved" | "daily";
     destinationTab?: string;
   } | null>(null);
+  // An attempt is only "protected" (guarded by the challenge-in-progress warning)
+  // once it has advanced past Step 1 and before completion. Step 1 (stage 1) stays
+  // unguarded, and completed verses (stage 7) are excluded. This mirrors the
+  // stage 2-6 window used by the Memorize/Flashcards restore effects.
+  const activeAttemptInProgress = (() => {
+    if (!state.activeAttempt) return false;
+    const stage = state.progress.verseStages?.[state.activeAttempt.verseId];
+    return stage !== undefined && stage >= 2 && stage <= 6;
+  })();
   const handleSetActiveTab = (tab: string) => {
-    if (state.activeAttempt) {
+    if (activeAttemptInProgress && state.activeAttempt) {
       const activeVerseId = state.activeAttempt.verseId;
       const currentStage = state.progress.verseStages?.[activeVerseId] || 1;
       const safeTab = currentStage === 6 ? "flashcards" : "memorize";
@@ -366,8 +375,8 @@ function AppInner() {
       return;
     }
 
-    // 2. If we have an active attempt on a DIFFERENT verse, prompt them first
-    if (state.activeAttempt) {
+    // 2. If we have an in-progress attempt on a DIFFERENT verse, prompt them first
+    if (activeAttemptInProgress && state.activeAttempt) {
       setPendingAttempt({ type: "start", verseId, source });
       return;
     }
@@ -454,7 +463,7 @@ function AppInner() {
   };
 
   const getAnotherVerse = async () => {
-    if (state.activeAttempt) {
+    if (activeAttemptInProgress) {
       setPendingAttempt({ type: "another" });
       return;
     }
@@ -1038,7 +1047,7 @@ function AppInner() {
               <button
                 id="nav-settings"
                 onClick={() => {
-                  if (state.activeAttempt) {
+                  if (activeAttemptInProgress) {
                     setPendingAttempt({ type: "navigate", destinationTab: "settings" });
                     return;
                   }
