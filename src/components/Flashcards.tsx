@@ -147,7 +147,40 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
     state.activeSource
   ]);
 
-  const { esText, enText, activePair } = useMemo(() => 
+  // Restore the active-attempt snapshot if it was lost (e.g. after a language
+  // switch) while a genuinely in-progress challenge remains. The App
+  // navigation/settings guard relies solely on activeAttempt, so a missing
+  // snapshot would let the user bypass the "challenge in progress" warning while
+  // sitting on the citation step. We only restore for verses that have advanced
+  // past step 1 (stage >= 2) and are not completed (stage 7), mirroring the
+  // snapshot shape used when a challenge is first started. This only adds
+  // activeAttempt; it never downgrades stage or touches citation state.
+  useEffect(() => {
+    if (state.activeAttempt) return;
+    const dbStage = state.progress.verseStages?.[verse.id];
+    if (dbStage === undefined || dbStage < 2 || dbStage > 6) return;
+    setState(s => {
+      if (s.activeAttempt) return s;
+      const liveStage = s.progress.verseStages?.[verse.id];
+      if (liveStage === undefined || liveStage < 2 || liveStage > 6) return s;
+      const reference = `${verse.book} ${verse.chapter}:${verse.verse}`;
+      return {
+        ...s,
+        activeAttempt: {
+          verseId: verse.id,
+          reference,
+          translations: { ...s.selectedTranslations },
+          memorizeMode: s.memorizeMode,
+          verse,
+          source: s.activeSource || "saved",
+          pathId: s.pathProgress.selectedPathId || s.customPathProgress.selectedPathId,
+          pathDay: s.activeSource === "path" ? (s.pathProgress.selectedPathId ? s.pathProgress.currentDay : s.customPathProgress.currentDay) : null,
+        },
+      };
+    });
+  }, [verse.id, state.activeAttempt, state.progress.verseStages, state.memorizeMode, setState]);
+
+  const { esText, enText, activePair } = useMemo(() =>
     getValidatedVerse(verse, state),
     [verse, state, state.selectedTranslations.es, state.selectedTranslations.en]
   );

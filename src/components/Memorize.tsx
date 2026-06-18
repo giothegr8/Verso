@@ -683,7 +683,40 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
       });
     }
   }, [verse.id, state.selectedTranslations.es, state.selectedTranslations.en, state.memorizeMode, setState]);
-  
+
+  // Restore the active-attempt snapshot if it was lost (e.g. after a language
+  // switch) while a genuinely in-progress challenge remains. The App
+  // navigation/settings guard relies solely on activeAttempt, so a missing
+  // snapshot would let the user bypass the "challenge in progress" warning even
+  // though local stage state is still advancing. We only restore for verses that
+  // have advanced past step 1 (stage >= 2) and are not completed (stage 7),
+  // mirroring the snapshot shape used when a challenge is first started. This
+  // only adds activeAttempt; it never downgrades stage or touches citation state.
+  useEffect(() => {
+    if (state.activeAttempt) return;
+    const dbStage = state.progress.verseStages[verse.id];
+    if (dbStage === undefined || dbStage < 2 || dbStage > 6) return;
+    setState(s => {
+      if (s.activeAttempt) return s;
+      const liveStage = s.progress.verseStages[verse.id];
+      if (liveStage === undefined || liveStage < 2 || liveStage > 6) return s;
+      const reference = `${verse.book} ${verse.chapter}:${verse.verse}`;
+      return {
+        ...s,
+        activeAttempt: {
+          verseId: verse.id,
+          reference,
+          translations: { ...s.selectedTranslations },
+          memorizeMode: s.memorizeMode,
+          verse,
+          source: s.activeSource || "saved",
+          pathId: s.pathProgress.selectedPathId || s.customPathProgress.selectedPathId,
+          pathDay: s.activeSource === "path" ? (s.pathProgress.selectedPathId ? s.pathProgress.currentDay : s.customPathProgress.currentDay) : null,
+        },
+      };
+    });
+  }, [verse.id, state.activeAttempt, state.progress.verseStages, state.memorizeMode, setState]);
+
   // Sync state with tour steps
   useEffect(() => {
     if (tourStepId === 'recall-challenge') {
