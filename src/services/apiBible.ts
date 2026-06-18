@@ -28,9 +28,10 @@ export const BIBLE_VERSIONS: Record<string, string> = {
   ASV: "06125ad3dfee5834-01",
   RVR1960: "592420522e16049f-01",
   NVI: "5da0108dbd6d3761-01",
-  NBLA: "c309477e163c81e9-01",
-  NASB: "301b5fa8dbd6c376-01",
-  NIV: "bba9f40182ba81d4-01",
+  NBLA: "ce11b813f9a27e20-01",
+  // App-facing abbreviation "NASB" maps to NASB 2020 (account-authorized edition).
+  NASB: "a761ca71e0b3ddcf-01",
+  NIV: "78a9f6124f344018-01",
   // Fallbacks
   en: "de4e12af7f895945-01", 
   es: "592420522e16049f-01"
