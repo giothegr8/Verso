@@ -366,6 +366,11 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
   const { esText, enText, esError, enError, activePair: validatedPair } = getValidatedVerse(currentVerse, state);
   const esTransToUse = validatedPair?.es || esDetail.id;
   const enTransToUse = validatedPair?.en || enDetail.id;
+  // Tie the verse-card translation label/name to the same validated pair used
+  // to render the body, so the label can never name a different translation
+  // than the text shown (e.g. custom verses pinned via preferredTranslation).
+  const esVerseDetail = TRANSLATION_DETAILS[esTransToUse] || esDetail;
+  const enVerseDetail = TRANSLATION_DETAILS[enTransToUse] || enDetail;
   const isEsLoading = !!(currentVerse && state.loadingTranslations && state.loadingTranslations[`${currentVerse.id}_${esTransToUse}`]);
   const isEnLoading = !!(currentVerse && state.loadingTranslations && state.loadingTranslations[`${currentVerse.id}_${enTransToUse}`]);
 
@@ -872,7 +877,7 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
                   {(state.memorizeMode === 'es' || state.memorizeMode === 'both') && (
                     <div className="space-y-4">
                       <span className="text-[10px] font-black uppercase tracking-widest text-playful-purple/80 dark:text-plum/80">
-                        {esDetail.name}
+                        {esVerseDetail.name}
                       </span>
                       {esText ? (
                         <p className={`text-2xl sm:text-3xl font-serif leading-relaxed text-earth dark:text-ivory ${VERSE_LAYOUT.FONT_WEIGHT} tracking-tight`}>
@@ -899,7 +904,7 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
                   {(state.memorizeMode === 'en' || state.memorizeMode === 'both') && (
                     <div className="space-y-4">
                       <span className="text-[10px] font-black uppercase tracking-widest text-golden/80">
-                        {enDetail.name}
+                        {enVerseDetail.name}
                       </span>
                       {enText ? (
                         <p className={`text-2xl sm:text-3xl font-serif leading-relaxed text-earth dark:text-ivory ${VERSE_LAYOUT.FONT_WEIGHT} tracking-tight`}>
@@ -1085,7 +1090,7 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
                   {(state.memorizeMode === 'es' || state.memorizeMode === 'both') && (
                     <div className="space-y-4">
                       <span className="text-[10px] font-black uppercase tracking-[0.2em] text-playful-purple/80 dark:text-plum/80">
-                        {esDetail.name}
+                        {esVerseDetail.name}
                       </span>
                       {esText ? (
                         <p className={`text-2xl sm:text-3xl font-serif leading-relaxed text-earth dark:text-ivory ${VERSE_LAYOUT.FONT_WEIGHT} tracking-tight`}>
@@ -1112,7 +1117,7 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
                   {(state.memorizeMode === 'en' || state.memorizeMode === 'both') && (
                     <div className="space-y-4">
                       <span className="text-[10px] font-black uppercase tracking-widest text-golden/80">
-                        {enDetail.name}
+                        {enVerseDetail.name}
                       </span>
                       {enText ? (
                         <p className={`text-2xl sm:text-3xl font-serif leading-relaxed text-earth dark:text-ivory ${VERSE_LAYOUT.FONT_WEIGHT} tracking-tight`}>

@@ -289,7 +289,7 @@ export default function Saved({ state, setState, onStartMemorizing, onGoToFlashc
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <span className="text-[9px] font-black uppercase tracking-widest text-playful-purple/60 dark:text-plum/60 bg-playful-purple/5 dark:bg-plum/5 px-2 py-0.5 rounded border border-playful-purple/10 dark:border-plum/10">
-                  {activePair.es}
+                  {esTransToUse}
                 </span>
               </div>
               {esText ? (
@@ -313,7 +313,7 @@ export default function Saved({ state, setState, onStartMemorizing, onGoToFlashc
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <span className="text-[9px] font-black uppercase tracking-widest text-golden/60 dark:text-gold/60 bg-golden/5 dark:bg-gold/5 px-2 py-0.5 rounded border border-golden/10 dark:border-gold/10">
-                  {activePair.en}
+                  {enTransToUse}
                 </span>
               </div>
               {enText ? (
