@@ -10,11 +10,12 @@ import TermsOfServiceModal from "./TermsOfServiceModal";
 interface SettingsProps {
   state: AppState;
   setState: React.Dispatch<React.SetStateAction<AppState>>;
+  onChangeTranslation: (lang: 'es' | 'en', id: Translation) => void;
   onClose: () => void;
   onShowTour: () => void;
 }
 
-export default function Settings({ state, setState, onClose, onShowTour }: SettingsProps) {
+export default function Settings({ state, setState, onChangeTranslation, onClose, onShowTour }: SettingsProps) {
   const [localState, setLocalState] = useState(state);
   const [showSavedToast, setShowSavedToast] = useState(false);
   const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
@@ -23,8 +24,23 @@ export default function Settings({ state, setState, onClose, onShowTour }: Setti
   const activePair = getCurrentTranslationPair(localState);
 
   const handleSave = async () => {
-    setState(localState);
-    
+    // Field-level merge of the Settings-owned draft fields only — never overwrite
+    // the entire AppState (which would clobber verse/fetch state changed since the
+    // panel opened). Translation changes are routed through the shared, fetch-gated
+    // App handler so an active custom verse reconciles correctly.
+    setState(s => ({
+      ...s,
+      primaryLanguage: localState.primaryLanguage,
+      memorizeMode: localState.memorizeMode,
+      theme: localState.theme,
+    }));
+    if (localState.selectedTranslations.es !== state.selectedTranslations.es) {
+      onChangeTranslation('es', localState.selectedTranslations.es);
+    }
+    if (localState.selectedTranslations.en !== state.selectedTranslations.en) {
+      onChangeTranslation('en', localState.selectedTranslations.en);
+    }
+
     setShowSavedToast(true);
     // Faster feedback and closure
     setTimeout(() => {
@@ -247,9 +263,8 @@ export default function Settings({ state, setState, onClose, onShowTour }: Setti
                 <button
                   key={theme.id}
                   onClick={() => {
+                    // Draft only; commits on Save so closing without saving changes nothing.
                     setLocalState(s => ({ ...s, theme: theme.id as any }));
-                    // Live preview of the theme change
-                    setState(s => ({ ...s, theme: theme.id as any }));
                   }}
                   className={`h-24 rounded-2xl flex flex-col items-center justify-center gap-2 transition-all border-2 ${localState.theme === theme.id ? 'bg-coral/10 text-coral border-coral shadow-[0_0_15px_rgba(225,29,72,0.1)]' : 'bg-earth/5 dark:bg-white/5 border-transparent text-earth/60 dark:text-lavender-muted hover:bg-earth/10 dark:hover:bg-white/10'}`}
                 >

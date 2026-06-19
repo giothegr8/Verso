@@ -133,6 +133,26 @@ const INITIAL_STATE: AppState = {
   activeAttempt: null,
 };
 
+const ES_TRANSLATIONS = ["RVR1960", "NVI", "NBLA"];
+const isEsTranslation = (t: string) => ES_TRANSLATIONS.includes(t);
+// A slot counts as successfully loaded only if it holds real text: not empty,
+// not a "coming soon" placeholder, and not a loadVerseAndMerge failure sentinel.
+const isSlotSuccessfullyLoaded = (txt?: string): boolean => {
+  if (!txt) return false;
+  const low = txt.trim().toLowerCase();
+  if (low === "") return false;
+  if (low.includes("coming soon") || low.includes("próximamente") || low.includes("proximamente")) return false;
+  if (low.includes("error loading") || low.includes("error al cargar")) return false;
+  return true;
+};
+// The literal failure strings loadVerseAndMerge writes when a fetch returns no
+// text; distinguishes a definitive failure from a not-yet-loaded (empty) slot.
+const isFailureSentinel = (txt?: string): boolean => {
+  if (!txt) return false;
+  const low = txt.toLowerCase();
+  return low.includes("error loading") || low.includes("error al cargar");
+};
+
 function AppInner() {
   const { user, profile, isPremium: realPremium, loading: authLoading } = useAuth();
   const [mockPremium, setMockPremium] = useState(() => localStorage.getItem('verso_test_premium') === 'true');
@@ -249,6 +269,12 @@ function AppInner() {
   const [editingPath, setEditingPath] = useState<CustomPath | null>(null);
   const [selectedPath, setSelectedPath] = useState<Path | CustomPath | null>(null);
   const [currentTourStepId, setCurrentTourStepId] = useState<string | null>(null);
+  // Tracks an in-flight translation change on an active custom verse (from the
+  // Home Quick Switch or Settings Save). preferredTranslation is reconciled to
+  // `target` only after its slot loads successfully; on failure the global
+  // selection rolls back to `prevPreferred`. Keyed by verseId so a verse change
+  // discards a stale pending switch. Not persisted.
+  const [pendingSwitch, setPendingSwitch] = useState<{ verseId: string; lang: 'es' | 'en'; target: Translation; prevPreferred: Translation } | null>(null);
 
   useEffect(() => {
     captureUtmParams();
@@ -265,6 +291,54 @@ function AppInner() {
   useEffect(() => {
     localStorage.setItem("verso_active_tab", activeTab);
   }, [activeTab]);
+
+  // Shared, fetch-gated "change active translation" operation used by both the
+  // Home Quick Switch and Settings Save. It updates selectedTranslations now (the
+  // single fetch is performed by Home's existing on-the-fly loading effect); for
+  // an active custom verse it defers the preferredTranslation flip to the
+  // reconciliation effect below, so label, Bible ID, reference, and body move as
+  // one snapshot only after the requested translation loads.
+  const changeActiveTranslation = (lang: 'es' | 'en', id: Translation) => {
+    const cv = state.activeSource === "custom" ? state.selectedCustomVerse : null;
+    const pref = cv?.preferredTranslation;
+    if (cv && pref && (isEsTranslation(pref) ? 'es' : 'en') === lang && pref !== id) {
+      setPendingSwitch({ verseId: cv.id, lang, target: id, prevPreferred: pref });
+    }
+    setState(s => ({ ...s, selectedTranslations: { ...s.selectedTranslations, [lang]: id } }));
+  };
+
+  // Reconcile a pending custom-verse translation change once its slot resolves.
+  // On success the snapshot flips atomically; on a definitive failure the global
+  // selection rolls back so it never claims a translation that did not load.
+  useEffect(() => {
+    if (!pendingSwitch) return;
+    const cv = state.activeSource === "custom" ? state.selectedCustomVerse : null;
+    if (!cv || cv.id !== pendingSwitch.verseId) {
+      setPendingSwitch(null);
+      return;
+    }
+    const { lang, target, prevPreferred } = pendingSwitch;
+    // Still fetching the requested translation — wait.
+    if (state.loadingTranslations && state.loadingTranslations[`${cv.id}_${target}`]) return;
+    const slot = cv.text?.[lang]?.[target];
+    if (isSlotSuccessfullyLoaded(slot)) {
+      setState(s => {
+        if (s.activeSource !== "custom" || !s.selectedCustomVerse) return s;
+        if (s.selectedCustomVerse.preferredTranslation === target) return s;
+        const updated = { ...s.selectedCustomVerse, preferredTranslation: target };
+        return {
+          ...s,
+          selectedCustomVerse: updated,
+          customVerses: s.customVerses.map(v => v.id === updated.id ? { ...v, preferredTranslation: target } : v)
+        };
+      });
+      setPendingSwitch(null);
+    } else if (isFailureSentinel(slot)) {
+      setState(s => ({ ...s, selectedTranslations: { ...s.selectedTranslations, [lang]: prevPreferred } }));
+      setPendingSwitch(null);
+    }
+    // else: empty/not-yet-loaded — keep waiting for the loading effect.
+  }, [pendingSwitch, state.selectedCustomVerse, state.loadingTranslations, state.activeSource]);
 
   // Streak & Votd Daily Update Logic
   useEffect(() => {
@@ -873,11 +947,12 @@ function AppInner() {
   const renderTab = () => {
     switch (activeTab) {
       case "home": return (
-        <Home 
-          state={state} 
-          setState={setState} 
-          onStartMemorizing={(id) => startMemorizing(id, state.activeSource)} 
-          onGetAnotherVerse={getAnotherVerse} 
+        <Home
+          state={state}
+          setState={setState}
+          onChangeTranslation={changeActiveTranslation}
+          onStartMemorizing={(id) => startMemorizing(id, state.activeSource)}
+          onGetAnotherVerse={getAnotherVerse}
           onGoToSaved={() => handleSetActiveTab('saved')} 
           onGoToPaths={(path) => handleGoToPaths(path)}
           onCompletePathDay={handleCompletePathDay}
@@ -1109,7 +1184,7 @@ function AppInner() {
 
         <AnimatePresence>
           {showSettings && (
-            <Settings state={state} setState={setState} onClose={() => setShowSettings(false)} onShowTour={() => { setShowSettings(false); setShowTour(true); }} />
+            <Settings state={state} setState={setState} onChangeTranslation={changeActiveTranslation} onClose={() => setShowSettings(false)} onShowTour={() => { setShowSettings(false); setShowTour(true); }} />
           )}
         </AnimatePresence>
 
