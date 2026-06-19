@@ -11,6 +11,27 @@ import ShareModal from "./ShareModal";
 import { PATHS } from "../constants";
 import { searchVerse, loadVerseAndMerge } from "../services/bibleService";
 
+const ES_TRANSLATIONS = ["RVR1960", "NVI", "NBLA"];
+const isEsTranslation = (t: string) => ES_TRANSLATIONS.includes(t);
+// A slot counts as successfully loaded only if it holds real text: not empty,
+// not a "coming soon" placeholder, and not a loadVerseAndMerge failure sentinel.
+const isSlotSuccessfullyLoaded = (txt?: string): boolean => {
+  if (!txt) return false;
+  const low = txt.trim().toLowerCase();
+  if (low === "") return false;
+  if (low.includes("coming soon") || low.includes("próximamente") || low.includes("proximamente")) return false;
+  if (low.includes("error loading") || low.includes("error al cargar")) return false;
+  return true;
+};
+// The literal failure strings loadVerseAndMerge writes into a slot when a fetch
+// returns no text. Used to distinguish a definitive failure from a not-yet-loaded
+// (still empty) slot so reconciliation never rolls back before the fetch runs.
+const isFailureSentinel = (txt?: string): boolean => {
+  if (!txt) return false;
+  const low = txt.toLowerCase();
+  return low.includes("error loading") || low.includes("error al cargar");
+};
+
 interface HomeProps {
   state: AppState;
   setState: React.Dispatch<React.SetStateAction<AppState>>;
@@ -32,6 +53,10 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
   const [lookupError, setLookupError] = useState<string | null>(null);
   const [suggestion, setSuggestion] = useState<string | null>(null);
   const [searchTranslation, setSearchTranslation] = useState<Translation | " font-bold uppercase py-2" | "">("");
+  // Tracks an in-flight Quick Switch on an active custom verse. preferredTranslation
+  // is only reconciled to `target` after its slot loads successfully; on failure the
+  // global switch rolls back to `prevPreferred`. Local-only, never persisted.
+  const [pendingSwitch, setPendingSwitch] = useState<{ lang: 'es' | 'en'; target: Translation; prevPreferred: Translation } | null>(null);
   const isEs = state.primaryLanguage === "es";
 
   // Safety confirmation and undo completion states
@@ -149,22 +174,44 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
         preferredTranslation: translation as Translation
       };
       
-      setState(s => ({ 
-        ...s, 
+      // Keep the global Quick Switch aligned with the translation this custom
+      // verse actually uses (its preferredTranslation), updating only the
+      // matching language side. The slot is already loaded, so no fetch occurs.
+      const prefSide: 'es' | 'en' = isEsTranslation(translation as Translation) ? 'es' : 'en';
+
+      setState(s => ({
+        ...s,
         activeSource: "custom",
         selectedCustomVerse: verseWithMeta,
+        selectedTranslations: { ...s.selectedTranslations, [prefSide]: translation as Translation },
         // Also add to customVerses list for library/saved view if not exists
-        customVerses: s.customVerses.some(v => v.id === verseWithMeta.id) 
-          ? s.customVerses 
+        customVerses: s.customVerses.some(v => v.id === verseWithMeta.id)
+          ? s.customVerses
           : [...s.customVerses, verseWithMeta]
       }));
-      
+      // Any reconciliation pending from a previous switch is now moot.
+      setPendingSwitch(null);
+
       setSearchResult(null);
       setSearchQuery("");
-      
+
       // Scroll to top to see the selected verse
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
+  };
+
+  // Global Quick Switch handler. For an active custom verse, a switch on the same
+  // language side as its preferredTranslation is deferred: selectedTranslations is
+  // updated now (so the existing loading effect performs the single fetch), and the
+  // reconciliation effect flips preferredTranslation only once the slot loads.
+  const handleQuickSwitch = (lang: 'es' | 'en', id: Translation) => {
+    setIsQuickSwitchOpen(false);
+    const cv = state.activeSource === "custom" ? state.selectedCustomVerse : null;
+    const pref = cv?.preferredTranslation;
+    if (cv && pref && (isEsTranslation(pref) ? 'es' : 'en') === lang && pref !== id) {
+      setPendingSwitch({ lang, target: id, prevPreferred: pref });
+    }
+    setState(s => ({ ...s, selectedTranslations: { ...s.selectedTranslations, [lang]: id } }));
   };
 
   const activePair = getCurrentTranslationPair(state);
@@ -349,6 +396,43 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
     state.activeSource
   ]);
 
+  // Reconcile an active custom verse's preferredTranslation with a pending Quick
+  // Switch once the requested slot resolves. The single fetch is driven by the
+  // loading effect above (off selectedTranslations); this effect only flips the
+  // snapshot on success or rolls the switch back on failure — never both.
+  React.useEffect(() => {
+    if (!pendingSwitch) return;
+    if (state.activeSource !== "custom" || !state.selectedCustomVerse) {
+      setPendingSwitch(null);
+      return;
+    }
+    const cv = state.selectedCustomVerse;
+    const { lang, target, prevPreferred } = pendingSwitch;
+    // Still fetching the requested translation — wait.
+    if (state.loadingTranslations && state.loadingTranslations[`${cv.id}_${target}`]) return;
+    const slot = cv.text?.[lang]?.[target];
+    if (isSlotSuccessfullyLoaded(slot)) {
+      // Success: flip the whole effective snapshot to the loaded translation.
+      setState(s => {
+        if (s.activeSource !== "custom" || !s.selectedCustomVerse) return s;
+        if (s.selectedCustomVerse.preferredTranslation === target) return s;
+        const updated = { ...s.selectedCustomVerse, preferredTranslation: target };
+        return {
+          ...s,
+          selectedCustomVerse: updated,
+          customVerses: s.customVerses.map(v => v.id === updated.id ? { ...v, preferredTranslation: target } : v)
+        };
+      });
+      setPendingSwitch(null);
+    } else if (isFailureSentinel(slot)) {
+      // Definitive failure: roll the switch back to the translation still on screen.
+      setState(s => ({ ...s, selectedTranslations: { ...s.selectedTranslations, [lang]: prevPreferred } }));
+      setPendingSwitch(null);
+    }
+    // Otherwise the slot is empty/not-yet-loaded: keep waiting for the loading
+    // effect to populate it (or write a failure sentinel) — do not roll back yet.
+  }, [pendingSwitch, state.selectedCustomVerse, state.loadingTranslations, state.activeSource]);
+
   const isCustomMode = state.activeSource === "custom";
   const isVotd = currentVerse.id === votd.id && !isCustomMode;
 
@@ -503,13 +587,7 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
                           {['RVR1960', 'NVI', 'NBLA'].map((id) => (
                             <button
                               key={id}
-                              onClick={() => {
-                                setState(s => ({ 
-                                  ...s, 
-                                  selectedTranslations: { ...s.selectedTranslations, es: id as any } 
-                                }));
-                                setIsQuickSwitchOpen(false);
-                              }}
+                              onClick={() => handleQuickSwitch('es', id as Translation)}
                               className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all ${activePair.es === id ? 'bg-playful-purple/10 text-playful-purple border border-playful-purple/30' : 'hover:bg-playful-purple/10 text-earth/60 dark:text-ivory/60'}`}
                             >
                               <span>{id}</span>
@@ -530,13 +608,7 @@ export default function Home({ state, setState, onStartMemorizing, onGetAnotherV
                           {['KJV', 'NIV', 'NASB'].map((id) => (
                             <button
                               key={id}
-                              onClick={() => {
-                                setState(s => ({ 
-                                  ...s, 
-                                  selectedTranslations: { ...s.selectedTranslations, en: id as any } 
-                                }));
-                                setIsQuickSwitchOpen(false);
-                              }}
+                              onClick={() => handleQuickSwitch('en', id as Translation)}
                               className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all ${activePair.en === id ? 'bg-golden/10 text-golden-dark dark:text-golden border border-golden/30' : 'hover:bg-golden/10 text-earth/60 dark:text-ivory/60'}`}
                             >
                               <span>{id}</span>
