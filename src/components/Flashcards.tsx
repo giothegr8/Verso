@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { AppState, Verse } from "../types";
+import { AppState, Verse, Translation, TRANSLATION_DETAILS } from "../types";
 import { loadVerseAndMerge } from "../services/bibleService";
 import { MOCK_VERSES, getVerseByDate } from "../constants";
 import { ChevronLeft, ChevronRight, RotateCcw, Sparkles, BookOpen, Brain, HelpCircle, Trophy, Star, Bookmark, CheckCircle2, ArrowRight, Flower2, Sprout, Compass, Layers, Grape, Lock } from "lucide-react";
@@ -300,13 +300,44 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
           newLastCompletedDailyVerseDate = today;
         }
 
-        // Handle completion counts
+        // Handle completion counts (combined lifetime total; drives growth/fruit)
         const currentCounts = s.progress.completionCounts || {};
         const oldVal = currentCounts[verse.id] !== undefined ? currentCounts[verse.id] : (isAlreadyCompleted ? 1 : 0);
         const newCounts = {
           ...currentCounts,
           [verse.id]: oldVal + 1
         };
+
+        // Determine the language(s) genuinely completed in this session. The
+        // memorize/citation flow requires every selected language to be
+        // completed to reach this point, so memorizeMode is a faithful record:
+        // 'both' proves one English AND one Spanish completion.
+        const mode = s.memorizeMode; // 'es' | 'en' | 'both'
+        const completedLangs: ('en' | 'es')[] =
+          mode === 'both' ? ['en', 'es'] : [mode];
+        const pair = s.selectedTranslations; // { es, en }
+
+        // Per-language counts: increment only the completed language(s).
+        const prevLang = s.progress.completionsByLanguage?.[verse.id] || { en: 0, es: 0 };
+        const newLang = {
+          en: prevLang.en + (completedLangs.includes('en') ? 1 : 0),
+          es: prevLang.es + (completedLangs.includes('es') ? 1 : 0),
+        };
+
+        // Per-translation counts: increment the translation actually used for
+        // each completed language.
+        const newTrans: Partial<Record<Translation, number>> = {
+          ...(s.progress.completionsByTranslation?.[verse.id] || {}),
+        };
+        // Last completed translation per completed language.
+        const newLastTrans: { es?: Translation; en?: Translation } = {
+          ...(s.progress.lastCompletedTranslation?.[verse.id] || {}),
+        };
+        for (const lang of completedLangs) {
+          const t = pair[lang];
+          newTrans[t] = (newTrans[t] || 0) + 1;
+          newLastTrans[lang] = t;
+        }
 
         return {
           ...s,
@@ -316,6 +347,22 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
             totalMemorized: isAlreadyCompleted ? s.progress.totalMemorized : s.progress.totalMemorized + 1,
             completedVerses: isAlreadyCompleted ? s.progress.completedVerses : [...s.progress.completedVerses, verse.id],
             completionCounts: newCounts,
+            completionsByLanguage: {
+              ...(s.progress.completionsByLanguage || {}),
+              [verse.id]: newLang
+            },
+            completionsByTranslation: {
+              ...(s.progress.completionsByTranslation || {}),
+              [verse.id]: newTrans
+            },
+            lastCompletedLanguage: {
+              ...(s.progress.lastCompletedLanguage || {}),
+              [verse.id]: mode
+            },
+            lastCompletedTranslation: {
+              ...(s.progress.lastCompletedTranslation || {}),
+              [verse.id]: newLastTrans
+            },
             lastCompletedDailyVerseDate: newLastCompletedDailyVerseDate,
             verseStages: {
               ...s.progress.verseStages,
@@ -773,6 +820,17 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
     const completionCounts = state.progress.completionCounts || {};
     const count = completionCounts[verse.id] !== undefined ? completionCounts[verse.id] : (isAlreadyCompleted ? 1 : 0);
 
+    // Concise factual completion breakdown by language/translation (only shown
+    // when this newer history exists; older records have none and show nothing).
+    const langCounts = state.progress.completionsByLanguage?.[verse.id];
+    const transCounts = state.progress.completionsByTranslation?.[verse.id];
+    const enCount = langCounts?.en || 0;
+    const esCount = langCounts?.es || 0;
+    const transEntries = transCounts
+      ? (Object.entries(transCounts) as [Translation, number][]).filter(([, n]) => n > 0)
+      : [];
+    const hasBreakdown = !isFailedSession && (enCount > 0 || esCount > 0 || transEntries.length > 0);
+
     let titleText = "";
     let bodyText = "";
     let subtextText = "";
@@ -893,6 +951,41 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
             </span>
           </motion.p>
         </div>
+
+        {hasBreakdown && (
+          <motion.div
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.45 }}
+            className="text-sm text-earth-light dark:text-lavender-muted font-medium space-y-2"
+          >
+            <p>
+              {state.primaryLanguage === 'es'
+                ? `Completado ${count} ${count === 1 ? 'vez' : 'veces'}`
+                : `Completed ${count} ${count === 1 ? 'time' : 'times'}`}
+            </p>
+            {(enCount > 0 || esCount > 0) && (
+              <div>
+                {enCount > 0 && (
+                  <p>{state.primaryLanguage === 'es' ? 'Inglés' : 'English'}: {enCount}</p>
+                )}
+                {esCount > 0 && (
+                  <p>{state.primaryLanguage === 'es' ? 'Español' : 'Spanish'}: {esCount}</p>
+                )}
+              </div>
+            )}
+            {transEntries.length > 0 && (
+              <div>
+                <p className="font-black uppercase tracking-widest text-xs mt-2">
+                  {state.primaryLanguage === 'es' ? 'Traducciones' : 'Translations'}
+                </p>
+                {transEntries.map(([t, n]) => (
+                  <p key={t}>{(TRANSLATION_DETAILS[t]?.label) || t}: {n}</p>
+                ))}
+              </div>
+            )}
+          </motion.div>
+        )}
 
         <div className="w-full max-w-sm space-y-6 px-6">
           <div className="space-y-4">

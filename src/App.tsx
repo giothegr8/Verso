@@ -95,6 +95,10 @@ const INITIAL_STATE: AppState = {
     bestStreak: 0,
     completedVerses: [],
     completionCounts: {},
+    completionsByLanguage: {},
+    completionsByTranslation: {},
+    lastCompletedLanguage: {},
+    lastCompletedTranslation: {},
     verseStages: {},
     lastPracticeDate: null,
     lastStreakDate: null,
@@ -205,6 +209,22 @@ function AppInner() {
         if (merged.hasCompletedTour === undefined) merged.hasCompletedTour = false;
         if (!merged.progress.completionCounts) {
           merged.progress.completionCounts = {};
+        }
+        // Backward-compatible defaults for language/translation completion
+        // history. Missing on older saved records; default to empty so existing
+        // progress is never reset, and never retroactively attribute old
+        // combined completions to a language.
+        if (!merged.progress.completionsByLanguage) {
+          merged.progress.completionsByLanguage = {};
+        }
+        if (!merged.progress.completionsByTranslation) {
+          merged.progress.completionsByTranslation = {};
+        }
+        if (!merged.progress.lastCompletedLanguage) {
+          merged.progress.lastCompletedLanguage = {};
+        }
+        if (!merged.progress.lastCompletedTranslation) {
+          merged.progress.lastCompletedTranslation = {};
         }
         if (!merged.pathProgress) {
           merged.pathProgress = INITIAL_STATE.pathProgress;

@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "motion/react";
-import { AppState, TRANSLATION_PAIRS, TRANSLATION_DETAILS, ActiveVerseSource } from "../types";
+import { AppState, TRANSLATION_PAIRS, TRANSLATION_DETAILS, ActiveVerseSource, Translation } from "../types";
 import { Bookmark, Share2, Trash2, BookOpen, Search, Languages, Star, Heart, AlertCircle, X, Flower2, Sparkles, Compass, Sprout, Grape } from "lucide-react";
 import { MOCK_VERSES, PATHS } from "../constants";
 import React, { useState } from "react";
@@ -165,6 +165,20 @@ export default function Saved({ state, setState, onStartMemorizing, onGoToFlashc
     const completionCounts = state.progress.completionCounts || {};
     const count = completionCounts[verse.id] !== undefined ? completionCounts[verse.id] : (isMemorized ? 1 : 0);
 
+    // Per-language / per-translation completion history (begins from the newer
+    // implementation; older records have none). "Both Languages" is true only
+    // when there is at least one genuine English AND one genuine Spanish
+    // completion in the stored history.
+    const langCounts = state.progress.completionsByLanguage?.[verse.id];
+    const transCounts = state.progress.completionsByTranslation?.[verse.id];
+    const enCount = langCounts?.en || 0;
+    const esCount = langCounts?.es || 0;
+    const isBothLanguages = enCount >= 1 && esCount >= 1;
+    const transEntries = transCounts
+      ? (Object.entries(transCounts) as [Translation, number][]).filter(([, n]) => n > 0)
+      : [];
+    const hasBreakdown = enCount > 0 || esCount > 0 || transEntries.length > 0;
+
     const badgeText = count === 0
       ? (state.primaryLanguage === 'es' ? 'En Progreso' : 'In Progress')
       : count === 1
@@ -234,6 +248,34 @@ export default function Saved({ state, setState, onStartMemorizing, onGoToFlashc
               <h3 className={`text-2xl font-serif font-black text-earth dark:text-ivory tracking-tight whitespace-nowrap transition-all duration-300 ${shouldBlur ? 'blur-md select-none pointer-events-none' : ''}`}>
                 {getLocalizedBookName(verse.book, state.memorizeMode === 'es' ? 'es' : state.memorizeMode === 'en' ? 'en' : (state.primaryLanguage === 'es' ? 'es' : 'en'))} {verse.chapter}:{verse.verse}
               </h3>
+              {!shouldBlur && hasBreakdown && (
+                <div className="text-[11px] font-medium text-earth-light dark:text-lavender-muted space-y-0.5">
+                  <p>
+                    {state.primaryLanguage === 'es'
+                      ? `Completado ${count} ${count === 1 ? 'vez' : 'veces'}`
+                      : `Completed ${count} ${count === 1 ? 'time' : 'times'}`}
+                  </p>
+                  {(enCount > 0 || esCount > 0) && (
+                    <p>
+                      {enCount > 0 && `${state.primaryLanguage === 'es' ? 'Inglés' : 'English'}: ${enCount}`}
+                      {enCount > 0 && esCount > 0 && '  ·  '}
+                      {esCount > 0 && `${state.primaryLanguage === 'es' ? 'Español' : 'Spanish'}: ${esCount}`}
+                    </p>
+                  )}
+                  {transEntries.length > 0 && (
+                    <p>
+                      {transEntries
+                        .map(([t, n]) => `${(TRANSLATION_DETAILS[t]?.label) || t}: ${n}`)
+                        .join('  ·  ')}
+                    </p>
+                  )}
+                  {isBothLanguages && (
+                    <p className="font-black uppercase tracking-widest text-[9px] text-playful-purple/70 dark:text-plum/70">
+                      {state.primaryLanguage === 'es' ? 'Ambos idiomas' : 'Both Languages'}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           </div>
           <div className="flex gap-2">

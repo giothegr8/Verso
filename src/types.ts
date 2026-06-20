@@ -50,7 +50,18 @@ export interface UserProgress {
   currentStreak: number;
   bestStreak: number;
   completedVerses: string[]; // IDs
-  completionCounts?: Record<string, number>; // IDs -> count
+  completionCounts?: Record<string, number>; // IDs -> count (combined lifetime total; drives growth/fruit)
+  // Per-language completion counts, recorded from the actually-completed
+  // language(s) at completion time. Begins accruing from this implementation
+  // onward; absent for older saved records (treated as empty).
+  completionsByLanguage?: Record<string, { en: number; es: number }>; // verseId -> { en, es }
+  // Per-translation completion counts, keyed by the Translation actually used
+  // for each completed language. Translation keys may be partial.
+  completionsByTranslation?: Record<string, Partial<Record<Translation, number>>>; // verseId -> { translation -> count }
+  // Last language mode genuinely completed for the verse ("en" | "es" | "both").
+  lastCompletedLanguage?: Record<string, LanguageMode>; // verseId -> language mode
+  // Last translation completed per language for the verse.
+  lastCompletedTranslation?: Record<string, { es?: Translation; en?: Translation }>; // verseId -> { es, en }
   verseStages: Record<string, number>; // verseId -> currentStage
   lastPracticeDate: string | null; // ISO date string (YYYY-MM-DD) of last completion
   lastStreakDate: string | null; // ISO date string (YYYY-MM-DD) when streak was last incremented
