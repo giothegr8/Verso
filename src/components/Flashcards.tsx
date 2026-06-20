@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { AppState, Verse, Translation, TRANSLATION_DETAILS } from "../types";
+import { AppState, Verse, Translation } from "../types";
 import { loadVerseAndMerge } from "../services/bibleService";
 import { MOCK_VERSES, getVerseByDate } from "../constants";
 import { ChevronLeft, ChevronRight, RotateCcw, Sparkles, BookOpen, Brain, HelpCircle, Trophy, Star, Bookmark, CheckCircle2, ArrowRight, Flower2, Sprout, Compass, Layers, Grape, Lock } from "lucide-react";
@@ -820,32 +820,17 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
     const completionCounts = state.progress.completionCounts || {};
     const count = completionCounts[verse.id] !== undefined ? completionCounts[verse.id] : (isAlreadyCompleted ? 1 : 0);
 
-    // Concise factual completion breakdown by language/translation (only shown
-    // when this newer history exists; older records have none and show nothing).
+    // Bilingual language history only (EN / ES). The combined total and the
+    // translation abbreviations are intentionally omitted here — the growth icon
+    // and headline already convey progress. Omitted entirely for older records
+    // that carry no per-language history.
     const langCounts = state.progress.completionsByLanguage?.[verse.id];
-    const transCounts = state.progress.completionsByTranslation?.[verse.id];
     const enCount = langCounts?.en || 0;
     const esCount = langCounts?.es || 0;
-    const transEntries = transCounts
-      ? (Object.entries(transCounts) as [Translation, number][]).filter(([, n]) => n > 0)
-      : [];
-    const hasBreakdown = !isFailedSession && (enCount > 0 || esCount > 0 || transEntries.length > 0);
-
-    // Patch A.1 (C): one compact metadata row — total completions, per-language
-    // counts, then per-translation counts. Per-item counts appear only once more
-    // than one completion exists (a single completion reads "English · NIV").
-    const showItemCounts = count >= 2;
-    const metaItems: string[] = [];
-    metaItems.push(
-      state.primaryLanguage === 'es'
-        ? `${count} ${count === 1 ? 'finalización' : 'finalizaciones'}`
-        : `${count} ${count === 1 ? 'completion' : 'completions'}`
-    );
-    if (enCount > 0) metaItems.push(`${state.primaryLanguage === 'es' ? 'Inglés' : 'English'}${showItemCounts ? ` ${enCount}` : ''}`);
-    if (esCount > 0) metaItems.push(`${state.primaryLanguage === 'es' ? 'Español' : 'Spanish'}${showItemCounts ? ` ${esCount}` : ''}`);
-    for (const [t, n] of transEntries) {
-      metaItems.push(`${(TRANSLATION_DETAILS[t]?.label) || t}${showItemCounts ? ` ${n}` : ''}`);
-    }
+    const langItems: string[] = [];
+    if (enCount > 0) langItems.push(`EN ${enCount}`);
+    if (esCount > 0) langItems.push(`ES ${esCount}`);
+    const hasBreakdown = !isFailedSession && langItems.length > 0;
 
     let titleText = "";
     let bodyText = "";
@@ -869,9 +854,9 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
         bodyText = state.primaryLanguage === 'es'
           ? 'Esta palabra sigue dando fruto en ti.'
           : 'This word is continuing to bear fruit in you.';
-        subtextText = state.primaryLanguage === 'es'
-          ? `Lo has completado ${count} veces.`
-          : `You’ve completed it ${count} times.`;
+        // The combined repetition total lives only in the growth result
+        // (BLOOMED / BORE FRUIT ×N) — no completion-count sentence here.
+        subtextText = "";
       }
     }
 
@@ -962,9 +947,11 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
             <span>
               {bodyText}
             </span>
-            <span className="text-sm font-black text-playful-purple dark:text-plum uppercase tracking-widest mt-2 animate-pulse">
-              {subtextText}
-            </span>
+            {subtextText && (
+              <span className="text-sm font-black text-playful-purple dark:text-plum uppercase tracking-widest mt-2 animate-pulse">
+                {subtextText}
+              </span>
+            )}
           </motion.p>
         </div>
 
@@ -973,9 +960,9 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.45 }}
-            className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 px-6 text-sm text-earth-light dark:text-lavender-muted font-medium"
+            className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 px-6 text-sm text-earth-light dark:text-lavender-muted font-black uppercase tracking-widest"
           >
-            {metaItems.map((item, i) => (
+            {langItems.map((item, i) => (
               <span key={i} className="whitespace-nowrap">
                 {i > 0 && <span className="opacity-40 mr-2">·</span>}
                 {item}

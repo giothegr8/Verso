@@ -1,4 +1,4 @@
-import { toPng, toBlob } from 'html-to-image';
+import { toBlob } from 'html-to-image';
 import { getLocalizedBookName } from './verseUtils';
 
 export function getVerseFilename(book: string, chapter: string | number, verse: string | number, isSpanish: boolean): string {
@@ -24,123 +24,120 @@ export function getVerseFilename(book: string, chapter: string | number, verse: 
 }
 
 export const handleShare = async (
-  title: string, 
-  text: string, 
-  url: string, 
+  title: string,
+  text: string,
+  url: string,
   onToast: (msg: string) => void,
   elementId?: string,
   filename?: string
 ) => {
-  const shareData: ShareData = {
-    title,
-    text,
-    url,
-  };
+  const actualFilename = filename || `verso-${Date.now()}.png`;
 
-  const copyToClipboard = async () => {
-    try {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        const fullText = `${text}\n\n${url}`;
-        await navigator.clipboard.writeText(fullText);
-        onToast("Copied to clipboard!");
-      } else {
-        throw new Error("Clipboard API not available");
+  // 1. Generate the share image exactly once and reuse the single blob for every
+  //    path below. No path regenerates the image.
+  let blob: Blob | null = null;
+  if (elementId) {
+    const element = document.getElementById(elementId);
+    if (element) {
+      try {
+        await document.fonts.ready;
+        blob = await toBlob(element, {
+          cacheBust: true,
+          pixelRatio: 3,
+          skipAutoScale: true,
+        });
+      } catch (imgErr) {
+        console.error("Share image generation failed", imgErr);
+        blob = null;
       }
-    } catch (clipboardErr) {
-      onToast("Could not share or copy.");
-    }
-  };
-
-  const downloadImage = async (element: HTMLElement) => {
-    try {
-      await document.fonts.ready;
-      const dataUrl = await toPng(element, {
-        cacheBust: true,
-        pixelRatio: 3,
-        skipAutoScale: true,
-      });
-      const link = document.createElement('a');
-      link.download = filename || `verso-${Date.now()}.png`;
-      link.href = dataUrl;
-      link.click();
-      onToast("Image downloaded!");
-    } catch (err) {
-      onToast("Could not download image.");
-    }
-  };
-
-  try {
-    let files: File[] = [];
-    
-    // Try to generate image if elementId is provided
-    if (elementId) {
-      const element = document.getElementById(elementId);
-      if (element) {
-        try {
-          await document.fonts.ready;
-          const blob = await toBlob(element, {
-            cacheBust: true,
-            pixelRatio: 3,
-            skipAutoScale: true,
-          });
-          if (blob) {
-            const actualFilename = filename || `verso-${Date.now()}.png`;
-            const file = new File([blob], actualFilename, { type: 'image/png' });
-            files = [file];
-          }
-        } catch (imgErr) {
-          console.error("Image generation failed", imgErr);
-        }
-      }
-    }
-
-    // Check if sharing is supported
-    if (navigator.share) {
-      let dataToShare: ShareData;
-      
-      // Add files if supported
-      if (files.length > 0 && navigator.canShare && navigator.canShare({ files })) {
-        // If sharing a generated verse image, pass only files (and optionally a short title)
-        // Do NOT pass text or url to avoid "1 Link and 1 Image" behavior or AirDrop failures.
-        dataToShare = {
-          files,
-          title,
-        };
-      } else {
-        dataToShare = { ...shareData };
-      }
-
-      await navigator.share(dataToShare);
-      onToast("Shared successfully!");
-    } else {
-      // Fallback: Download image if available, otherwise copy to clipboard
-      if (elementId) {
-        const element = document.getElementById(elementId);
-        if (element) {
-          await downloadImage(element);
-        } else {
-          await copyToClipboard();
-        }
-      } else {
-        await copyToClipboard();
-      }
-    }
-  } catch (err: any) {
-    // If the user cancelled the share, do nothing
-    if (err.name === 'AbortError') {
-      return;
-    }
-    
-    // If share fails, fallback to download/clipboard
-    if (elementId) {
-      const element = document.getElementById(elementId);
-      if (element) {
-        await downloadImage(element);
-      } else {
-        await copyToClipboard();
-      }
-    } else {
-      await copyToClipboard();
     }
   }
+  const file = blob ? new File([blob], actualFilename, { type: 'image/png' }) : null;
+
+  // Final fallback: download the already-generated blob (no re-render).
+  const downloadBlob = (): boolean => {
+    if (!blob) return false;
+    try {
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.download = actualFilename;
+      link.href = objectUrl;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+      return true;
+    } catch (err) {
+      console.error("Share image download failed", err);
+      return false;
+    }
+  };
+
+  // Clipboard fallback: copy the generated IMAGE (not text) when the platform
+  // supports image clipboard writes.
+  const copyImageToClipboard = async (): Promise<boolean> => {
+    if (!blob) return false;
+    if (typeof ClipboardItem === 'undefined' || !navigator.clipboard || !navigator.clipboard.write) {
+      return false;
+    }
+    try {
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+      return true;
+    } catch (err) {
+      console.error("Share image clipboard write failed", err);
+      return false;
+    }
+  };
+
+  // 2. Native file sharing through the OS share sheet, when supported.
+  if (file && navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title });
+      onToast("Shared successfully!");
+      return;
+    } catch (err: any) {
+      // 9. A user-cancelled native share is a cancellation, not a failure: stop
+      //    here without forcing a download.
+      if (err && err.name === 'AbortError') {
+        return;
+      }
+      console.error("Native share failed", err);
+      // Otherwise fall through to the clipboard / download fallbacks.
+    }
+  }
+
+  // 3. Image clipboard fallback.
+  if (await copyImageToClipboard()) {
+    onToast("Image copied — paste it anywhere.");
+    return;
+  }
+
+  // 4. Download fallback.
+  if (downloadBlob()) {
+    onToast("Image downloaded — attach it to your message.");
+    return;
+  }
+
+  // Safety net when no image could be generated at all, so the button never does
+  // nothing: share or copy the text/link instead.
+  if (navigator.share) {
+    try {
+      await navigator.share({ title, text, url });
+      onToast("Shared successfully!");
+      return;
+    } catch (err: any) {
+      if (err && err.name === 'AbortError') {
+        return;
+      }
+      console.error("Text share failed", err);
+    }
+  }
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(`${text}\n\n${url}`);
+      onToast("Copied to clipboard!");
+      return;
+    }
+  } catch (err) {
+    console.error("Text clipboard write failed", err);
+  }
+  onToast("Could not share or copy.");
 };

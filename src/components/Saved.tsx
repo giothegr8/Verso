@@ -319,6 +319,36 @@ export default function Saved({ state, setState, onStartMemorizing, onGoToFlashc
       };
     };
 
+    // Completed-translation tabs, rendered once at the translation-badge slot
+    // above the verse body. With more than one completed translation they act as
+    // a compact selector that drives the body, Review Now, and Share together.
+    // The versions come only from completion history (count > 0).
+    const showTransTabs = isMemorized && completedTransList.length > 0;
+    const transTabs = (
+      <div className="flex flex-wrap items-center gap-1.5">
+        {completedTransList.map(t => {
+          const n = transCounts?.[t] || 0;
+          const selectable = completedTransList.length > 1;
+          const isSel = effSelectedTrans === t;
+          return (
+            <button
+              key={t}
+              type="button"
+              disabled={!selectable}
+              onClick={selectable ? () => selectVersion(verse.id, t) : undefined}
+              className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded border transition-colors ${
+                isSel
+                  ? 'text-playful-purple dark:text-plum bg-playful-purple/10 dark:bg-plum/15 border-playful-purple/30 dark:border-plum/30'
+                  : 'text-earth/50 dark:text-ivory/50 bg-earth/5 dark:bg-white/5 border-earth/10 dark:border-white/10'
+              } ${selectable ? 'cursor-pointer hover:text-playful-purple dark:hover:text-plum' : 'cursor-default'}`}
+            >
+              {t} ×{n}
+            </button>
+          );
+        })}
+      </div>
+    );
+
     // The growth badge is the single owner of the combined total: BLOOMED for the
     // first completion, BORE FRUIT ×N for repetitions.
     const badgeText = count === 0
@@ -398,32 +428,6 @@ export default function Saved({ state, setState, onStartMemorizing, onGoToFlashc
                       ))}
                     </div>
                   )}
-                  {/* Completed-translation chips. With more than one, they act as the
-                      Saved-local version selector controlling body, Review Now and Share. */}
-                  {completedTransList.length > 0 && (
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      {completedTransList.map(t => {
-                        const n = transCounts?.[t] || 0;
-                        const selectable = completedTransList.length > 1;
-                        const isSel = effSelectedTrans === t;
-                        return (
-                          <button
-                            key={t}
-                            type="button"
-                            disabled={!selectable}
-                            onClick={selectable ? () => selectVersion(verse.id, t) : undefined}
-                            className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded border transition-colors ${
-                              isSel
-                                ? 'text-playful-purple dark:text-plum bg-playful-purple/10 dark:bg-plum/15 border-playful-purple/30 dark:border-plum/30'
-                                : 'text-earth/50 dark:text-ivory/50 bg-earth/5 dark:bg-white/5 border-earth/10 dark:border-white/10'
-                            } ${selectable ? 'cursor-pointer hover:text-playful-purple dark:hover:text-plum' : 'cursor-default'}`}
-                          >
-                            {t} {n}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
                   {isBothLanguages && (
                     <p className="font-black uppercase tracking-widest text-[9px] text-playful-purple/70 dark:text-plum/70">
                       {state.primaryLanguage === 'es' ? 'Ambos idiomas' : 'Both Languages'}
@@ -496,9 +500,11 @@ export default function Saved({ state, setState, onStartMemorizing, onGoToFlashc
           {showEs && (
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <span className="text-[9px] font-black uppercase tracking-widest text-playful-purple/60 dark:text-plum/60 bg-playful-purple/5 dark:bg-plum/5 px-2 py-0.5 rounded border border-playful-purple/10 dark:border-plum/10">
-                  {esTransToUse}
-                </span>
+                {showTransTabs ? transTabs : (
+                  <span className="text-[9px] font-black uppercase tracking-widest text-playful-purple/60 dark:text-plum/60 bg-playful-purple/5 dark:bg-plum/5 px-2 py-0.5 rounded border border-playful-purple/10 dark:border-plum/10">
+                    {esTransToUse}
+                  </span>
+                )}
               </div>
               {effEsText ? (
                 <p className={`text-xl font-serif leading-relaxed text-earth dark:text-ivory font-black transition-all duration-300 ${shouldBlur ? 'blur-md select-none pointer-events-none' : ''}`}>
@@ -520,9 +526,11 @@ export default function Saved({ state, setState, onStartMemorizing, onGoToFlashc
           {showEn && (
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <span className="text-[9px] font-black uppercase tracking-widest text-golden/60 dark:text-gold/60 bg-golden/5 dark:bg-gold/5 px-2 py-0.5 rounded border border-golden/10 dark:border-gold/10">
-                  {enTransToUse}
-                </span>
+                {showTransTabs ? transTabs : (
+                  <span className="text-[9px] font-black uppercase tracking-widest text-golden/60 dark:text-gold/60 bg-golden/5 dark:bg-gold/5 px-2 py-0.5 rounded border border-golden/10 dark:border-gold/10">
+                    {enTransToUse}
+                  </span>
+                )}
               </div>
               {effEnText ? (
                 <p className={`text-lg font-serif leading-relaxed text-earth/80 dark:text-lavender-muted border-l-4 border-playful-purple/30 dark:border-plum/40 pl-4 bg-playful-purple/5 dark:bg-plum/5 py-3 rounded-r-xl font-medium transition-all duration-300 ${shouldBlur ? 'blur-md select-none pointer-events-none' : ''}`}>
