@@ -1,16 +1,16 @@
 import { motion, AnimatePresence } from "motion/react";
-import { AppState, TRANSLATION_PAIRS, TRANSLATION_DETAILS, ActiveVerseSource, Translation } from "../types";
+import { AppState, TRANSLATION_PAIRS, TRANSLATION_DETAILS, ActiveVerseSource, Translation, LanguageMode } from "../types";
 import { Bookmark, Share2, Trash2, BookOpen, Search, Languages, Star, Heart, AlertCircle, X, Flower2, Sparkles, Compass, Sprout, Grape } from "lucide-react";
 import { MOCK_VERSES, PATHS } from "../constants";
 import React, { useState } from "react";
 import { handleShare } from "../utils/shareUtils";
-import { getCurrentTranslationPair, getValidatedVerse, getLocalizedBookName } from "../utils/verseUtils";
+import { getCurrentTranslationPair, getValidatedVerse, getLocalizedBookName, getSafeVerseText } from "../utils/verseUtils";
 import ShareModal from "./ShareModal";
 
 interface SavedProps {
   state: AppState;
   setState: React.Dispatch<React.SetStateAction<AppState>>;
-  onStartMemorizing: (verseId: string, source?: ActiveVerseSource) => void;
+  onStartMemorizing: (verseId: string, source?: ActiveVerseSource, reviewPair?: { mode: LanguageMode; es?: Translation; en?: Translation }) => void;
   onGoToFlashcards?: (verseId: string) => void;
 }
 
@@ -110,12 +110,68 @@ export default function Saved({ state, setState, onStartMemorizing, onGoToFlashc
 
   const renderVerseCard = (verse: any, idx: number) => {
     const { esText, enText, esError, enError, activePair: validatedPair } = getValidatedVerse(verse, state);
-    const esTransToUse = validatedPair?.es || activePair.es;
-    const enTransToUse = validatedPair?.en || activePair.en;
-    const isEsLoading = !!(state.loadingTranslations && state.loadingTranslations[`${verse.id}_${esTransToUse}`]);
-    const isEnLoading = !!(state.loadingTranslations && state.loadingTranslations[`${verse.id}_${enTransToUse}`]);
     const isMemorized = state.progress.completedVerses.includes(verse.id);
     const memorizationStage = state.progress.verseStages?.[verse.id] || 0;
+
+    // Patch A.1 (B): A completed Saved card must reflect the language and
+    // translation actually completed for this verse — never the current global
+    // Settings selection. Derive the immutable completed pair from the stored
+    // history; fall back to the verse's own preferred snapshot for older records;
+    // otherwise show a neutral unavailable-history state rather than guessing.
+    const lastLang = state.progress.lastCompletedLanguage?.[verse.id];
+    const lastTrans = state.progress.lastCompletedTranslation?.[verse.id];
+
+    let effMode: LanguageMode;
+    let effEsTrans: Translation | undefined;
+    let effEnTrans: Translation | undefined;
+    let historyUnavailable = false;
+
+    if (isMemorized) {
+      if (lastLang && (lastTrans?.es || lastTrans?.en)) {
+        effMode = lastLang;
+        effEsTrans = (lastLang === 'es' || lastLang === 'both') ? lastTrans?.es : undefined;
+        effEnTrans = (lastLang === 'en' || lastLang === 'both') ? lastTrans?.en : undefined;
+        if (!effEsTrans && !effEnTrans) historyUnavailable = true;
+      } else if (verse.preferredTranslation) {
+        const pref = verse.preferredTranslation as Translation;
+        const isEsPref = ["RVR1960", "NVI", "NBLA"].includes(pref);
+        effMode = isEsPref ? 'es' : 'en';
+        effEsTrans = isEsPref ? pref : undefined;
+        effEnTrans = isEsPref ? undefined : pref;
+      } else {
+        historyUnavailable = true;
+        effMode = state.memorizeMode;
+      }
+    } else {
+      // In-progress verses keep the live/global selection.
+      effMode = state.memorizeMode;
+      effEsTrans = validatedPair?.es || activePair.es;
+      effEnTrans = validatedPair?.en || activePair.en;
+    }
+
+    const showEs = !historyUnavailable && (effMode === 'es' || effMode === 'both') && !!effEsTrans;
+    const showEn = !historyUnavailable && (effMode === 'en' || effMode === 'both') && !!effEnTrans;
+
+    const esTransToUse = effEsTrans || activePair.es;
+    const enTransToUse = effEnTrans || activePair.en;
+
+    // Body text comes from the effective (completed) translation for completed
+    // verses, and from the live validation for in-progress verses.
+    const effEsText = isMemorized ? (effEsTrans ? getSafeVerseText(verse, 'es', effEsTrans) : null) : esText;
+    const effEnText = isMemorized ? (effEnTrans ? getSafeVerseText(verse, 'en', effEnTrans) : null) : enText;
+
+    const isEsLoading = !!(state.loadingTranslations && state.loadingTranslations[`${verse.id}_${esTransToUse}`]);
+    const isEnLoading = !!(state.loadingTranslations && state.loadingTranslations[`${verse.id}_${enTransToUse}`]);
+
+    // Patch A.1 (B/#12): Review Now reopens the verse in the completed pair, not
+    // the current Settings selection. Undefined for unknown-history records, which
+    // fall back to the global selection.
+    const reviewOverride = (isMemorized && !historyUnavailable && (effEsTrans || effEnTrans))
+      ? { mode: effMode, es: effEsTrans, en: effEnTrans }
+      : undefined;
+    const hasStartableText = isMemorized
+      ? (!!effEsText || !!effEnText || !!esText || !!enText)
+      : (!!esText || !!enText);
 
     const getSourceInfo = (verseId: string) => {
       const isEs = state.primaryLanguage === 'es';
@@ -178,6 +234,26 @@ export default function Saved({ state, setState, onStartMemorizing, onGoToFlashc
       ? (Object.entries(transCounts) as [Translation, number][]).filter(([, n]) => n > 0)
       : [];
     const hasBreakdown = enCount > 0 || esCount > 0 || transEntries.length > 0;
+
+    // Patch A.1 (C): one compact metadata row — total completions, per-language
+    // counts, then per-translation counts. Per-item counts appear only once more
+    // than one completion exists (a single completion reads "English · NIV").
+    const showItemCounts = count >= 2;
+    const metaItems: string[] = [];
+    metaItems.push(
+      state.primaryLanguage === 'es'
+        ? `${count} ${count === 1 ? 'finalización' : 'finalizaciones'}`
+        : `${count} ${count === 1 ? 'completion' : 'completions'}`
+    );
+    if (enCount > 0) metaItems.push(`${state.primaryLanguage === 'es' ? 'Inglés' : 'English'}${showItemCounts ? ` ${enCount}` : ''}`);
+    if (esCount > 0) metaItems.push(`${state.primaryLanguage === 'es' ? 'Español' : 'Spanish'}${showItemCounts ? ` ${esCount}` : ''}`);
+    for (const [t, n] of transEntries) {
+      metaItems.push(`${(TRANSLATION_DETAILS[t]?.label) || t}${showItemCounts ? ` ${n}` : ''}`);
+    }
+
+    // The reference is localized to the completed language (falls back to the
+    // primary language for bilingual or unknown-history records).
+    const refLang: 'es' | 'en' = effMode === 'es' ? 'es' : effMode === 'en' ? 'en' : (state.primaryLanguage === 'es' ? 'es' : 'en');
 
     const badgeText = count === 0
       ? (state.primaryLanguage === 'es' ? 'En Progreso' : 'In Progress')
@@ -246,29 +322,18 @@ export default function Saved({ state, setState, onStartMemorizing, onGoToFlashc
             </motion.div>
             <div className="space-y-1">
               <h3 className={`text-2xl font-serif font-black text-earth dark:text-ivory tracking-tight whitespace-nowrap transition-all duration-300 ${shouldBlur ? 'blur-md select-none pointer-events-none' : ''}`}>
-                {getLocalizedBookName(verse.book, state.memorizeMode === 'es' ? 'es' : state.memorizeMode === 'en' ? 'en' : (state.primaryLanguage === 'es' ? 'es' : 'en'))} {verse.chapter}:{verse.verse}
+                {getLocalizedBookName(verse.book, refLang)} {verse.chapter}:{verse.verse}
               </h3>
               {!shouldBlur && hasBreakdown && (
                 <div className="text-[11px] font-medium text-earth-light dark:text-lavender-muted space-y-0.5">
-                  <p>
-                    {state.primaryLanguage === 'es'
-                      ? `Completado ${count} ${count === 1 ? 'vez' : 'veces'}`
-                      : `Completed ${count} ${count === 1 ? 'time' : 'times'}`}
-                  </p>
-                  {(enCount > 0 || esCount > 0) && (
-                    <p>
-                      {enCount > 0 && `${state.primaryLanguage === 'es' ? 'Inglés' : 'English'}: ${enCount}`}
-                      {enCount > 0 && esCount > 0 && '  ·  '}
-                      {esCount > 0 && `${state.primaryLanguage === 'es' ? 'Español' : 'Spanish'}: ${esCount}`}
-                    </p>
-                  )}
-                  {transEntries.length > 0 && (
-                    <p>
-                      {transEntries
-                        .map(([t, n]) => `${(TRANSLATION_DETAILS[t]?.label) || t}: ${n}`)
-                        .join('  ·  ')}
-                    </p>
-                  )}
+                  <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                    {metaItems.map((item, i) => (
+                      <span key={i} className="whitespace-nowrap">
+                        {i > 0 && <span className="opacity-40 mr-1.5">·</span>}
+                        {item}
+                      </span>
+                    ))}
+                  </div>
                   {isBothLanguages && (
                     <p className="font-black uppercase tracking-widest text-[9px] text-playful-purple/70 dark:text-plum/70">
                       {state.primaryLanguage === 'es' ? 'Ambos idiomas' : 'Both Languages'}
@@ -327,16 +392,27 @@ export default function Saved({ state, setState, onStartMemorizing, onGoToFlashc
               </motion.button>
             </div>
           )}
-          {(state.memorizeMode === 'es' || state.memorizeMode === 'both') && (
+          {historyUnavailable ? (
+            <div className="p-3 bg-earth/5 dark:bg-white/5 rounded-xl flex items-center gap-2 text-earth-light dark:text-lavender-muted border border-earth/10 dark:border-white/10">
+              <AlertCircle size={16} />
+              <p className="text-[10px] font-bold">
+                {state.primaryLanguage === 'es'
+                  ? 'Historial de traducción no disponible para esta finalización anterior.'
+                  : 'Translation history unavailable for this earlier completion.'}
+              </p>
+            </div>
+          ) : (
+          <>
+          {showEs && (
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <span className="text-[9px] font-black uppercase tracking-widest text-playful-purple/60 dark:text-plum/60 bg-playful-purple/5 dark:bg-plum/5 px-2 py-0.5 rounded border border-playful-purple/10 dark:border-plum/10">
                   {esTransToUse}
                 </span>
               </div>
-              {esText ? (
+              {effEsText ? (
                 <p className={`text-xl font-serif leading-relaxed text-earth dark:text-ivory font-black transition-all duration-300 ${shouldBlur ? 'blur-md select-none pointer-events-none' : ''}`}>
-                  {esText}
+                  {effEsText}
                 </p>
               ) : isEsLoading ? (
                 <div className="space-y-1.5 animate-pulse py-1">
@@ -351,16 +427,16 @@ export default function Saved({ state, setState, onStartMemorizing, onGoToFlashc
               )}
             </div>
           )}
-          {(state.memorizeMode === 'en' || state.memorizeMode === 'both') && (
+          {showEn && (
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <span className="text-[9px] font-black uppercase tracking-widest text-golden/60 dark:text-gold/60 bg-golden/5 dark:bg-gold/5 px-2 py-0.5 rounded border border-golden/10 dark:border-gold/10">
                   {enTransToUse}
                 </span>
               </div>
-              {enText ? (
+              {effEnText ? (
                 <p className={`text-lg font-serif leading-relaxed text-earth/80 dark:text-lavender-muted border-l-4 border-playful-purple/30 dark:border-plum/40 pl-4 bg-playful-purple/5 dark:bg-plum/5 py-3 rounded-r-xl font-medium transition-all duration-300 ${shouldBlur ? 'blur-md select-none pointer-events-none' : ''}`}>
-                  {enText}
+                  {effEnText}
                 </p>
               ) : isEnLoading ? (
                 <div className="space-y-1.5 animate-pulse py-1">
@@ -374,6 +450,8 @@ export default function Saved({ state, setState, onStartMemorizing, onGoToFlashc
                 </div>
               )}
             </div>
+          )}
+          </>
           )}
         </div>
 
@@ -394,12 +472,12 @@ export default function Saved({ state, setState, onStartMemorizing, onGoToFlashc
             whileHover={{ scale: 1.01 }}
             whileTap={{ scale: 0.99 }}
             onClick={() => {
-              if (esText || enText) {
-                onStartMemorizing(verse.id, "saved");
+              if (hasStartableText) {
+                onStartMemorizing(verse.id, "saved", reviewOverride);
               }
             }}
-            disabled={!esText && !enText}
-            className={`w-full py-4 rounded-full bg-teal/10 hover:bg-teal/20 text-teal dark:text-teal-400 font-bold text-sm tracking-tight flex items-center justify-center gap-2.5 transition-all shadow-sm border border-teal/20 lowercase ${(!esText && !enText) ? 'opacity-50 grayscale cursor-not-allowed' : ''}`}
+            disabled={!hasStartableText}
+            className={`w-full py-4 rounded-full bg-teal/10 hover:bg-teal/20 text-teal dark:text-teal-400 font-bold text-sm tracking-tight flex items-center justify-center gap-2.5 transition-all shadow-sm border border-teal/20 lowercase ${!hasStartableText ? 'opacity-50 grayscale cursor-not-allowed' : ''}`}
           >
             <BookOpen size={16} />
             <span>{isMemorized 

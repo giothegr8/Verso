@@ -256,6 +256,9 @@ function AppInner() {
     verseId?: string;
     source?: "daily" | "path" | "custom" | "extra" | "saved" | "daily";
     destinationTab?: string;
+    // Review Now (Saved) may request reopening a completed verse in the exact
+    // language/translation it was completed in, overriding the global selection.
+    reviewPair?: { mode: LanguageMode; es?: Translation; en?: Translation };
   } | null>(null);
   // An attempt is only "protected" (guarded by the challenge-in-progress warning)
   // once it has advanced past Step 1. The `started` flag latches the first time the
@@ -475,9 +478,9 @@ function AppInner() {
     });
   }, [state.activeAttempt, state.progress.verseStages]);
 
-  const startMemorizing = (verseId: string, source: "daily" | "path" | "custom" | "extra" | "saved" = "daily") => {
+  const startMemorizing = (verseId: string, source: "daily" | "path" | "custom" | "extra" | "saved" = "daily", reviewPair?: { mode: LanguageMode; es?: Translation; en?: Translation }) => {
     localStorage.removeItem(`memorize_failed_${verseId}`);
-    
+
     // 1. If we click on the SAME verse that is currently active, resume it
     if (state.activeAttempt && state.activeAttempt.verseId === verseId) {
       setActiveTab("memorize");
@@ -486,15 +489,15 @@ function AppInner() {
 
     // 2. If we have an in-progress attempt on a DIFFERENT verse, prompt them first
     if (activeAttemptInProgress && state.activeAttempt) {
-      setPendingAttempt({ type: "start", verseId, source });
+      setPendingAttempt({ type: "start", verseId, source, reviewPair });
       return;
     }
 
     // 3. Otherwise, proceed to memorize
-    startMemorizingBypassingCheck(verseId, source);
+    startMemorizingBypassingCheck(verseId, source, reviewPair);
   };
 
-  const startMemorizingBypassingCheck = (verseId: string, source: "daily" | "path" | "custom" | "extra" | "saved" = "daily") => {
+  const startMemorizingBypassingCheck = (verseId: string, source: "daily" | "path" | "custom" | "extra" | "saved" = "daily", reviewPair?: { mode: LanguageMode; es?: Translation; en?: Translation }) => {
     localStorage.removeItem(`memorize_failed_${verseId}`);
     localStorage.removeItem(`citation_failed_${verseId}`);
     setState(s => {
@@ -542,22 +545,51 @@ function AppInner() {
         resolvedVerse = getVerseByDate(getLocalDateString());
       }
 
+      // Review Now from Saved supplies the completed language/translation so the
+      // verse reopens in the translation represented by the Saved card rather
+      // than whatever is currently selected in Settings. When no override is
+      // supplied this is a no-op and the global selection is used as before.
+      const effMode: LanguageMode = reviewPair?.mode ?? s.memorizeMode;
+      const effTranslations = {
+        es: reviewPair?.es ?? s.selectedTranslations.es,
+        en: reviewPair?.en ?? s.selectedTranslations.en,
+      };
+
+      // Custom verses resolve their displayed translation from preferredTranslation
+      // (see getValidatedVerse). Align it with the reviewed translation so the
+      // override is honored; this is a no-op for older single-translation records.
+      const reviewedSingle: Translation | undefined =
+        reviewPair && effMode !== 'both' ? (effMode === 'es' ? effTranslations.es : effTranslations.en) : undefined;
+      const isCustomResolved = resolvedVerse.source === "custom";
+      const nextSelectedCustomVerse =
+        reviewedSingle && isCustomResolved && s.selectedCustomVerse && s.selectedCustomVerse.id === resolvedVerse.id
+          ? { ...s.selectedCustomVerse, preferredTranslation: reviewedSingle }
+          : s.selectedCustomVerse;
+      const nextCustomVerses =
+        reviewedSingle && isCustomResolved
+          ? s.customVerses.map(v => v.id === resolvedVerse.id ? { ...v, preferredTranslation: reviewedSingle } : v)
+          : s.customVerses;
+
       const reference = `${resolvedVerse.book} ${resolvedVerse.chapter}:${resolvedVerse.verse}`;
       const snapshot = {
         verseId: resolvedVerse.id,
         reference,
-        translations: { ...s.selectedTranslations },
-        memorizeMode: s.memorizeMode,
+        translations: { ...effTranslations },
+        memorizeMode: effMode,
         verse: resolvedVerse,
         source: source,
         pathId: s.pathProgress.selectedPathId || s.customPathProgress.selectedPathId,
         pathDay: source === "path" ? (s.pathProgress.selectedPathId ? s.pathProgress.currentDay : s.customPathProgress.currentDay) : null,
       };
 
-      return { 
-        ...s, 
+      return {
+        ...s,
         selectedVerseId: verseId,
         activeSource: source,
+        selectedTranslations: effTranslations,
+        memorizeMode: effMode,
+        selectedCustomVerse: nextSelectedCustomVerse,
+        customVerses: nextCustomVerses,
         activeAttempt: snapshot,
         progress: {
           ...s.progress,
@@ -1094,7 +1126,7 @@ function AppInner() {
         <Saved 
           state={state} 
           setState={setState} 
-          onStartMemorizing={(id, src) => startMemorizing(id, src || "saved")} 
+          onStartMemorizing={(id, src, reviewPair) => startMemorizing(id, src || "saved", reviewPair)}
           onGoToFlashcards={(verseId) => {
             setState(s => ({ ...s, selectedVerseId: verseId }));
             setActiveTab("flashcards");
@@ -1293,7 +1325,7 @@ function AppInner() {
                       // Trigger pending action using the updated / cleared state
                       setTimeout(() => {
                         if (nextAction?.type === "start" && nextAction.verseId) {
-                          startMemorizingBypassingCheck(nextAction.verseId, nextAction.source || "daily");
+                          startMemorizingBypassingCheck(nextAction.verseId, nextAction.source || "daily", nextAction.reviewPair);
                         } else if (nextAction?.type === "another") {
                           getAnotherVerseBypassingCheck();
                         } else if (nextAction?.type === "navigate") {

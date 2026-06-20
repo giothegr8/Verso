@@ -831,6 +831,22 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
       : [];
     const hasBreakdown = !isFailedSession && (enCount > 0 || esCount > 0 || transEntries.length > 0);
 
+    // Patch A.1 (C): one compact metadata row — total completions, per-language
+    // counts, then per-translation counts. Per-item counts appear only once more
+    // than one completion exists (a single completion reads "English · NIV").
+    const showItemCounts = count >= 2;
+    const metaItems: string[] = [];
+    metaItems.push(
+      state.primaryLanguage === 'es'
+        ? `${count} ${count === 1 ? 'finalización' : 'finalizaciones'}`
+        : `${count} ${count === 1 ? 'completion' : 'completions'}`
+    );
+    if (enCount > 0) metaItems.push(`${state.primaryLanguage === 'es' ? 'Inglés' : 'English'}${showItemCounts ? ` ${enCount}` : ''}`);
+    if (esCount > 0) metaItems.push(`${state.primaryLanguage === 'es' ? 'Español' : 'Spanish'}${showItemCounts ? ` ${esCount}` : ''}`);
+    for (const [t, n] of transEntries) {
+      metaItems.push(`${(TRANSLATION_DETAILS[t]?.label) || t}${showItemCounts ? ` ${n}` : ''}`);
+    }
+
     let titleText = "";
     let bodyText = "";
     let subtextText = "";
@@ -957,33 +973,14 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.45 }}
-            className="text-sm text-earth-light dark:text-lavender-muted font-medium space-y-2"
+            className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 px-6 text-sm text-earth-light dark:text-lavender-muted font-medium"
           >
-            <p>
-              {state.primaryLanguage === 'es'
-                ? `Completado ${count} ${count === 1 ? 'vez' : 'veces'}`
-                : `Completed ${count} ${count === 1 ? 'time' : 'times'}`}
-            </p>
-            {(enCount > 0 || esCount > 0) && (
-              <div>
-                {enCount > 0 && (
-                  <p>{state.primaryLanguage === 'es' ? 'Inglés' : 'English'}: {enCount}</p>
-                )}
-                {esCount > 0 && (
-                  <p>{state.primaryLanguage === 'es' ? 'Español' : 'Spanish'}: {esCount}</p>
-                )}
-              </div>
-            )}
-            {transEntries.length > 0 && (
-              <div>
-                <p className="font-black uppercase tracking-widest text-xs mt-2">
-                  {state.primaryLanguage === 'es' ? 'Traducciones' : 'Translations'}
-                </p>
-                {transEntries.map(([t, n]) => (
-                  <p key={t}>{(TRANSLATION_DETAILS[t]?.label) || t}: {n}</p>
-                ))}
-              </div>
-            )}
+            {metaItems.map((item, i) => (
+              <span key={i} className="whitespace-nowrap">
+                {i > 0 && <span className="opacity-40 mr-2">·</span>}
+                {item}
+              </span>
+            ))}
           </motion.div>
         )}
 
