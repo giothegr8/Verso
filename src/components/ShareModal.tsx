@@ -1,29 +1,67 @@
 import React from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { X, Download, Share2, Sparkles, BookOpen } from "lucide-react";
-import { AppState, TRANSLATION_DETAILS, Verse } from "../types";
-import { getCurrentTranslationPair, getLocalizedBookName, getValidatedVerse } from "../utils/verseUtils";
+import { AppState, TRANSLATION_DETAILS, Verse, ShareSnapshot, ShareBlock } from "../types";
+import { getLocalizedBookName, getValidatedVerse } from "../utils/verseUtils";
 import { getVerseFilename } from "../utils/shareUtils";
 import VersoLogo from "./VersoLogo";
 
 interface ShareModalProps {
   isOpen: boolean;
   onClose: () => void;
-  verse: Verse;
+  // Preferred: a fully-resolved, source-aware snapshot. When provided the modal
+  // renders only from it and never touches global Settings translation logic.
+  snapshot?: ShareSnapshot | null;
+  // Legacy fallback for callers that still pass a raw verse (path review flow).
+  verse?: Verse;
   state: AppState;
   onNativeShare: (elementId: string, filename: string) => void;
 }
 
-export default function ShareModal({ isOpen, onClose, verse, state, onNativeShare }: ShareModalProps) {
-  const { esText, enText, esError, enError, activePair } = getValidatedVerse(verse, state);
-  const esDetail = TRANSLATION_DETAILS[activePair.es];
-  const enDetail = TRANSLATION_DETAILS[activePair.en];
+export default function ShareModal({ isOpen, onClose, snapshot, verse, state, onNativeShare }: ShareModalProps) {
+  const isSpanish = state.primaryLanguage === 'es';
 
-  if (!verse) return null;
+  // Build the immutable view. When a snapshot is supplied (Saved / Home), it is
+  // the single source of truth — no getValidatedVerse / selectedTranslations /
+  // memorizeMode is consulted. The legacy branch only runs for raw-verse callers.
+  const view: ShareSnapshot | null = (() => {
+    if (snapshot) return snapshot;
+    if (!verse) return null;
+    const { esText, enText, esError, enError, activePair } = getValidatedVerse(verse, state);
+    const blocks: ShareBlock[] = [];
+    if (state.memorizeMode === 'es' || state.memorizeMode === 'both') {
+      blocks.push({
+        language: 'es',
+        translation: activePair.es,
+        label: TRANSLATION_DETAILS[activePair.es]?.name || activePair.es,
+        text: esText || esError || (isSpanish ? 'Texto no disponible' : 'Text unavailable'),
+      });
+    }
+    if (state.memorizeMode === 'en' || state.memorizeMode === 'both') {
+      blocks.push({
+        language: 'en',
+        translation: activePair.en,
+        label: TRANSLATION_DETAILS[activePair.en]?.name || activePair.en,
+        text: enText || enError || (isSpanish ? 'Texto no disponible' : 'Text unavailable'),
+      });
+    }
+    const refLang: 'es' | 'en' = state.memorizeMode === 'es' ? 'es' : state.memorizeMode === 'en' ? 'en' : (isSpanish ? 'es' : 'en');
+    return {
+      source: 'saved',
+      book: verse.book,
+      chapter: verse.chapter,
+      verse: verse.verse,
+      refLang,
+      reference: `${getLocalizedBookName(verse.book, refLang)} ${verse.chapter}:${verse.verse}`,
+      blocks,
+      footer: isSpanish ? 'Memorizado con Verso' : 'Memorized with Verso',
+    };
+  })();
+
+  if (!view) return null;
 
   const cardId = "share-card-preview";
-  const isSpanish = state.primaryLanguage === 'es';
-  const filename = getVerseFilename(verse.book, verse.chapter, verse.verse, isSpanish);
+  const filename = getVerseFilename(view.book, view.chapter, view.verse, isSpanish);
 
   return (
     <AnimatePresence>
@@ -74,41 +112,29 @@ export default function ShareModal({ isOpen, onClose, verse, state, onNativeShar
                   </div>
 
                   <div className="space-y-5 sm:space-y-6">
-                    {(state.memorizeMode === 'es' || state.memorizeMode === 'both') && (
-                      <div className="space-y-2">
-                        <span className="text-[8px] font-black uppercase tracking-widest text-playful-purple">
-                          {esDetail.name}
-                        </span>
-                        <p className="text-lg sm:text-2xl font-serif leading-relaxed text-ivory font-medium">
-                          {esText || esError || (state.primaryLanguage === 'es' ? 'Texto no disponible' : 'Text unavailable')}
-                        </p>
-                      </div>
-                    )}
-
-                    {state.memorizeMode === 'both' && (
-                      <div className="h-px w-12 bg-white/10" />
-                    )}
-
-                    {(state.memorizeMode === 'en' || state.memorizeMode === 'both') && (
-                      <div className="space-y-2">
-                        <span className="text-[8px] font-black uppercase tracking-widest text-golden">
-                          {enDetail.name}
-                        </span>
-                        <p className="text-lg sm:text-2xl font-serif leading-relaxed text-ivory font-medium">
-                          {enText || enError || (state.primaryLanguage === 'en' ? 'Text unavailable' : 'Texto no disponible')}
-                        </p>
-                      </div>
-                    )}
+                    {view.blocks.map((block, i) => (
+                      <React.Fragment key={`${block.language}-${block.translation}`}>
+                        {i > 0 && <div className="h-px w-12 bg-white/10" />}
+                        <div className="space-y-2">
+                          <span className={`text-[8px] font-black uppercase tracking-widest ${block.language === 'es' ? 'text-playful-purple' : 'text-golden'}`}>
+                            {block.label}
+                          </span>
+                          <p className="text-lg sm:text-2xl font-serif leading-relaxed text-ivory font-medium">
+                            {block.text || (isSpanish ? 'Texto no disponible' : 'Text unavailable')}
+                          </p>
+                        </div>
+                      </React.Fragment>
+                    ))}
                   </div>
                 </div>
 
                 <div className="mt-8 pt-6 sm:pt-8 border-t border-white/10 flex justify-between items-end relative z-10">
                   <div className="space-y-1">
                     <h4 className="text-lg sm:text-xl font-serif font-black text-ivory whitespace-nowrap">
-                      {getLocalizedBookName(verse.book, state.memorizeMode === 'es' ? 'es' : state.memorizeMode === 'en' ? 'en' : (state.primaryLanguage === 'es' ? 'es' : 'en'))} {verse.chapter}:{verse.verse}
+                      {view.reference}
                     </h4>
                     <p className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-ivory/40">
-                      {state.primaryLanguage === 'es' ? 'Memorizado con Verso' : 'Memorized with Verso'}
+                      {view.footer}
                     </p>
                   </div>
                   

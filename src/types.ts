@@ -30,6 +30,33 @@ export const TRANSLATION_PAIRS: TranslationPair[] = [
 
 export type LanguageMode = "es" | "en" | "both";
 
+// Where a share originated, used to choose the provenance/footer line.
+export type ShareSource = "daily" | "custom" | "saved";
+
+// One resolved verse block inside a share snapshot. Each block is fully
+// pre-resolved: it never derives its translation from global Settings.
+export interface ShareBlock {
+  language: "es" | "en";
+  translation: Translation;      // translation abbreviation/id (e.g. "NIV")
+  label: string;                 // translation display label (e.g. "New International Version")
+  bibleId?: string;              // upstream Bible ID, when available
+  text: string;                  // verse body for this exact translation
+}
+
+// Immutable, source-aware snapshot consumed by ShareModal. All displayed
+// content (reference, body, label, language, footer) comes from this object so
+// the modal never re-derives the translation from global Settings after opening.
+export interface ShareSnapshot {
+  source: ShareSource;
+  book: string;                  // raw book string (for filename / localization)
+  chapter: number;
+  verse: number;
+  refLang: "es" | "en";          // language used to localize the reference
+  reference: string;             // fully localized reference, e.g. "Genesis 2:1"
+  blocks: ShareBlock[];          // only completed/selected versions, in display order
+  footer: string;                // already-localized provenance line
+}
+
 export interface Verse {
   id: string;
   book: string;

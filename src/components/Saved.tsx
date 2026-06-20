@@ -1,11 +1,16 @@
 import { motion, AnimatePresence } from "motion/react";
-import { AppState, TRANSLATION_PAIRS, TRANSLATION_DETAILS, ActiveVerseSource, Translation, LanguageMode } from "../types";
+import { AppState, TRANSLATION_PAIRS, TRANSLATION_DETAILS, ActiveVerseSource, Translation, LanguageMode, ShareSnapshot, ShareBlock } from "../types";
 import { Bookmark, Share2, Trash2, BookOpen, Search, Languages, Star, Heart, AlertCircle, X, Flower2, Sparkles, Compass, Sprout, Grape } from "lucide-react";
 import { MOCK_VERSES, PATHS } from "../constants";
+import { BIBLE_VERSIONS } from "../services/apiBible";
 import React, { useState } from "react";
 import { handleShare } from "../utils/shareUtils";
 import { getCurrentTranslationPair, getValidatedVerse, getLocalizedBookName, getSafeVerseText } from "../utils/verseUtils";
 import ShareModal from "./ShareModal";
+
+const SAVED_SELECTED_VERSIONS_KEY = "verso_saved_selected_versions";
+
+const isEsTranslation = (t: Translation): boolean => ["RVR1960", "NVI", "NBLA"].includes(t);
 
 interface SavedProps {
   state: AppState;
@@ -19,7 +24,25 @@ export default function Saved({ state, setState, onStartMemorizing, onGoToFlashc
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
-  const [selectedVerseForShare, setSelectedVerseForShare] = useState<any>(null);
+  const [shareSnapshot, setShareSnapshot] = useState<ShareSnapshot | null>(null);
+  // Saved-local completed-version selection (verseId -> chosen completed
+  // translation). Persisted, scoped by verse ID, and never touches completion
+  // history or global Settings.
+  const [selectedVersions, setSelectedVersions] = useState<Record<string, Translation>>(() => {
+    try {
+      const raw = localStorage.getItem(SAVED_SELECTED_VERSIONS_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
+    }
+  });
+  const selectVersion = (verseId: string, t: Translation) => {
+    setSelectedVersions(prev => {
+      const next = { ...prev, [verseId]: t };
+      try { localStorage.setItem(SAVED_SELECTED_VERSIONS_KEY, JSON.stringify(next)); } catch {}
+      return next;
+    });
+  };
   const activePair = getCurrentTranslationPair(state);
   
   const allAvailableVerses = Array.from(
@@ -84,17 +107,19 @@ export default function Saved({ state, setState, onStartMemorizing, onGoToFlashc
     }));
   };
 
-  const onShareClick = (verse: any) => {
-    setSelectedVerseForShare(verse);
+  const onShareClick = (snapshot: ShareSnapshot) => {
+    setShareSnapshot(snapshot);
     setIsShareModalOpen(true);
   };
 
   const onNativeShare = async (elementId?: string, filename?: string) => {
-    if (!selectedVerseForShare) return;
-    const { esText, enText } = getValidatedVerse(selectedVerseForShare, state);
-    const locBook = getLocalizedBookName(selectedVerseForShare.book, state.memorizeMode === 'es' ? 'es' : state.memorizeMode === 'en' ? 'en' : (state.primaryLanguage === 'es' ? 'es' : 'en'));
-    const title = `Verso: ${locBook} ${selectedVerseForShare.chapter}:${selectedVerseForShare.verse}`;
-    const text = `${locBook} ${selectedVerseForShare.chapter}:${selectedVerseForShare.verse}\n\n${esText ? `ES: ${esText}\n` : ''}${enText ? `EN: ${enText}` : ''}\n\nShared via Verso`;
+    const snap = shareSnapshot;
+    if (!snap) return;
+    const bodyLines = snap.blocks
+      .map(b => `${b.language === 'es' ? 'ES' : 'EN'}: ${b.text}`)
+      .join('\n');
+    const title = `Verso: ${snap.reference}`;
+    const text = `${snap.reference}\n\n${bodyLines}\n\n${snap.footer}`;
     const url = window.location.href;
 
     await handleShare(title, text, url, (msg) => {
@@ -113,13 +138,38 @@ export default function Saved({ state, setState, onStartMemorizing, onGoToFlashc
     const isMemorized = state.progress.completedVerses.includes(verse.id);
     const memorizationStage = state.progress.verseStages?.[verse.id] || 0;
 
-    // Patch A.1 (B): A completed Saved card must reflect the language and
-    // translation actually completed for this verse — never the current global
-    // Settings selection. Derive the immutable completed pair from the stored
-    // history; fall back to the verse's own preferred snapshot for older records;
-    // otherwise show a neutral unavailable-history state rather than guessing.
+    // A completed Saved card reflects a single genuinely-completed version — never
+    // the current global Settings selection. The selectable versions come only
+    // from completion history (completionsByTranslation, count > 0). The active
+    // version follows: (1) the last locally selected version, else (2) the last
+    // genuinely completed pair, else (3) the verse's own preferred snapshot, else
+    // a neutral unavailable-history state.
     const lastLang = state.progress.lastCompletedLanguage?.[verse.id];
     const lastTrans = state.progress.lastCompletedTranslation?.[verse.id];
+    const transCountsForVerse = state.progress.completionsByTranslation?.[verse.id];
+    const completedTransList: Translation[] = transCountsForVerse
+      ? (Object.entries(transCountsForVerse) as [Translation, number][]).filter(([, n]) => n > 0).map(([t]) => t)
+      : [];
+
+    // Resolve the active completed version for this Saved card.
+    let selectedTrans: Translation | undefined;
+    if (isMemorized && completedTransList.length > 0) {
+      const persisted = selectedVersions[verse.id];
+      if (persisted && completedTransList.includes(persisted)) {
+        selectedTrans = persisted;
+      } else {
+        let lastDefault: Translation | undefined;
+        if (lastTrans) {
+          if (lastLang === 'es') lastDefault = lastTrans.es;
+          else if (lastLang === 'en') lastDefault = lastTrans.en;
+          else if (lastLang === 'both') lastDefault = (state.primaryLanguage === 'en' ? lastTrans.en : lastTrans.es) || lastTrans.en || lastTrans.es;
+          else lastDefault = lastTrans.en || lastTrans.es;
+        }
+        selectedTrans = (lastDefault && completedTransList.includes(lastDefault))
+          ? lastDefault
+          : completedTransList[completedTransList.length - 1];
+      }
+    }
 
     let effMode: LanguageMode;
     let effEsTrans: Translation | undefined;
@@ -127,14 +177,14 @@ export default function Saved({ state, setState, onStartMemorizing, onGoToFlashc
     let historyUnavailable = false;
 
     if (isMemorized) {
-      if (lastLang && (lastTrans?.es || lastTrans?.en)) {
-        effMode = lastLang;
-        effEsTrans = (lastLang === 'es' || lastLang === 'both') ? lastTrans?.es : undefined;
-        effEnTrans = (lastLang === 'en' || lastLang === 'both') ? lastTrans?.en : undefined;
-        if (!effEsTrans && !effEnTrans) historyUnavailable = true;
+      if (selectedTrans) {
+        const isEsSel = isEsTranslation(selectedTrans);
+        effMode = isEsSel ? 'es' : 'en';
+        effEsTrans = isEsSel ? selectedTrans : undefined;
+        effEnTrans = isEsSel ? undefined : selectedTrans;
       } else if (verse.preferredTranslation) {
         const pref = verse.preferredTranslation as Translation;
-        const isEsPref = ["RVR1960", "NVI", "NBLA"].includes(pref);
+        const isEsPref = isEsTranslation(pref);
         effMode = isEsPref ? 'es' : 'en';
         effEsTrans = isEsPref ? pref : undefined;
         effEnTrans = isEsPref ? undefined : pref;
@@ -148,6 +198,8 @@ export default function Saved({ state, setState, onStartMemorizing, onGoToFlashc
       effEsTrans = validatedPair?.es || activePair.es;
       effEnTrans = validatedPair?.en || activePair.en;
     }
+
+    const effSelectedTrans = effEsTrans || effEnTrans;
 
     const showEs = !historyUnavailable && (effMode === 'es' || effMode === 'both') && !!effEsTrans;
     const showEn = !historyUnavailable && (effMode === 'en' || effMode === 'both') && !!effEnTrans;
@@ -235,31 +287,45 @@ export default function Saved({ state, setState, onStartMemorizing, onGoToFlashc
       : [];
     const hasBreakdown = enCount > 0 || esCount > 0 || transEntries.length > 0;
 
-    // Patch A.1 (C): one compact metadata row — total completions, per-language
-    // counts, then per-translation counts. Per-item counts appear only once more
-    // than one completion exists (a single completion reads "English · NIV").
-    const showItemCounts = count >= 2;
-    const metaItems: string[] = [];
-    metaItems.push(
-      state.primaryLanguage === 'es'
-        ? `${count} ${count === 1 ? 'finalización' : 'finalizaciones'}`
-        : `${count} ${count === 1 ? 'completion' : 'completions'}`
-    );
-    if (enCount > 0) metaItems.push(`${state.primaryLanguage === 'es' ? 'Inglés' : 'English'}${showItemCounts ? ` ${enCount}` : ''}`);
-    if (esCount > 0) metaItems.push(`${state.primaryLanguage === 'es' ? 'Español' : 'Spanish'}${showItemCounts ? ` ${esCount}` : ''}`);
-    for (const [t, n] of transEntries) {
-      metaItems.push(`${(TRANSLATION_DETAILS[t]?.label) || t}${showItemCounts ? ` ${n}` : ''}`);
-    }
+    // Language-history line only (EN/ES). The combined total is owned solely by
+    // the growth badge, so it is intentionally absent here.
+    const langItems: string[] = [];
+    if (enCount > 0) langItems.push(`EN ${enCount}`);
+    if (esCount > 0) langItems.push(`ES ${esCount}`);
 
-    // The reference is localized to the completed language (falls back to the
-    // primary language for bilingual or unknown-history records).
+    // The reference is localized to the active completed language (falls back to
+    // the primary language for unknown-history records).
     const refLang: 'es' | 'en' = effMode === 'es' ? 'es' : effMode === 'en' ? 'en' : (state.primaryLanguage === 'es' ? 'es' : 'en');
 
+    // Immutable, source-aware share snapshot built from the active completed
+    // version (or the live in-progress selection). Global Settings never re-enters.
+    const buildSavedSnapshot = (): ShareSnapshot => {
+      const blocks: ShareBlock[] = [];
+      if (showEs && effEsTrans && effEsText) {
+        blocks.push({ language: 'es', translation: effEsTrans, label: TRANSLATION_DETAILS[effEsTrans]?.name || effEsTrans, bibleId: BIBLE_VERSIONS[effEsTrans], text: effEsText });
+      }
+      if (showEn && effEnTrans && effEnText) {
+        blocks.push({ language: 'en', translation: effEnTrans, label: TRANSLATION_DETAILS[effEnTrans]?.name || effEnTrans, bibleId: BIBLE_VERSIONS[effEnTrans], text: effEnText });
+      }
+      return {
+        source: 'saved',
+        book: verse.book,
+        chapter: verse.chapter,
+        verse: verse.verse,
+        refLang,
+        reference: `${getLocalizedBookName(verse.book, refLang)} ${verse.chapter}:${verse.verse}`,
+        blocks,
+        footer: state.primaryLanguage === 'es' ? 'Memorizado con Verso' : 'Memorized with Verso',
+      };
+    };
+
+    // The growth badge is the single owner of the combined total: BLOOMED for the
+    // first completion, BORE FRUIT ×N for repetitions.
     const badgeText = count === 0
       ? (state.primaryLanguage === 'es' ? 'En Progreso' : 'In Progress')
       : count === 1
         ? (state.primaryLanguage === 'es' ? 'Floreció' : 'Bloomed')
-        : (state.primaryLanguage === 'es' ? 'Dio fruto' : 'Bore fruit');
+        : `${state.primaryLanguage === 'es' ? 'Dio fruto' : 'Bore fruit'} ×${count}`;
 
     const badgeClasses = count === 0
       ? 'bg-teal/10 dark:bg-teal/25 text-teal dark:text-teal-300 border-teal/20'
@@ -311,11 +377,6 @@ export default function Saved({ state, setState, onStartMemorizing, onGoToFlashc
                 {count >= 2 && (
                   <div className="flex items-center gap-1">
                     <Grape size={20} className="animate-pulse" />
-                    {count >= 3 && (
-                      <span className="text-[10px] font-black bg-rose-500/20 text-rose-600 dark:text-rose-400 px-1 rounded-md">
-                        ×{count}
-                      </span>
-                    )}
                   </div>
                 )}
               </div>
@@ -325,15 +386,44 @@ export default function Saved({ state, setState, onStartMemorizing, onGoToFlashc
                 {getLocalizedBookName(verse.book, refLang)} {verse.chapter}:{verse.verse}
               </h3>
               {!shouldBlur && hasBreakdown && (
-                <div className="text-[11px] font-medium text-earth-light dark:text-lavender-muted space-y-0.5">
-                  <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
-                    {metaItems.map((item, i) => (
-                      <span key={i} className="whitespace-nowrap">
-                        {i > 0 && <span className="opacity-40 mr-1.5">·</span>}
-                        {item}
-                      </span>
-                    ))}
-                  </div>
+                <div className="text-[11px] font-medium text-earth-light dark:text-lavender-muted space-y-1.5">
+                  {/* Language history only — EN/ES. The combined total lives in the badge. */}
+                  {langItems.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 font-black uppercase tracking-widest text-[10px]">
+                      {langItems.map((item, i) => (
+                        <span key={i} className="whitespace-nowrap">
+                          {i > 0 && <span className="opacity-40 mr-1.5">·</span>}
+                          {item}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {/* Completed-translation chips. With more than one, they act as the
+                      Saved-local version selector controlling body, Review Now and Share. */}
+                  {completedTransList.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {completedTransList.map(t => {
+                        const n = transCounts?.[t] || 0;
+                        const selectable = completedTransList.length > 1;
+                        const isSel = effSelectedTrans === t;
+                        return (
+                          <button
+                            key={t}
+                            type="button"
+                            disabled={!selectable}
+                            onClick={selectable ? () => selectVersion(verse.id, t) : undefined}
+                            className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded border transition-colors ${
+                              isSel
+                                ? 'text-playful-purple dark:text-plum bg-playful-purple/10 dark:bg-plum/15 border-playful-purple/30 dark:border-plum/30'
+                                : 'text-earth/50 dark:text-ivory/50 bg-earth/5 dark:bg-white/5 border-earth/10 dark:border-white/10'
+                            } ${selectable ? 'cursor-pointer hover:text-playful-purple dark:hover:text-plum' : 'cursor-default'}`}
+                          >
+                            {t} {n}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                   {isBothLanguages && (
                     <p className="font-black uppercase tracking-widest text-[9px] text-playful-purple/70 dark:text-plum/70">
                       {state.primaryLanguage === 'es' ? 'Ambos idiomas' : 'Both Languages'}
@@ -348,7 +438,7 @@ export default function Saved({ state, setState, onStartMemorizing, onGoToFlashc
               <motion.button 
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
-                onClick={() => onShareClick(verse)}
+                onClick={() => onShareClick(buildSavedSnapshot())}
                 className="p-2.5 rounded-xl bg-earth/5 dark:bg-white/5 text-earth/60 dark:text-ivory/60 hover:text-playful-purple dark:hover:text-plum hover:bg-playful-purple/10 dark:hover:bg-plum/20 transition-all ring-1 ring-teal/20"
               >
                 <Share2 size={18} />
@@ -493,10 +583,10 @@ export default function Saved({ state, setState, onStartMemorizing, onGoToFlashc
   return (
     <div id="saved-content" className="space-y-8">
       {/* Share Modal */}
-      <ShareModal 
+      <ShareModal
         isOpen={isShareModalOpen}
         onClose={() => setIsShareModalOpen(false)}
-        verse={selectedVerseForShare}
+        snapshot={shareSnapshot}
         state={state}
         onNativeShare={onNativeShare}
       />

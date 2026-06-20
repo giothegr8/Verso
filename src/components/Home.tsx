@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { AppState, TRANSLATION_PAIRS, TRANSLATION_DETAILS, Verse, Translation, CustomPath, CustomPathVerse, Path } from "../types";
+import { AppState, TRANSLATION_PAIRS, TRANSLATION_DETAILS, Verse, Translation, CustomPath, CustomPathVerse, Path, ShareSnapshot, ShareBlock } from "../types";
 import { MOCK_VERSES, getVerseByDate } from "../constants";
 import { getVerseText, getFallbackMessage } from "../utils/verseProvider";
 import { Globe, Play, Flame, Trophy, Sparkles, Languages, BookOpen, History, AlertCircle, Share2, Star, X, Sprout, Compass, ChevronRight, CheckCircle2, Search, Loader2, Flower2 } from "lucide-react";
@@ -10,6 +10,7 @@ import { AnimatePresence } from "motion/react";
 import ShareModal from "./ShareModal";
 import { PATHS } from "../constants";
 import { searchVerse, loadVerseAndMerge } from "../services/bibleService";
+import { BIBLE_VERSIONS } from "../services/apiBible";
 
 const ES_TRANSLATIONS = ["RVR1960", "NVI", "NBLA"];
 const isEsTranslation = (t: string) => ES_TRANSLATIONS.includes(t);
@@ -29,6 +30,7 @@ export default function Home({ state, setState, onChangeTranslation, onStartMemo
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [shareSnapshot, setShareSnapshot] = useState<ShareSnapshot | null>(null);
   const [isQuickSwitchOpen, setIsQuickSwitchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResult, setSearchResult] = useState<Verse | null>(null);
@@ -384,15 +386,46 @@ export default function Home({ state, setState, onChangeTranslation, onStartMemo
   const isEsLoading = !!(currentVerse && state.loadingTranslations && state.loadingTranslations[`${currentVerse.id}_${esTransToUse}`]);
   const isEnLoading = !!(currentVerse && state.loadingTranslations && state.loadingTranslations[`${currentVerse.id}_${enTransToUse}`]);
 
+  // Build an immutable, source-aware snapshot from the verse currently displayed
+  // on Home. Provenance: the genuine daily verse → "Today's Verse"; anything else
+  // (searched/custom/path) → "Shared from Verso". A Home share is never labeled
+  // "Memorized with Verso" merely because the verse may also exist in Saved.
+  const buildHomeSnapshot = (): ShareSnapshot => {
+    const mode = state.memorizeMode;
+    const blocks: ShareBlock[] = [];
+    if ((mode === 'es' || mode === 'both') && esText) {
+      blocks.push({ language: 'es', translation: esTransToUse, label: TRANSLATION_DETAILS[esTransToUse]?.name || esTransToUse, bibleId: BIBLE_VERSIONS[esTransToUse], text: esText });
+    }
+    if ((mode === 'en' || mode === 'both') && enText) {
+      blocks.push({ language: 'en', translation: enTransToUse, label: TRANSLATION_DETAILS[enTransToUse]?.name || enTransToUse, bibleId: BIBLE_VERSIONS[enTransToUse], text: enText });
+    }
+    const refLang: 'es' | 'en' = mode === 'es' ? 'es' : mode === 'en' ? 'en' : (state.primaryLanguage === 'es' ? 'es' : 'en');
+    const isDaily = isVotd;
+    return {
+      source: isDaily ? 'daily' : 'custom',
+      book: currentVerse.book,
+      chapter: currentVerse.chapter,
+      verse: currentVerse.verse,
+      refLang,
+      reference: `${getLocalizedBookName(currentVerse.book, refLang)} ${currentVerse.chapter}:${currentVerse.verse}`,
+      blocks,
+      footer: isDaily
+        ? (state.primaryLanguage === 'es' ? 'Versículo de Hoy' : 'Today’s Verse')
+        : (state.primaryLanguage === 'es' ? 'Compartido desde Verso' : 'Shared from Verso'),
+    };
+  };
+
   const onShareClick = (e: React.MouseEvent) => {
     e.stopPropagation();
+    setShareSnapshot(buildHomeSnapshot());
     setIsShareModalOpen(true);
   };
 
   const onNativeShare = async (elementId?: string, filename?: string) => {
-    const locBook = getLocalizedBookName(currentVerse.book, state.memorizeMode === 'es' ? 'es' : state.memorizeMode === 'en' ? 'en' : (state.primaryLanguage === 'es' ? 'es' : 'en'));
-    const title = `Verso: ${locBook} ${currentVerse.chapter}:${currentVerse.verse}`;
-    const text = `${locBook} ${currentVerse.chapter}:${currentVerse.verse}\n\n${esText ? `ES: ${esText}\n` : ''}${enText ? `EN: ${enText}` : ''}\n\nShared via Verso`;
+    const snap = shareSnapshot || buildHomeSnapshot();
+    const bodyLines = snap.blocks.map(b => `${b.language === 'es' ? 'ES' : 'EN'}: ${b.text}`).join('\n');
+    const title = `Verso: ${snap.reference}`;
+    const text = `${snap.reference}\n\n${bodyLines}\n\n${snap.footer}`;
     const url = window.location.href;
 
     await handleShare(title, text, url, (msg) => {
@@ -411,10 +444,10 @@ export default function Home({ state, setState, onChangeTranslation, onStartMemo
       className="h-full flex flex-col space-y-12 sm:space-y-14"
     >
       {/* Share Modal */}
-      <ShareModal 
+      <ShareModal
         isOpen={isShareModalOpen}
         onClose={() => setIsShareModalOpen(false)}
-        verse={currentVerse}
+        snapshot={shareSnapshot}
         state={state}
         onNativeShare={onNativeShare}
       />
