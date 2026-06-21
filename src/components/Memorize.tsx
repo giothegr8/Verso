@@ -1609,9 +1609,13 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                         }`}
                       >
                         {isActiveSlot ? (
-                          <motion.span 
-                            animate={{ opacity: [0.45, 1, 0.45], scaleX: [0.92, 1.04, 0.92] }}
-                            transition={{ duration: 0.9, repeat: Infinity, ease: "easeInOut" }}
+                          <motion.span
+                            layoutId={`memorize-caret-${lang}`}
+                            animate={{ opacity: [0.55, 1, 0.55] }}
+                            transition={{
+                              layout: { duration: 0.16, ease: "easeOut" },
+                              opacity: { duration: 1.5, repeat: Infinity, ease: "easeInOut" },
+                            }}
                             className="absolute bottom-1 left-0 right-0 h-[3.5px] rounded-full bg-playful-purple shadow-[0_0_10px_rgba(151,71,255,0.85)] z-20"
                           />
                         ) : (

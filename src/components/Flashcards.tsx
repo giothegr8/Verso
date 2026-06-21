@@ -475,89 +475,86 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
     return eligibleIndices.length > 0;
   }, [clueCount.en, isCorrect, isCompleted, enRef, userInputEn, revealedIndices.en, attemptsLeft]);
 
-  // Citation clue logic: exactly 1 random useful clue per language
+  // Citation clue logic: exactly 1 useful clue per language.
+  // - If any editable slot is empty: reveal/lock one correct empty slot (C).
+  // - Else if any filled slot is wrong: clear that one wrong slot and move the
+  //   cursor back to it, keeping the answer hidden (D). It never reveals or
+  //   replaces a wrong character with the answer.
   const handleClue = (e: React.MouseEvent, lang: 'es' | 'en') => {
     e.stopPropagation();
+    const inputRef = lang === 'es' ? inputRefEs : inputRefEn;
     if (clueCount[lang] >= 1 || isCorrect || isCompleted || attemptsLeft === 0) {
-      const inputRef = lang === 'es' ? inputRefEs : inputRefEn;
-      if (inputRef.current) {
-        inputRef.current.focus();
-      }
+      inputRef.current?.focus();
       return;
     }
 
     const ref = lang === 'es' ? esRef : enRef;
-    const userInput = lang === 'es' ? userInputEs : userInputEn;
     const fillableIndices = getFillableIndices(ref, revealedIndices[lang]);
-    
-    // Find book name vs numbers part for prioritization
-    const parts = ref.split(' ');
-    const numbersPart = parts[parts.length - 1]; 
-    const numberStartIdx = ref.lastIndexOf(numbersPart);
+    const n = fillableIndices.length;
+    const arr = padToSlots((lang === 'es' ? userInputEsRef : userInputEnRef).current, n);
 
-    // Eligible indices are those that are fillable AND NOT correctly typed by user
-    const eligibleIndices = fillableIndices.filter(idx => {
-      const char = ref[idx];
-      const fillIdx = fillableIndices.indexOf(idx);
-      const userChar = userInput[fillIdx];
-      // Eligible if slot is empty OR user typed it incorrectly
-      return !userChar || userChar === " " || normalize(userChar) !== normalize(char);
+    // Classify each editable slot against its canonical character.
+    const emptyGlobal: number[] = [];
+    const wrongGlobal: number[] = [];
+    fillableIndices.forEach((globalIdx, fillIdx) => {
+      const uc = arr[fillIdx];
+      if (!uc || uc === ' ') emptyGlobal.push(globalIdx);
+      else if (normalize(uc) !== normalize(ref[globalIdx])) wrongGlobal.push(globalIdx);
     });
 
-    if (eligibleIndices.length === 0) {
-      const inputRef = lang === 'es' ? inputRefEs : inputRefEn;
-      if (inputRef.current) {
-        inputRef.current.focus();
-      }
+    // Already correct after normalization → submit instead of using a clue.
+    if (emptyGlobal.length === 0 && wrongGlobal.length === 0) {
+      inputRef.current?.focus();
+      handleSubmit();
       return;
     }
 
-    // Prioritize letters (book name) over digits (chapter/verse)
-    const letterIndices = eligibleIndices.filter(idx => idx < numberStartIdx && /[\p{L}]/u.test(ref[idx]));
-    const digitIndices = eligibleIndices.filter(idx => idx >= numberStartIdx && /[\p{N}]/u.test(ref[idx]));
+    // Prioritize book letters over chapter/verse digits.
+    const parts = ref.split(' ');
+    const numbersPart = parts[parts.length - 1];
+    const numberStartIdx = ref.lastIndexOf(numbersPart);
+    const pick = (pool: number[]): number => {
+      const letters = pool.filter(idx => idx < numberStartIdx && /[\p{L}]/u.test(ref[idx]));
+      const digits = pool.filter(idx => idx >= numberStartIdx && /[\p{N}]/u.test(ref[idx]));
+      const chosenPool = letters.length > 0 ? letters : (digits.length > 0 ? digits : pool);
+      return chosenPool[Math.floor(Math.random() * chosenPool.length)];
+    };
 
-    let chosenIdx: number;
-    if (letterIndices.length > 0) {
-      chosenIdx = letterIndices[Math.floor(Math.random() * letterIndices.length)];
-    } else {
-      chosenIdx = digitIndices[Math.floor(Math.random() * digitIndices.length)];
+    if (emptyGlobal.length > 0) {
+      // C: reveal/lock one correct empty slot (existing locked-reveal behavior).
+      const chosenGlobal = pick(emptyGlobal);
+      const removedFillIdx = fillableIndices.indexOf(chosenGlobal);
+
+      const newArr = arr.slice();
+      if (removedFillIdx !== -1) newArr.splice(removedFillIdx, 1);
+      writeUserInput(lang, newArr.join(''));
+
+      const newRevealed = { ...revealedIndices };
+      newRevealed[lang] = [...newRevealed[lang], chosenGlobal].sort((a, b) => a - b);
+      setRevealedIndices(newRevealed);
+
+      const newN = Math.max(0, n - 1);
+      const cur = (lang === 'es' ? cursorPositionEsRef : cursorPositionEnRef).current;
+      const shifted = cur > removedFillIdx ? cur - 1 : cur;
+      writeCursor(lang, Math.min(Math.max(0, shifted), Math.max(0, newN - 1)));
+
+      setClueCount(prev => ({ ...prev, [lang]: prev[lang] + 1 }));
+      inputRef.current?.focus();
+      return;
     }
 
-    const newRevealed = { ...revealedIndices };
-    newRevealed[lang] = [...newRevealed[lang], chosenIdx].sort((a, b) => a - b);
-    
-    // Adjust user input to account for the new revealed character
-    const setInput = lang === 'es' ? setUserInputEs : setUserInputEn;
-    const removedFillIdx = fillableIndices.indexOf(chosenIdx);
-    
-    let newCursorPosition = lang === 'es' ? cursorPositionEs : cursorPositionEn;
-
-    if (removedFillIdx !== -1) {
-      let newUserInput = userInput.split('');
-      newUserInput.splice(removedFillIdx, 1);
-      setInput(newUserInput.join(''));
-      
-      const setCursor = lang === 'es' ? setCursorPositionEs : setCursorPositionEn;
-      const currentCursor = lang === 'es' ? cursorPositionEs : cursorPositionEn;
-      if (currentCursor > removedFillIdx) {
-        newCursorPosition = currentCursor - 1;
-        setCursor(newCursorPosition);
-      }
-    }
-
-    setRevealedIndices(newRevealed);
+    // D: clear one genuinely-wrong slot and guide the cursor back to it. The
+    // answer stays hidden; the slot is NOT added to revealedIndices.
+    const chosenGlobal = pick(wrongGlobal);
+    const fillIdx = fillableIndices.indexOf(chosenGlobal);
+    const cleared = arr.slice();
+    if (fillIdx !== -1) cleared[fillIdx] = ' ';
+    writeUserInput(lang, cleared.join(''));
+    writeCursor(lang, Math.max(0, fillIdx));
+    setHasSubmitted(false);
+    setShowError(false);
     setClueCount(prev => ({ ...prev, [lang]: prev[lang] + 1 }));
-
-    // Refocus correct input & restore cursor position
-    const inputRef = lang === 'es' ? inputRefEs : inputRefEn;
-    if (inputRef.current) {
-      inputRef.current.focus();
-      setTimeout(() => {
-        if (inputRef.current) {
-          inputRef.current.setSelectionRange(newCursorPosition, newCursorPosition);
-        }
-      }, 50);
-    }
+    inputRef.current?.focus();
   };
 
   function getFillableIndices(ref: string, revealed: number[]): number[] {
@@ -574,21 +571,13 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
 
   const handleCharClick = (lang: 'es' | 'en', fillIdx: number) => {
     if (isCorrect || attemptsLeft === 0 || isFlipped) return;
-    
-    const setCursor = lang === 'es' ? setCursorPositionEs : setCursorPositionEn;
-    setCursor(fillIdx);
+
+    const n = slotCountFor(lang);
+    writeCursor(lang, Math.min(Math.max(0, fillIdx), Math.max(0, n - 1)));
     setActiveLanguage(lang);
-    
+
     const inputRef = lang === 'es' ? inputRefEs : inputRefEn;
-    if (inputRef.current) {
-      inputRef.current.focus();
-      // Use a slightly longer timeout or requestAnimationFrame to ensure focus is solid
-      setTimeout(() => {
-        if (inputRef.current) {
-          inputRef.current.setSelectionRange(fillIdx, fillIdx);
-        }
-      }, 50);
-    }
+    inputRef.current?.focus();
   };
 
   const renderPlaceholder = (ref: string, revealed: number[], userInput: string, lang: 'es' | 'en') => {
@@ -659,7 +648,15 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
                     >
                       {isCorrect || state.activeAttempt?.citationCorrect ? char : (isRevealedByClue ? char : (userChar === " " ? "" : userChar))}
                       {isSlotActive && !isRevealedByClue && !isCorrect && (
-                        <div className="absolute inset-x-0 -bottom-[2.5px] h-[2.5px] bg-coral animate-pulse shadow-[0_0_8px_rgba(255,111,97,0.5)]" />
+                        <motion.div
+                          layoutId={`cards-caret-${lang}`}
+                          animate={{ opacity: [0.55, 1, 0.55] }}
+                          transition={{
+                            layout: { duration: 0.16, ease: "easeOut" },
+                            opacity: { duration: 1.5, repeat: Infinity, ease: "easeInOut" },
+                          }}
+                          className="absolute inset-x-0 -bottom-[2.5px] h-[2.5px] rounded-full bg-coral shadow-[0_0_8px_rgba(255,111,97,0.5)]"
+                        />
                       )}
                     </span>
                   );
@@ -718,7 +715,15 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
               >
                 {isCorrect || state.activeAttempt?.citationCorrect ? char : (isRevealedByClue ? char : (userChar === " " ? "" : userChar))}
                 {isSlotActive && !isRevealedByClue && !isCorrect && (
-                  <div className="absolute inset-x-0 -bottom-[2.5px] h-[2.5px] bg-coral animate-pulse shadow-[0_0_8px_rgba(255,111,97,0.5)]" />
+                  <motion.div
+                          layoutId={`cards-caret-${lang}`}
+                          animate={{ opacity: [0.55, 1, 0.55] }}
+                          transition={{
+                            layout: { duration: 0.16, ease: "easeOut" },
+                            opacity: { duration: 1.5, repeat: Infinity, ease: "easeInOut" },
+                          }}
+                          className="absolute inset-x-0 -bottom-[2.5px] h-[2.5px] rounded-full bg-coral shadow-[0_0_8px_rgba(255,111,97,0.5)]"
+                        />
                 )}
               </span>
             );
@@ -751,6 +756,85 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
     return target;
   };
 
+  // --- Authoritative citation input -----------------------------------------
+  // Refs mirror the rendered state so keyboard/submit handlers always read the
+  // latest accepted keystroke synchronously (no stale-closure / final-keystroke
+  // race). Rendering still uses state; the refs are the source of truth for
+  // immediate reads and are kept identical to state by the mirrors below.
+  const userInputEsRef = React.useRef("");
+  const userInputEnRef = React.useRef("");
+  useEffect(() => { userInputEsRef.current = userInputEs; }, [userInputEs]);
+  useEffect(() => { userInputEnRef.current = userInputEn; }, [userInputEn]);
+
+  const writeUserInput = (lang: 'es' | 'en', value: string) => {
+    if (lang === 'es') { userInputEsRef.current = value; setUserInputEs(value); }
+    else { userInputEnRef.current = value; setUserInputEn(value); }
+  };
+  const writeCursor = (lang: 'es' | 'en', value: number) => {
+    if (lang === 'es') { cursorPositionEsRef.current = value; setCursorPositionEs(value); }
+    else { cursorPositionEnRef.current = value; setCursorPositionEn(value); }
+  };
+
+  const slotCountFor = (lang: 'es' | 'en') =>
+    getFillableIndices(lang === 'es' ? esRef : enRef, revealedIndices[lang]).length;
+
+  // Force the value to exactly `n` editable slots: pad short, clamp long. This
+  // is what prevents interior/trailing length drift from hiding unmatched chars.
+  const padToSlots = (str: string, n: number): string[] => {
+    const arr = str.split('');
+    while (arr.length < n) arr.push(' ');
+    arr.length = n;
+    return arr;
+  };
+
+  // Accept one character at the authoritative logical cursor, then advance the
+  // cursor (kept visible on the final slot). Non-letter/number (e.g. the colon
+  // separator) is never stored.
+  const acceptChar = (lang: 'es' | 'en', typedChar: string) => {
+    if (!/[\p{L}\p{N}]/u.test(typedChar)) return;
+    const n = slotCountFor(lang);
+    if (n <= 0) return;
+    const valueRef = lang === 'es' ? userInputEsRef : userInputEnRef;
+    const cursorRef = lang === 'es' ? cursorPositionEsRef : cursorPositionEnRef;
+    const pos = Math.min(Math.max(0, cursorRef.current), n - 1);
+    const arr = padToSlots(valueRef.current, n);
+    arr[pos] = typedChar;
+    writeUserInput(lang, arr.join(''));
+    writeCursor(lang, Math.min(pos + 1, n - 1));
+  };
+
+  // Backspace symmetric with forward typing: clear the active char if present,
+  // else step back one slot and clear it. Never jumps to slot zero.
+  const backspaceChar = (lang: 'es' | 'en') => {
+    const n = slotCountFor(lang);
+    if (n <= 0) return;
+    const valueRef = lang === 'es' ? userInputEsRef : userInputEnRef;
+    const cursorRef = lang === 'es' ? cursorPositionEsRef : cursorPositionEnRef;
+    const arr = padToSlots(valueRef.current, n);
+    const pos = Math.min(Math.max(0, cursorRef.current), n - 1);
+    const target = (arr[pos] && arr[pos] !== ' ') ? pos : Math.max(0, pos - 1);
+    arr[target] = ' ';
+    writeUserInput(lang, arr.join(''));
+    writeCursor(lang, target);
+  };
+
+  // Derive the single inserted character from a controlled-input change by
+  // diffing against the authoritative previous value (caret-position agnostic,
+  // so a desynced native caret can never misplace a character).
+  const extractInsertedChar = (lang: 'es' | 'en', raw: string): string => {
+    const prev = (lang === 'es' ? userInputEsRef : userInputEnRef).current;
+    if (raw.length <= prev.length) return "";
+    let i = 0;
+    while (i < prev.length && raw[i] === prev[i]) i++;
+    return raw[i] ?? raw[raw.length - 1] ?? "";
+  };
+
+  const isCitationFilled = (lang: 'es' | 'en'): boolean => {
+    const target = getTargetChars(lang === 'es' ? esRef : enRef, revealedIndices[lang]);
+    const val = (lang === 'es' ? userInputEsRef : userInputEnRef).current;
+    return val.length === target.length && !val.includes(' ');
+  };
+
   const handleSubmit = () => {
     if (!isEligible) {
       onMemorize(verse.id);
@@ -758,9 +842,9 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
     }
     const esTarget = getTargetChars(esRef, revealedIndices.es);
     const enTarget = getTargetChars(enRef, revealedIndices.en);
-    
-    const esMatch = state.memorizeMode === 'en' || normalize(userInputEs) === normalize(esTarget);
-    const enMatch = state.memorizeMode === 'es' || normalize(userInputEn) === normalize(enTarget);
+
+    const esMatch = state.memorizeMode === 'en' || normalize(userInputEsRef.current) === normalize(esTarget);
+    const enMatch = state.memorizeMode === 'es' || normalize(userInputEnRef.current) === normalize(enTarget);
 
     setHasSubmitted(true);
 
@@ -1160,22 +1244,21 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') {
                               e.preventDefault();
-                              if (isEligible && canSubmit) {
-                                handleSubmit();
-                              }
+                              const esOk = state.memorizeMode === 'en' || isCitationFilled('es');
+                              const enOk = state.memorizeMode === 'es' || isCitationFilled('en');
+                              if (isEligible && esOk && enOk && !isCorrect && attemptsLeft > 0) handleSubmit();
+                              return;
                             }
                             if (e.key === 'ArrowLeft') {
                               e.preventDefault();
-                              const newPos = Math.max(0, cursorPositionEs - 1);
-                              setCursorPositionEs(newPos);
-                              setTimeout(() => inputRefEs.current?.setSelectionRange(newPos, newPos), 0);
+                              writeCursor('es', Math.max(0, cursorPositionEsRef.current - 1));
+                              return;
                             }
                             if (e.key === 'ArrowRight') {
                               e.preventDefault();
-                              const maxPos = Math.max(0, getFillableIndices(esRef, revealedIndices.es).length - 1);
-                              const newPos = Math.min(maxPos, cursorPositionEs + 1);
-                              setCursorPositionEs(newPos);
-                              setTimeout(() => inputRefEs.current?.setSelectionRange(newPos, newPos), 0);
+                              const maxPos = Math.max(0, slotCountFor('es') - 1);
+                              writeCursor('es', Math.min(maxPos, cursorPositionEsRef.current + 1));
+                              return;
                             }
                             if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
                               e.preventDefault();
@@ -1185,55 +1268,25 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
                               const firstNumFillIdx = fillableAll.findIndex(gi => gi >= bookCharsCount);
                               const bookFillCount = firstNumFillIdx === -1 ? fillableAll.length : firstNumFillIdx;
                               const numFillCount = firstNumFillIdx === -1 ? 0 : fillableAll.length - firstNumFillIdx;
-                              let newPos = cursorPositionEs;
-                              if (e.key === 'ArrowDown' && cursorPositionEs < bookFillCount && numFillCount > 0) {
-                                newPos = firstNumFillIdx + Math.min(numFillCount - 1, cursorPositionEs);
-                              } else if (e.key === 'ArrowUp' && firstNumFillIdx !== -1 && cursorPositionEs >= firstNumFillIdx && bookFillCount > 0) {
-                                newPos = Math.min(bookFillCount - 1, cursorPositionEs - firstNumFillIdx);
+                              const cur = cursorPositionEsRef.current;
+                              let newPos = cur;
+                              if (e.key === 'ArrowDown' && cur < bookFillCount && numFillCount > 0) {
+                                newPos = firstNumFillIdx + Math.min(numFillCount - 1, cur);
+                              } else if (e.key === 'ArrowUp' && firstNumFillIdx !== -1 && cur >= firstNumFillIdx && bookFillCount > 0) {
+                                newPos = Math.min(bookFillCount - 1, cur - firstNumFillIdx);
                               }
-                              if (newPos !== cursorPositionEs) {
-                                setCursorPositionEs(newPos);
-                                setTimeout(() => inputRefEs.current?.setSelectionRange(newPos, newPos), 0);
-                              }
+                              if (newPos !== cur) writeCursor('es', newPos);
+                              return;
                             }
-                            if (e.key === 'Backspace' && inputRefEs.current) {
-                              const start = inputRefEs.current.selectionStart;
-                              const end = inputRefEs.current.selectionEnd;
-                              if (start !== null && end !== null) {
-                                e.preventDefault();
-                                const newVal = userInputEs.split('');
-                                let newStart: number;
-                                if (start !== end) {
-                                  newStart = start;
-                                  for (let i = start; i < end; i++) newVal[i] = ' ';
-                                } else if (start < newVal.length && newVal[start] && newVal[start] !== ' ') {
-                                  newStart = start;
-                                  newVal[start] = ' ';
-                                } else {
-                                  newStart = Math.max(0, start - 1);
-                                  newVal[newStart] = ' ';
-                                }
-                                setUserInputEs(newVal.join(''));
-                                setCursorPositionEs(newStart);
-                                setTimeout(() => inputRefEs.current?.setSelectionRange(newStart, newStart), 0);
-                              }
+                            if (e.key === 'Backspace') {
+                              e.preventDefault();
+                              backspaceChar('es');
+                              return;
                             }
                           }}
                           onChange={(e) => {
-                            const rawValue = e.target.value;
-                            const selectionStart = e.target.selectionStart;
-
-                            if (selectionStart !== null && selectionStart > 0) {
-                              const typedChar = rawValue.charAt(selectionStart - 1);
-                              if (/[\p{L}\p{N}]/u.test(typedChar)) {
-                                const newVal = userInputEs.split('');
-                                newVal[selectionStart - 1] = typedChar;
-                                setUserInputEs(newVal.join(''));
-                                setCursorPositionEs(selectionStart);
-                                setTimeout(() => inputRefEs.current?.setSelectionRange(selectionStart, selectionStart), 0);
-                              }
-                            }
-
+                            const inserted = extractInsertedChar('es', e.target.value);
+                            if (inserted) acceptChar('es', inserted);
                             setHasSubmitted(false);
                             setShowError(false);
                           }}
@@ -1288,22 +1341,21 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') {
                               e.preventDefault();
-                              if (isEligible && canSubmit) {
-                                handleSubmit();
-                              }
+                              const esOk = state.memorizeMode === 'en' || isCitationFilled('es');
+                              const enOk = state.memorizeMode === 'es' || isCitationFilled('en');
+                              if (isEligible && esOk && enOk && !isCorrect && attemptsLeft > 0) handleSubmit();
+                              return;
                             }
                             if (e.key === 'ArrowLeft') {
                               e.preventDefault();
-                              const newPos = Math.max(0, cursorPositionEn - 1);
-                              setCursorPositionEn(newPos);
-                              setTimeout(() => inputRefEn.current?.setSelectionRange(newPos, newPos), 0);
+                              writeCursor('en', Math.max(0, cursorPositionEnRef.current - 1));
+                              return;
                             }
                             if (e.key === 'ArrowRight') {
                               e.preventDefault();
-                              const maxPos = Math.max(0, getFillableIndices(enRef, revealedIndices.en).length - 1);
-                              const newPos = Math.min(maxPos, cursorPositionEn + 1);
-                              setCursorPositionEn(newPos);
-                              setTimeout(() => inputRefEn.current?.setSelectionRange(newPos, newPos), 0);
+                              const maxPos = Math.max(0, slotCountFor('en') - 1);
+                              writeCursor('en', Math.min(maxPos, cursorPositionEnRef.current + 1));
+                              return;
                             }
                             if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
                               e.preventDefault();
@@ -1313,55 +1365,25 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
                               const firstNumFillIdx = fillableAll.findIndex(gi => gi >= bookCharsCount);
                               const bookFillCount = firstNumFillIdx === -1 ? fillableAll.length : firstNumFillIdx;
                               const numFillCount = firstNumFillIdx === -1 ? 0 : fillableAll.length - firstNumFillIdx;
-                              let newPos = cursorPositionEn;
-                              if (e.key === 'ArrowDown' && cursorPositionEn < bookFillCount && numFillCount > 0) {
-                                newPos = firstNumFillIdx + Math.min(numFillCount - 1, cursorPositionEn);
-                              } else if (e.key === 'ArrowUp' && firstNumFillIdx !== -1 && cursorPositionEn >= firstNumFillIdx && bookFillCount > 0) {
-                                newPos = Math.min(bookFillCount - 1, cursorPositionEn - firstNumFillIdx);
+                              const cur = cursorPositionEnRef.current;
+                              let newPos = cur;
+                              if (e.key === 'ArrowDown' && cur < bookFillCount && numFillCount > 0) {
+                                newPos = firstNumFillIdx + Math.min(numFillCount - 1, cur);
+                              } else if (e.key === 'ArrowUp' && firstNumFillIdx !== -1 && cur >= firstNumFillIdx && bookFillCount > 0) {
+                                newPos = Math.min(bookFillCount - 1, cur - firstNumFillIdx);
                               }
-                              if (newPos !== cursorPositionEn) {
-                                setCursorPositionEn(newPos);
-                                setTimeout(() => inputRefEn.current?.setSelectionRange(newPos, newPos), 0);
-                              }
+                              if (newPos !== cur) writeCursor('en', newPos);
+                              return;
                             }
-                            if (e.key === 'Backspace' && inputRefEn.current) {
-                              const start = inputRefEn.current.selectionStart;
-                              const end = inputRefEn.current.selectionEnd;
-                              if (start !== null && end !== null) {
-                                e.preventDefault();
-                                const newVal = userInputEn.split('');
-                                let newStart: number;
-                                if (start !== end) {
-                                  newStart = start;
-                                  for (let i = start; i < end; i++) newVal[i] = ' ';
-                                } else if (start < newVal.length && newVal[start] && newVal[start] !== ' ') {
-                                  newStart = start;
-                                  newVal[start] = ' ';
-                                } else {
-                                  newStart = Math.max(0, start - 1);
-                                  newVal[newStart] = ' ';
-                                }
-                                setUserInputEn(newVal.join(''));
-                                setCursorPositionEn(newStart);
-                                setTimeout(() => inputRefEn.current?.setSelectionRange(newStart, newStart), 0);
-                              }
+                            if (e.key === 'Backspace') {
+                              e.preventDefault();
+                              backspaceChar('en');
+                              return;
                             }
                           }}
                           onChange={(e) => {
-                            const rawValue = e.target.value;
-                            const selectionStart = e.target.selectionStart;
-
-                            if (selectionStart !== null && selectionStart > 0) {
-                              const typedChar = rawValue.charAt(selectionStart - 1);
-                              if (/[\p{L}\p{N}]/u.test(typedChar)) {
-                                const newVal = userInputEn.split('');
-                                newVal[selectionStart - 1] = typedChar;
-                                setUserInputEn(newVal.join(''));
-                                setCursorPositionEn(selectionStart);
-                                setTimeout(() => inputRefEn.current?.setSelectionRange(selectionStart, selectionStart), 0);
-                              }
-                            }
-
+                            const inserted = extractInsertedChar('en', e.target.value);
+                            if (inserted) acceptChar('en', inserted);
                             setHasSubmitted(false);
                             setShowError(false);
                           }}
