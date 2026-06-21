@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useLayoutEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { AppState, Verse, Translation } from "../types";
 import { loadVerseAndMerge } from "../services/bibleService";
@@ -209,22 +209,22 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
     setClueFeedback(null);
   }, [verse.id, state.selectedTranslations.es, state.selectedTranslations.en, state.memorizeMode, state.activeAttempt?.citationCorrect]);
 
-  // Autofocus the appropriate hidden input for citation challenges when eligible and ready
-  useEffect(() => {
+  // Autofocus the appropriate hidden input for citation challenges when eligible
+  // and ready. Focus synchronously before paint (useLayoutEffect, no timer) so
+  // the hidden input is focused the instant the challenge is visible and the very
+  // first printable key is captured. preventScroll avoids any focus-induced jump.
+  useLayoutEffect(() => {
     if (isEligible && !isCorrect && !isCompleted && !isFlipped && attemptsLeft > 0) {
       const isEnOnly = state.memorizeMode === 'en';
       const refToFocus = isEnOnly ? inputRefEn : inputRefEs;
       const targetLang = isEnOnly ? 'en' : 'es';
-      
-      const timer = setTimeout(() => {
-        if (refToFocus.current) {
-          refToFocus.current.focus();
-          setActiveLanguage(targetLang);
-          const currentCursor = targetLang === 'es' ? cursorPositionEsRef.current : cursorPositionEnRef.current;
-          refToFocus.current.setSelectionRange(currentCursor, currentCursor + 1);
-        }
-      }, 350);
-      return () => clearTimeout(timer);
+
+      if (refToFocus.current) {
+        refToFocus.current.focus({ preventScroll: true });
+        setActiveLanguage(targetLang);
+        const currentCursor = targetLang === 'es' ? cursorPositionEsRef.current : cursorPositionEnRef.current;
+        refToFocus.current.setSelectionRange(currentCursor, currentCursor + 1);
+      }
     }
   }, [verse.id, isEligible, isCorrect, isCompleted, isFlipped, attemptsLeft, state.memorizeMode]);
 
