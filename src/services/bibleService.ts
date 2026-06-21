@@ -192,6 +192,26 @@ const MOCK_BIBLE_DATA: Record<string, Verse> = {
 /**
  * Real Bible API Lookup
  */
+// Derives a stable, canonical English Bible-book name from a reference using the
+// existing USFM tables, tolerating abbreviations and surrounding punctuation
+// (e.g. "Phil. 4:13" -> "Philippians"). Returns null when the book cannot be
+// resolved, so callers fall back without forcing an unrelated match. Localized
+// (Spanish) display is still derived later via getLocalizedBookName.
+function canonicalBookName(reference: string): string | null {
+  const parsed = parseReference(reference);
+  if (!parsed || !parsed.book) return null;
+  const key = parsed.book
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\p{L}\p{N} ]/gu, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+  const usfm = BOOK_TO_USFM[key];
+  if (usfm && CANONICAL_USFM_NAMES[usfm]) return CANONICAL_USFM_NAMES[usfm].en;
+  return null;
+}
+
 async function fetchVerseFromApi(reference: string, translation: string): Promise<Verse | null> {
   const versionId = BIBLE_VERSIONS[translation] || BIBLE_VERSIONS.en;
   const result = await getVerseFromApiBible(reference, versionId);
@@ -214,7 +234,13 @@ async function fetchVerseFromApi(reference: string, translation: string): Promis
     initialEn[translation as Translation] = result.text;
   }
 
-  let bookName = result.reference.split(' ').slice(0, -1).join(' ') || result.reference.split(' ')[0] || "Verse";
+  // The stored book identity comes only from the already-validated canonical
+  // reference (the `reference` argument is the canonical stdRef from
+  // searchVerse). The raw, possibly abbreviated API display reference is never
+  // used for verse.book; if the canonical reference cannot resolve, fail safely
+  // through this function's existing null return path.
+  const bookName = canonicalBookName(reference);
+  if (!bookName) return null;
   let ch = 1;
   let vs = 1;
   const match = result.reference.match(/(\d+)\s*[:.]\s*([\d\-]+)\s*$/);
@@ -424,7 +450,21 @@ export async function loadVerseAndMerge(
       console.error("English verse fetching failed:", error);
     }
     
-    const bookName = (esRes?.reference || enRes?.reference || reference).split(' ').slice(0, -1).join(' ');
+    // The stored book identity must be canonical and is never a raw API display
+    // string. Prefer the validated caller reference, then a canonical lookup of
+    // the API reference, then an already-stored canonical book for this verse
+    // (only consulted when merging into an existing record). If nothing resolves,
+    // fail safely through this function's existing catch path rather than storing
+    // an abbreviated or unrecognized API display name. Chapter/verse are numeric
+    // and unaffected, so they may still come from the API reference.
+    const existingVerse = state.customVerses.find(v => v.id === verseId)
+      || (state.selectedCustomVerse?.id === verseId ? state.selectedCustomVerse : undefined);
+    const bookName = canonicalBookName(reference)
+      || canonicalBookName(esRes?.reference || enRes?.reference || reference)
+      || (existingVerse?.book ? canonicalBookName(`${existingVerse.book} 1:1`) : null);
+    if (!bookName) {
+      throw new Error(`Unresolved canonical book for custom verse: ${reference}`);
+    }
     const chAndV = (esRes?.reference || enRes?.reference || reference).split(' ').pop() || "1:1";
     const [chapter, verseNum] = chAndV.split(':').map(n => parseInt(n) || 1);
     

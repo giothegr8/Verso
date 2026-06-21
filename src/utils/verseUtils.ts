@@ -115,8 +115,15 @@ export function getLocalizedBookName(book: string, mode: "es" | "en" | "both"): 
   
   for (const p of [...parts, book]) {
     const key = p.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-    if (BOOK_TO_USFM && BOOK_TO_USFM[key]) {
-      usfm = BOOK_TO_USFM[key];
+    // Also try a punctuation-stripped key so abbreviations stored with a trailing
+    // dot (e.g. "Phil." -> "phil", "1 Cor." -> "1 cor") still resolve. Letters,
+    // digits in numbered books, and meaningful internal spaces are preserved.
+    const cleanKey = key.replace(/[^\p{L}\p{N} ]/gu, "").replace(/\s+/g, " ").trim();
+    const matchKey = (BOOK_TO_USFM && BOOK_TO_USFM[key])
+      ? key
+      : (BOOK_TO_USFM && BOOK_TO_USFM[cleanKey] ? cleanKey : null);
+    if (matchKey) {
+      usfm = BOOK_TO_USFM[matchKey];
       break;
     }
   }

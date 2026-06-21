@@ -33,7 +33,10 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
   });
   const [hasReviewed, setHasReviewed] = useState(false);
   const [attemptsLeft, setAttemptsLeft] = useState(2);
-  
+  // Inline, supportive feedback describing the most recent clue action. Cleared
+  // on the next user edit/submit/reset/verse change. Not a toast.
+  const [clueFeedback, setClueFeedback] = useState<'revealed' | 'check-first' | 'corrected' | null>(null);
+
   const inputRefEs = React.useRef<HTMLInputElement>(null);
   const inputRefEn = React.useRef<HTMLInputElement>(null);
 
@@ -203,6 +206,7 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
     setHasSubmitted(!!state.activeAttempt?.citationCorrect);
     setHasReviewed(false);
     setAttemptsLeft(localStorage.getItem(`citation_failed_${verse.id}`) === 'true' ? 0 : 2);
+    setClueFeedback(null);
   }, [verse.id, state.selectedTranslations.es, state.selectedTranslations.en, state.memorizeMode, state.activeAttempt?.citationCorrect]);
 
   // Autofocus the appropriate hidden input for citation challenges when eligible and ready
@@ -429,6 +433,7 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
     setHasSubmitted(false);
     setHasReviewed(false);
     setAttemptsLeft(2);
+    setClueFeedback(null);
   };
 
   const normalize = (str: string) => {
@@ -437,49 +442,25 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
       .trim();
   };
 
+  // The clue is available while a clue remains and the challenge is active. The
+  // button stays usable even when every slot is filled so it can guide the user
+  // (reveal an empty slot, ask them to Check, or correct one wrong slot after a
+  // failed submission). The specific action is decided inside handleClue.
   const hasClueEsAvailable = useMemo(() => {
-    if (clueCount.es >= 1 || isCorrect || isCompleted || attemptsLeft === 0) return false;
-    const ref = esRef;
-    const userInput = userInputEs;
-    const fillableIndices = getFillableIndices(ref, revealedIndices.es);
-    const parts = ref.split(' ');
-    const numbersPart = parts[parts.length - 1]; 
-    const numberStartIdx = ref.lastIndexOf(numbersPart);
-
-    const eligibleIndices = fillableIndices.filter(idx => {
-      const char = ref[idx];
-      const fillIdx = fillableIndices.indexOf(idx);
-      const userChar = userInput[fillIdx];
-      return !userChar || userChar === " " || normalize(userChar) !== normalize(char);
-    });
-
-    return eligibleIndices.length > 0;
-  }, [clueCount.es, isCorrect, isCompleted, esRef, userInputEs, revealedIndices.es, attemptsLeft]);
+    return clueCount.es < 1 && !isCorrect && !isCompleted && attemptsLeft > 0;
+  }, [clueCount.es, isCorrect, isCompleted, attemptsLeft]);
 
   const hasClueEnAvailable = useMemo(() => {
-    if (clueCount.en >= 1 || isCorrect || isCompleted || attemptsLeft === 0) return false;
-    const ref = enRef;
-    const userInput = userInputEn;
-    const fillableIndices = getFillableIndices(ref, revealedIndices.en);
-    const parts = ref.split(' ');
-    const numbersPart = parts[parts.length - 1]; 
-    const numberStartIdx = ref.lastIndexOf(numbersPart);
+    return clueCount.en < 1 && !isCorrect && !isCompleted && attemptsLeft > 0;
+  }, [clueCount.en, isCorrect, isCompleted, attemptsLeft]);
 
-    const eligibleIndices = fillableIndices.filter(idx => {
-      const char = ref[idx];
-      const fillIdx = fillableIndices.indexOf(idx);
-      const userChar = userInput[fillIdx];
-      return !userChar || userChar === " " || normalize(userChar) !== normalize(char);
-    });
-
-    return eligibleIndices.length > 0;
-  }, [clueCount.en, isCorrect, isCompleted, enRef, userInputEn, revealedIndices.en, attemptsLeft]);
-
-  // Citation clue logic: exactly 1 useful clue per language.
-  // - If any editable slot is empty: reveal/lock one correct empty slot (C).
-  // - Else if any filled slot is wrong: clear that one wrong slot and move the
-  //   cursor back to it, keeping the answer hidden (D). It never reveals or
-  //   replaces a wrong character with the answer.
+  // Citation clue logic (Cards only): exactly 1 useful clue per language.
+  // CASE 1 — at least one empty slot: reveal/lock one correct empty character.
+  // CASE 2 — every slot filled but not yet submitted: do nothing and ask the
+  //          user to Check first (no clue consumed).
+  // CASE 4 — every slot filled and previously submitted wrong: correct exactly
+  //          one identified incorrect slot, keeping other wrong marks; require a
+  //          fresh Check. Never auto-submits or completes the card.
   const handleClue = (e: React.MouseEvent, lang: 'es' | 'en') => {
     e.stopPropagation();
     const inputRef = lang === 'es' ? inputRefEs : inputRefEn;
@@ -502,14 +483,7 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
       else if (normalize(uc) !== normalize(ref[globalIdx])) wrongGlobal.push(globalIdx);
     });
 
-    // Already correct after normalization → submit instead of using a clue.
-    if (emptyGlobal.length === 0 && wrongGlobal.length === 0) {
-      inputRef.current?.focus();
-      handleSubmit();
-      return;
-    }
-
-    // Prioritize book letters over chapter/verse digits.
+    // Prioritize book letters over chapter/verse digits when picking a slot.
     const parts = ref.split(' ');
     const numbersPart = parts[parts.length - 1];
     const numberStartIdx = ref.lastIndexOf(numbersPart);
@@ -520,8 +494,8 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
       return chosenPool[Math.floor(Math.random() * chosenPool.length)];
     };
 
+    // CASE 1: reveal/lock one correct empty character.
     if (emptyGlobal.length > 0) {
-      // C: reveal/lock one correct empty slot (existing locked-reveal behavior).
       const chosenGlobal = pick(emptyGlobal);
       const removedFillIdx = fillableIndices.indexOf(chosenGlobal);
 
@@ -539,21 +513,37 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
       writeCursor(lang, Math.min(Math.max(0, shifted), Math.max(0, newN - 1)));
 
       setClueCount(prev => ({ ...prev, [lang]: prev[lang] + 1 }));
+      setClueFeedback('revealed');
       inputRef.current?.focus();
       return;
     }
 
-    // D: clear one genuinely-wrong slot and guide the cursor back to it. The
-    // answer stays hidden; the slot is NOT added to revealedIndices.
-    const chosenGlobal = pick(wrongGlobal);
-    const fillIdx = fillableIndices.indexOf(chosenGlobal);
-    const cleared = arr.slice();
-    if (fillIdx !== -1) cleared[fillIdx] = ' ';
-    writeUserInput(lang, cleared.join(''));
-    writeCursor(lang, Math.max(0, fillIdx));
-    setHasSubmitted(false);
-    setShowError(false);
-    setClueCount(prev => ({ ...prev, [lang]: prev[lang] + 1 }));
+    // CASE 2: every slot is filled but the current answer has not been submitted.
+    // Do not change anything and do not consume the clue — guide them to Check
+    // so the existing validation can identify the incorrect slots.
+    if (!hasSubmitted) {
+      setClueFeedback('check-first');
+      inputRef.current?.focus();
+      return;
+    }
+
+    // CASE 4: filled and previously submitted wrong. Replace exactly one
+    // identified incorrect slot with its correct character; other incorrect
+    // marks are preserved. The user must Check again. No auto-submit/complete.
+    if (wrongGlobal.length > 0) {
+      const chosenGlobal = pick(wrongGlobal);
+      const fillIdx = fillableIndices.indexOf(chosenGlobal);
+      const corrected = arr.slice();
+      if (fillIdx !== -1) corrected[fillIdx] = ref[chosenGlobal];
+      writeUserInput(lang, corrected.join(''));
+      setClueCount(prev => ({ ...prev, [lang]: prev[lang] + 1 }));
+      setClueFeedback('corrected');
+      inputRef.current?.focus();
+      return;
+    }
+
+    // Fallback (filled + submitted but no incorrect slot found): nudge to Check.
+    setClueFeedback('check-first');
     inputRef.current?.focus();
   };
 
@@ -655,7 +645,7 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
                             layout: { duration: 0.16, ease: "easeOut" },
                             opacity: { duration: 1.5, repeat: Infinity, ease: "easeInOut" },
                           }}
-                          className="absolute inset-x-0 -bottom-[2.5px] h-[2.5px] rounded-full bg-coral shadow-[0_0_8px_rgba(255,111,97,0.5)]"
+                          className="absolute inset-x-0 -bottom-[2.5px] h-[2.5px] rounded-full bg-earth dark:bg-ivory"
                         />
                       )}
                     </span>
@@ -722,7 +712,7 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
                             layout: { duration: 0.16, ease: "easeOut" },
                             opacity: { duration: 1.5, repeat: Infinity, ease: "easeInOut" },
                           }}
-                          className="absolute inset-x-0 -bottom-[2.5px] h-[2.5px] rounded-full bg-coral shadow-[0_0_8px_rgba(255,111,97,0.5)]"
+                          className="absolute inset-x-0 -bottom-[2.5px] h-[2.5px] rounded-full bg-earth dark:bg-ivory"
                         />
                 )}
               </span>
@@ -801,6 +791,7 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
     arr[pos] = typedChar;
     writeUserInput(lang, arr.join(''));
     writeCursor(lang, Math.min(pos + 1, n - 1));
+    setClueFeedback(null);
   };
 
   // Backspace symmetric with forward typing: clear the active char if present,
@@ -816,6 +807,7 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
     arr[target] = ' ';
     writeUserInput(lang, arr.join(''));
     writeCursor(lang, target);
+    setClueFeedback(null);
   };
 
   // Derive the single inserted character from a controlled-input change by
@@ -836,6 +828,7 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
   };
 
   const handleSubmit = () => {
+    setClueFeedback(null);
     if (!isEligible) {
       onMemorize(verse.id);
       return;
@@ -1453,7 +1446,31 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
                           <span>{state.primaryLanguage === 'es' ? 'pista' : 'clue'} ({1 - clueCount[state.memorizeMode as 'es' | 'en']})</span>
                         </button>
                       )}
-                      
+
+                      {/* Inline clue guidance (reserved height to avoid layout jump). Supportive, not an error. */}
+                      <div className="min-h-[2.25rem] flex items-center justify-center px-4 w-full">
+                        {clueFeedback && (
+                          <motion.p
+                            key={clueFeedback}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            className="text-[11px] sm:text-xs font-bold text-earth-light dark:text-lavender-muted text-center leading-snug"
+                          >
+                            {clueFeedback === 'check-first'
+                              ? (state.primaryLanguage === 'es'
+                                  ? 'Primero revisa tu respuesta.'
+                                  : 'Check your answer first.')
+                              : clueFeedback === 'corrected'
+                                ? (state.primaryLanguage === 'es'
+                                    ? 'Se corrigió una letra incorrecta. Revisa tu respuesta de nuevo.'
+                                    : 'One incorrect letter was corrected. Check your answer again.')
+                                : (state.primaryLanguage === 'es'
+                                    ? 'Se reveló una letra.'
+                                    : 'A letter was revealed.')}
+                          </motion.p>
+                        )}
+                      </div>
+
                       <div className="opacity-40">
                         <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.3em] text-earth-light dark:text-lavender-muted">
                           {state.primaryLanguage === 'es' ? `Intentos: ${attemptsLeft}` : `Attempts: ${attemptsLeft}`}
