@@ -127,7 +127,9 @@ export default function Saved({ state, setState, onStartMemorizing, onGoToFlashc
       setShowToast(true);
       setTimeout(() => setShowToast(false), 2000);
     }, elementId, filename);
-    setIsShareModalOpen(false);
+    // Do not auto-close the modal: it must stay open after success, cancellation,
+    // clipboard, download, or failure so the toast feedback remains visible. The
+    // modal closes only via its explicit close control.
   };
 
   const inProgressList = filteredList.filter(v => !state.progress.completedVerses.includes(v.id));

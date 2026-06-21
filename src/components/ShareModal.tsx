@@ -1,9 +1,9 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { X, Download, Share2, Sparkles, BookOpen } from "lucide-react";
+import { X, Download, Share2, Loader2, Sparkles, BookOpen } from "lucide-react";
 import { AppState, TRANSLATION_DETAILS, Verse, ShareSnapshot, ShareBlock } from "../types";
 import { getLocalizedBookName, getValidatedVerse } from "../utils/verseUtils";
-import { getVerseFilename } from "../utils/shareUtils";
+import { getVerseFilename, prepareShareImage, clearPreparedShareImage } from "../utils/shareUtils";
 import VersoLogo from "./VersoLogo";
 
 interface ShareModalProps {
@@ -58,10 +58,52 @@ export default function ShareModal({ isOpen, onClose, snapshot, verse, state, on
     };
   })();
 
-  if (!view) return null;
-
   const cardId = "share-card-preview";
-  const filename = getVerseFilename(view.book, view.chapter, view.verse, isSpanish);
+  const filename = view ? getVerseFilename(view.book, view.chapter, view.verse, isSpanish) : "";
+
+  // Preparation state for the share image. The image is generated when the modal
+  // opens so the Share click can call navigator.share inside the user's
+  // activation. 'preparing' disables Share; 'ready' enables it; 'failed' surfaces
+  // a visible error while the independent Download Image button stays usable.
+  const [shareState, setShareState] = useState<'idle' | 'preparing' | 'ready' | 'failed'>('idle');
+
+  // Re-prepare only when the immutable card content actually changes (not on
+  // every render), per the rendered snapshot.
+  const prepKey = view
+    ? JSON.stringify({
+        source: view.source,
+        reference: view.reference,
+        footer: view.footer,
+        blocks: view.blocks.map(b => `${b.language}:${b.translation}:${b.text}`),
+      })
+    : null;
+
+  useEffect(() => {
+    if (!isOpen || !view) {
+      setShareState('idle');
+      clearPreparedShareImage();
+      return;
+    }
+    let cancelled = false;
+    setShareState('preparing');
+    clearPreparedShareImage();
+    // Defer to the next paints so the share card is mounted and laid out before
+    // html-to-image captures it.
+    const frame = requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        prepareShareImage(cardId, filename).then((result) => {
+          if (!cancelled) setShareState(result ? 'ready' : 'failed');
+        });
+      });
+    });
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(frame);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, prepKey]);
+
+  if (!view) return null;
 
   return (
     <AnimatePresence>
@@ -148,15 +190,29 @@ export default function ShareModal({ isOpen, onClose, snapshot, verse, state, on
 
             {/* Actions */}
             <div className="p-6 bg-earth/5 dark:bg-white/5 flex flex-col gap-3">
-              <button 
-                onClick={() => onNativeShare(cardId, filename)}
-                className="w-full btn-primary flex items-center justify-center gap-2 py-4 shadow-xl shadow-playful-purple/20"
+              <button
+                onClick={() => { if (shareState === 'ready') onNativeShare(cardId, filename); }}
+                disabled={shareState !== 'ready'}
+                className={`w-full btn-primary flex items-center justify-center gap-2 py-4 shadow-xl shadow-playful-purple/20 ${shareState !== 'ready' ? 'opacity-60 cursor-not-allowed' : ''}`}
               >
-                <Share2 size={20} />
+                {shareState === 'preparing'
+                  ? <Loader2 size={20} className="animate-spin" />
+                  : <Share2 size={20} />}
                 <span className="font-black uppercase tracking-widest text-sm">
-                  {state.primaryLanguage === 'es' ? 'Compartir' : 'Share'}
+                  {shareState === 'preparing'
+                    ? (isSpanish ? 'Preparando…' : 'Preparing share…')
+                    : shareState === 'failed'
+                      ? (isSpanish ? 'Imagen no disponible' : 'Image unavailable')
+                      : (isSpanish ? 'Compartir' : 'Share')}
                 </span>
               </button>
+              {shareState === 'failed' && (
+                <p className="text-center text-[11px] font-bold text-red-500/80">
+                  {isSpanish
+                    ? 'No se pudo preparar la imagen. Usa Descargar Imagen.'
+                    : 'Could not prepare the image. Use Download Image instead.'}
+                </p>
+              )}
               
               <button 
                 onClick={async () => {
