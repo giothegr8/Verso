@@ -2707,42 +2707,41 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
         </div>
 
         {/* Action Controls - Balanced & Outlined Circular Buttons */}
+        {/* Stable three-column row: reserved Back column | centered primary action | matching spacer */}
         <div className="w-full max-w-2xl mx-auto flex items-center justify-center gap-6 sm:gap-10">
-          <AnimatePresence mode="popLayout" initial={false}>
-            {/* Back Button */}
-            {stage > 1 && (
-              <motion.button 
-                key="back-nav"
+            {/* Back Column (always reserved; Back hidden at stage 1) */}
+            <div className="w-14 sm:w-16 flex-shrink-0 flex items-center justify-center">
+              <motion.button
                 onClick={stage === 5 ? undefined : prevStage}
-                disabled={stage === 5}
-                initial={{ opacity: 0, x: 20, scale: 0.8 }}
-                animate={{ opacity: 1, x: 0, scale: 1 }}
-                exit={{ opacity: 0, x: 20, scale: 0.8 }}
-                whileHover={stage === 5 ? {} : { scale: 1.05 }}
-                whileTap={stage === 5 ? {} : { scale: 0.95 }}
+                disabled={stage === 1 || stage === 5}
+                aria-hidden={stage === 1 || undefined}
+                tabIndex={stage === 1 ? -1 : undefined}
+                whileHover={(stage === 1 || stage === 5) ? {} : { scale: 1.05 }}
+                whileTap={(stage === 1 || stage === 5) ? {} : { scale: 0.95 }}
                 className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center transition-all shadow-sm group relative ${
-                  stage === 5 
-                    ? 'bg-earth/5 dark:bg-white/5 border-earth/10 dark:border-white/10 text-earth-light/20 dark:text-ivory/20 cursor-not-allowed'
-                    : 'bg-white dark:bg-charcoal text-playful-purple dark:text-plum border-2 border-playful-purple/30 dark:border-plum/30 hover:bg-playful-purple/5 hover:border-playful-purple'
+                  stage === 1
+                    ? 'opacity-0 pointer-events-none bg-white dark:bg-charcoal text-playful-purple dark:text-plum border-2 border-playful-purple/30 dark:border-plum/30'
+                    : stage === 5
+                      ? 'bg-earth/5 dark:bg-white/5 border-earth/10 dark:border-white/10 text-earth-light/20 dark:text-ivory/20 cursor-not-allowed'
+                      : 'bg-white dark:bg-charcoal text-playful-purple dark:text-plum border-2 border-playful-purple/30 dark:border-plum/30 hover:bg-playful-purple/5 hover:border-playful-purple'
                 }`}
                 aria-label="Back"
               >
                 <ArrowLeft size={24} strokeWidth={2.5} className={stage === 5 ? '' : "group-hover:-translate-x-0.5 transition-transform"} />
                 {/* Subtle back ring */}
-                {stage !== 5 && (
-                  <motion.div 
+                {stage !== 5 && stage !== 1 && (
+                  <motion.div
                     className="absolute inset-0 rounded-full border border-playful-purple/10"
                     animate={{ scale: [1, 1.1, 1], opacity: [0.3, 0.1, 0.3] }}
                     transition={{ duration: 3, repeat: Infinity }}
                   />
                 )}
               </motion.button>
-            )}
+            </div>
 
             {/* Main Action (Next/Check) */}
-            <motion.button 
+            <motion.button
               key="main-action"
-              layout
               onClick={() => {
                 const currentAttempts = activeLanguage === 'es' ? attemptsEs : attemptsEn;
                 const currentIsWrong = activeLanguage === 'es' ? isWrongEs : isWrongEn;
@@ -2810,7 +2809,9 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                 }}
               />
             </motion.button>
-          </AnimatePresence>
+
+            {/* Right balancing column: matches the Back column width to keep the primary action centered */}
+            <div className="w-14 sm:w-16 flex-shrink-0" aria-hidden="true" />
         </div>
 
         {/* Pagination Dots (Reserved) */}
