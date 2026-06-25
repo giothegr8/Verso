@@ -192,6 +192,42 @@ export function formatReferenceForLocale(reference: string, lang: 'es' | 'en'): 
   return `${localizedBook} ${chapterVersePart}`;
 }
 
+/**
+ * Builds a user-facing reference from a canonical (or defensively normalizable)
+ * book identity, its chapter and verse, and the ordered list of displayed
+ * languages. The chapter and verse are appended exactly once; each language's
+ * full localized book name is resolved via getLocalizedBookName. Language order
+ * follows the supplied order (which callers derive from the displayed verse-body
+ * order), duplicate languages are dropped without reordering, and two languages
+ * that resolve to the same display name collapse to one.
+ *
+ * Examples:
+ *   ['en']        -> "James 1:5"
+ *   ['es']        -> "Santiago 1:5"
+ *   ['es','en']   -> "Santiago / James 1:5"
+ *   ['en','es']   -> "James / Santiago 1:5"
+ */
+export function formatLocalizedReference(
+  book: string,
+  chapter: number | string,
+  verse: number | string,
+  orderedLanguages: ('es' | 'en')[]
+): string {
+  // Drop duplicate languages while preserving the supplied order.
+  const langs = orderedLanguages.filter((lang, i) => orderedLanguages.indexOf(lang) === i);
+
+  const names: string[] = [];
+  for (const lang of langs) {
+    const name = getLocalizedBookName(book, lang);
+    // Skip empties and identical display names so the same book never appears twice.
+    if (name && !names.includes(name)) names.push(name);
+  }
+
+  // Safest canonical fallback if no language was supplied or none resolved.
+  const bookPart = names.length > 0 ? names.join(' / ') : getLocalizedBookName(book, 'en');
+  return `${bookPart} ${chapter}:${verse}`;
+}
+
 const DAY_TITLE_TRANSLATIONS: Record<string, string> = {
   // Jesus
   "The Word Became Flesh": "La Palabra se hizo carne",

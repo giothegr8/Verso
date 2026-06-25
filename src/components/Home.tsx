@@ -4,7 +4,7 @@ import { MOCK_VERSES, getVerseByDate } from "../constants";
 import { getVerseText, getFallbackMessage } from "../utils/verseProvider";
 import { Globe, Play, Flame, Trophy, Sparkles, Languages, BookOpen, History, AlertCircle, Share2, Star, X, Sprout, Compass, ChevronRight, CheckCircle2, Search, Loader2, Flower2 } from "lucide-react";
 import React, { useState, useMemo } from "react";
-import { getCurrentTranslationPair, getValidatedVerse, getLocalizedBookName, getLocalDateString, VERSE_LAYOUT, getLocalizedPathDay, formatReferenceForLocale } from "../utils/verseUtils";
+import { getCurrentTranslationPair, getValidatedVerse, getLocalizedBookName, getLocalDateString, VERSE_LAYOUT, getLocalizedPathDay, formatReferenceForLocale, formatLocalizedReference } from "../utils/verseUtils";
 import { handleShare } from "../utils/shareUtils";
 import { AnimatePresence } from "motion/react";
 import ShareModal from "./ShareModal";
@@ -386,6 +386,13 @@ export default function Home({ state, setState, onChangeTranslation, onStartMemo
   const isEsLoading = !!(currentVerse && state.loadingTranslations && state.loadingTranslations[`${currentVerse.id}_${esTransToUse}`]);
   const isEnLoading = !!(currentVerse && state.loadingTranslations && state.loadingTranslations[`${currentVerse.id}_${enTransToUse}`]);
 
+  // Ordered list of the languages whose verse bodies are visible on the Home card,
+  // in the exact order they render (Spanish block first, then English). One source
+  // of order, used for both the visible reference and the Home Share snapshot
+  // reference so the two always match.
+  const referenceLangs: ('es' | 'en')[] =
+    state.memorizeMode === 'es' ? ['es'] : state.memorizeMode === 'en' ? ['en'] : ['es', 'en'];
+
   // Build an immutable, source-aware snapshot from the verse currently displayed
   // on Home. Provenance: the genuine daily verse → "Today's Verse"; anything else
   // (searched/custom/path) → "Shared from Verso". A Home share is never labeled
@@ -399,7 +406,7 @@ export default function Home({ state, setState, onChangeTranslation, onStartMemo
     if ((mode === 'en' || mode === 'both') && enText) {
       blocks.push({ language: 'en', translation: enTransToUse, label: TRANSLATION_DETAILS[enTransToUse]?.name || enTransToUse, bibleId: BIBLE_VERSIONS[enTransToUse], text: enText });
     }
-    const refLang: 'es' | 'en' = mode === 'es' ? 'es' : mode === 'en' ? 'en' : (state.primaryLanguage === 'es' ? 'es' : 'en');
+    const refLang: 'es' | 'en' = referenceLangs[0];
     const isDaily = isVotd;
     return {
       source: isDaily ? 'daily' : 'custom',
@@ -407,7 +414,7 @@ export default function Home({ state, setState, onChangeTranslation, onStartMemo
       chapter: currentVerse.chapter,
       verse: currentVerse.verse,
       refLang,
-      reference: `${getLocalizedBookName(currentVerse.book, refLang)} ${currentVerse.chapter}:${currentVerse.verse}`,
+      reference: formatLocalizedReference(currentVerse.book, currentVerse.chapter, currentVerse.verse, referenceLangs),
       blocks,
       footer: isDaily
         ? (state.primaryLanguage === 'es' ? 'Versículo de Hoy' : 'Today’s Verse')
@@ -961,7 +968,7 @@ export default function Home({ state, setState, onChangeTranslation, onStartMemo
                 <div className="flex flex-col sm:flex-row justify-between items-center sm:items-end gap-6 sm:gap-0 pt-6 border-t border-earth/5 dark:border-white/5">
                   <div className="space-y-1 text-center sm:text-left">
                     <h3 className="text-xl sm:text-2xl font-serif font-black text-earth dark:text-ivory tracking-tight">
-                      {getLocalizedBookName(currentVerse.book, state.memorizeMode === 'es' ? 'es' : state.memorizeMode === 'en' ? 'en' : (state.primaryLanguage === 'es' ? 'es' : 'en'))} {currentVerse.chapter}:{currentVerse.verse}
+                      {formatLocalizedReference(currentVerse.book, currentVerse.chapter, currentVerse.verse, referenceLangs)}
                     </h3>
                     <p className="text-[10px] font-black uppercase tracking-widest text-earth-light/60 dark:text-lavender-muted/60">
                       {isCustomMode
@@ -1174,7 +1181,7 @@ export default function Home({ state, setState, onChangeTranslation, onStartMemo
                 <div className="flex flex-col sm:flex-row justify-between items-center sm:items-end gap-6 sm:gap-0 pt-6 border-t border-earth/5 dark:border-white/5">
                   <div className="space-y-1 text-center sm:text-left">
                     <h3 className="text-xl sm:text-2xl font-serif font-black text-earth dark:text-ivory tracking-tight">
-                      {getLocalizedBookName(currentVerse.book, state.memorizeMode === 'es' ? 'es' : state.memorizeMode === 'en' ? 'en' : (state.primaryLanguage === 'es' ? 'es' : 'en'))} {currentVerse.chapter}:{currentVerse.verse}
+                      {formatLocalizedReference(currentVerse.book, currentVerse.chapter, currentVerse.verse, referenceLangs)}
                     </h3>
                     <p className="text-[10px] font-black uppercase tracking-widest text-earth-light/60 dark:text-lavender-muted/60">
                       {isCustomMode
