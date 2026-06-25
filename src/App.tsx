@@ -470,8 +470,31 @@ function AppInner() {
     document.body.classList.toggle("dark", isDark);
   }, [state.theme]);
 
-  // Reset memorization stages when configuration changes
+  // Reset memorization stages only when the memorization configuration genuinely
+  // changes after mount. The ref captures the initial hydrated configuration, so a
+  // browser reload (where these values equal their hydrated originals) never wipes
+  // the restored verseStages and a completed verse stays Cards-eligible. We compare
+  // the actual previous values rather than a bare first-render boolean, so repeated
+  // or StrictMode effect replays with unchanged values can never trigger a reset.
+  const prevMemorizeConfigRef = React.useRef({
+    es: state.selectedTranslations.es,
+    en: state.selectedTranslations.en,
+    mode: state.memorizeMode,
+  });
   useEffect(() => {
+    const prev = prevMemorizeConfigRef.current;
+    if (
+      prev.es === state.selectedTranslations.es &&
+      prev.en === state.selectedTranslations.en &&
+      prev.mode === state.memorizeMode
+    ) {
+      return;
+    }
+    prevMemorizeConfigRef.current = {
+      es: state.selectedTranslations.es,
+      en: state.selectedTranslations.en,
+      mode: state.memorizeMode,
+    };
     setState(s => ({
       ...s,
       progress: {
