@@ -198,7 +198,11 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
     setIsCompleted(false);
     setClueCount({ es: 0, en: 0 });
     setRevealedIndices({ es: [], en: [] });
-    setActiveLanguage(null);
+    // Resolve to the rendered challenge language (matching the autofocus effect's
+    // targetLang) rather than null, so the active-slot caret stays visible after a
+    // verse change, restart, language change, or initial mount. A null here used to
+    // win over the autofocus effect's value and hide the caret entirely.
+    setActiveLanguage(state.memorizeMode === 'en' ? 'en' : 'es');
     setCursorPositionEs(0);
     setCursorPositionEn(0);
     setIsCorrect(!!state.activeAttempt?.citationCorrect);
@@ -423,7 +427,9 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
     setIsFlipped(false);
     setClueCount({ es: 0, en: 0 });
     setRevealedIndices({ es: [], en: [] });
-    setActiveLanguage(null);
+    // Same deterministic resolution as the verse/config reset effect: keep the
+    // active-slot caret visible after a challenge restart instead of nulling it.
+    setActiveLanguage(state.memorizeMode === 'en' ? 'en' : 'es');
     setCursorPositionEs(0);
     setCursorPositionEn(0);
     setUserInputEs("");
