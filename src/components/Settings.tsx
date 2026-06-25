@@ -10,43 +10,85 @@ import TermsOfServiceModal from "./TermsOfServiceModal";
 interface SettingsProps {
   state: AppState;
   setState: React.Dispatch<React.SetStateAction<AppState>>;
-  onChangeTranslation: (lang: 'es' | 'en', id: Translation) => void;
+  onChangeTranslation: (lang: 'es' | 'en', id: Translation) => 'switched' | 'verse-unavailable';
   onClose: () => void;
   onShowTour: () => void;
 }
 
 export default function Settings({ state, setState, onChangeTranslation, onClose, onShowTour }: SettingsProps) {
   const [localState, setLocalState] = useState(state);
+  // Authoritative values captured when the panel opened; the dirty check below
+  // compares the draft against these, never against a later-drifted prop.
+  const initialRef = useRef(state);
   const [showSavedToast, setShowSavedToast] = useState(false);
+  const [saveResult, setSaveResult] = useState<'success' | 'warning' | 'error' | null>(null);
   const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
   const [showTermsOfService, setShowTermsOfService] = useState(false);
 
   const activePair = getCurrentTranslationPair(localState);
 
   const handleSave = async () => {
-    // Field-level merge of the Settings-owned draft fields only — never overwrite
-    // the entire AppState (which would clobber verse/fetch state changed since the
-    // panel opened). Translation changes are routed through the shared, fetch-gated
-    // App handler so an active custom verse reconciles correctly.
-    setState(s => ({
-      ...s,
-      primaryLanguage: localState.primaryLanguage,
-      memorizeMode: localState.memorizeMode,
-      theme: localState.theme,
-    }));
-    if (localState.selectedTranslations.es !== state.selectedTranslations.es) {
-      onChangeTranslation('es', localState.selectedTranslations.es);
-    }
-    if (localState.selectedTranslations.en !== state.selectedTranslations.en) {
-      onChangeTranslation('en', localState.selectedTranslations.en);
+    // Dirty check against the values captured when the panel opened. Success
+    // feedback may appear only when an authoritative setting actually changed.
+    const initial = initialRef.current;
+    const esChanged = localState.selectedTranslations.es !== initial.selectedTranslations.es;
+    const enChanged = localState.selectedTranslations.en !== initial.selectedTranslations.en;
+    const anyChanged =
+      localState.primaryLanguage !== initial.primaryLanguage ||
+      localState.memorizeMode !== initial.memorizeMode ||
+      localState.theme !== initial.theme ||
+      esChanged ||
+      enChanged;
+
+    // Nothing changed: no false "Settings saved" toast, no unnecessary translation
+    // fetches. Simply close the panel.
+    if (!anyChanged) {
+      onClose();
+      return;
     }
 
-    setShowSavedToast(true);
-    // Faster feedback and closure
-    setTimeout(() => {
+    try {
+      // Field-level merge of the Settings-owned draft fields only — never overwrite
+      // the entire AppState (which would clobber verse/fetch state changed since the
+      // panel opened). Translation changes are routed through the shared, fetch-gated
+      // App handler so an active custom verse reconciles correctly.
+      setState(s => ({
+        ...s,
+        primaryLanguage: localState.primaryLanguage,
+        memorizeMode: localState.memorizeMode,
+        theme: localState.theme,
+      }));
+
+      // Global translation preferences are saved unconditionally. A return of
+      // 'verse-unavailable' means the active custom verse cannot currently be shown
+      // in the new translation; the preference is still saved for future verses and
+      // the current verse keeps its existing translation.
+      let verseUnavailable = false;
+      if (esChanged) {
+        if (onChangeTranslation('es', localState.selectedTranslations.es) === 'verse-unavailable') {
+          verseUnavailable = true;
+        }
+      }
+      if (enChanged) {
+        if (onChangeTranslation('en', localState.selectedTranslations.en) === 'verse-unavailable') {
+          verseUnavailable = true;
+        }
+      }
+
+      setSaveResult(verseUnavailable ? 'warning' : 'success');
+      setShowSavedToast(true);
+      // The longer warning gets more reading time before the panel closes.
+      setTimeout(() => {
+        setShowSavedToast(false);
+        onClose();
+      }, verseUnavailable ? 1800 : 600);
+    } catch (e) {
+      // Genuine save failure: do not claim success and keep the modal open so the
+      // user can retry. No second notification system is introduced.
+      console.error("[Settings] Failed to save settings:", e);
+      setSaveResult('error');
       setShowSavedToast(false);
-      onClose();
-    }, 600);
+    }
   };
 
   const handleSpanishTranslationChange = (translation: Translation) => {
@@ -82,14 +124,20 @@ export default function Settings({ state, setState, onChangeTranslation, onClose
         {/* Save Confirmation Toast */}
         <AnimatePresence>
           {showSavedToast && (
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="absolute top-24 left-1/2 -translate-x-1/2 z-[60] bg-teal text-white px-6 py-3 rounded-2xl shadow-xl font-bold flex items-center gap-2"
+              className={`absolute top-24 left-1/2 -translate-x-1/2 z-[60] ${saveResult === 'warning' ? 'bg-amber-500' : 'bg-teal'} text-white px-6 py-3 rounded-2xl shadow-xl font-bold flex items-center gap-2 max-w-[20rem] text-center`}
             >
-              <Check size={20} />
-              {localState.primaryLanguage === 'es' ? 'Cambios guardados' : 'Settings saved'}
+              {saveResult === 'warning' ? <Info size={20} className="shrink-0" /> : <Check size={20} className="shrink-0" />}
+              <span>
+                {saveResult === 'warning'
+                  ? (localState.primaryLanguage === 'es'
+                      ? 'Cambios guardados. Este versículo no está disponible en la traducción seleccionada.'
+                      : 'Settings saved. This verse is unavailable in the selected translation.')
+                  : (localState.primaryLanguage === 'es' ? 'Cambios guardados' : 'Settings saved')}
+              </span>
             </motion.div>
           )}
         </AnimatePresence>

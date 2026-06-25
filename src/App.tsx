@@ -321,13 +321,29 @@ function AppInner() {
   // an active custom verse it defers the preferredTranslation flip to the
   // reconciliation effect below, so label, Bible ID, reference, and body move as
   // one snapshot only after the requested translation loads.
-  const changeActiveTranslation = (lang: 'es' | 'en', id: Translation) => {
+  // Returns the outcome for the *currently active custom verse* only. The global
+  // selectedTranslations preference below is always saved and never rolled back.
+  // 'verse-unavailable' signals that the active custom verse has no loaded text
+  // for the newly selected translation yet, so its body is intentionally left on
+  // its existing translation and the caller should warn rather than claim a full
+  // success. For any other case (daily/mock/path verse, or an already-loaded
+  // slot) the result is 'switched'.
+  const changeActiveTranslation = (lang: 'es' | 'en', id: Translation): 'switched' | 'verse-unavailable' => {
     const cv = state.activeSource === "custom" ? state.selectedCustomVerse : null;
     const pref = cv?.preferredTranslation;
+    let result: 'switched' | 'verse-unavailable' = 'switched';
     if (cv && pref && (isEsTranslation(pref) ? 'es' : 'en') === lang && pref !== id) {
+      // Defer the custom verse's preferredTranslation flip to the reconciliation
+      // effect; it flips only if/when the requested translation loads. If the verse
+      // has no successfully-loaded text for the target translation yet, report it
+      // so the global preference is saved without claiming the verse now displays it.
       setPendingSwitch({ verseId: cv.id, lang, target: id, prevPreferred: pref });
+      if (!isSlotSuccessfullyLoaded(cv.text?.[lang]?.[id])) {
+        result = 'verse-unavailable';
+      }
     }
     setState(s => ({ ...s, selectedTranslations: { ...s.selectedTranslations, [lang]: id } }));
+    return result;
   };
 
   // Reconcile a pending custom-verse translation change once its slot resolves.
@@ -340,7 +356,7 @@ function AppInner() {
       setPendingSwitch(null);
       return;
     }
-    const { lang, target, prevPreferred } = pendingSwitch;
+    const { lang, target } = pendingSwitch;
     // Still fetching the requested translation — wait.
     if (state.loadingTranslations && state.loadingTranslations[`${cv.id}_${target}`]) return;
     const slot = cv.text?.[lang]?.[target];
@@ -357,7 +373,11 @@ function AppInner() {
       });
       setPendingSwitch(null);
     } else if (isFailureSentinel(slot)) {
-      setState(s => ({ ...s, selectedTranslations: { ...s.selectedTranslations, [lang]: prevPreferred } }));
+      // The active custom verse cannot be loaded in the requested translation.
+      // The global translation preference is independent of whether this single
+      // verse is available, so it is NOT rolled back. Leave the verse on its
+      // existing preferredTranslation so its body is never falsely relabeled;
+      // future verses use the saved preference.
       setPendingSwitch(null);
     }
     // else: empty/not-yet-loaded — keep waiting for the loading effect.
