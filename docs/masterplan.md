@@ -1,416 +1,216 @@
-## Verso MVP Masterplan
-
-## 30-Second Elevator Pitch
-Verso is a web-first, mobile-friendly Bible verse memorization app built for focus.
-It helps people memorize one verse at a time in Spanish, English, or both.
-The experience should feel warm, premium, playful, spiritually respectful, and simple enough for a child to use.
-
-## Problem & Mission
-
-### Problem
-Most Bible apps are too broad for memorization.
-They mix reading, study, plans, highlights, notes, and navigation into one crowded experience.
-
-That creates friction for users who want one simple thing:
-memorize Scripture clearly, calmly, and consistently.
-
-It gets worse when:
-- the app shows too many verses at once
-- translation logic is confusing
-- memorization steps feel inconsistent
-- progress screens add clutter instead of clarity
-- visual polish feels unfinished or unreliable
-
-### Mission
-Help users memorize one Bible verse at a time through a clean, bilingual, spiritually respectful experience that stays focused on a single active verse.
-
-## Product Overview
-
-### Product Type
-Web-first, mobile-friendly responsive app
-
-### Product Focus
-A single active Verse of the Day powers the main memorization experience.
-
-### Product Promise
-Verso should feel:
-- crisp
-- premium
-- warm
-- child-friendly without being childish
-- spiritually respectful
-- polished without feeling overloaded
-
-### Core Product Boundaries
-Verso is:
-- a verse memorization app
-- centered on one active verse at a time
-- designed for Spanish, English, or bilingual memorization
+# Verso Masterplan
 
-Verso is not:
-- a full Bible app
-- a deep study app
-- a multi-verse cram tool
-- a streak-heavy gamification product
-
-## Product Goals
-
-### Primary Goals
-- Make verse memorization feel obvious and inviting
-- Keep one active verse synced across core tabs
-- Support Spanish only, English only, or both
-- Make translation choices clear and trustworthy
-- Deliver a premium-feeling light and dark experience
-- Reduce builder drift by defining clear product rules
-
-### Success Looks Like
-A user can:
-- open the app and instantly know what today’s verse is
-- begin memorizing with one obvious tap
-- practice through a predictable memorization sequence
-- review the same verse in Flashcards without mismatch
-- save verses intentionally for later
-- change language or translations without breaking verse accuracy
-
-## Non-Goals
-
-### Out of Scope for the Core Product
-- full-book Bible reading
-- chapter browsing
-- sermon notes
-- commentary or study tools
-- theological reference features
-- multi-verse deck memorization in MVP
-- achievement-heavy milestone systems
-- decorative dashboards with weak utility
-
-### Product Discipline Rule
-If a feature weakens focus on the single active verse, it should not be in MVP.
+This document preserves the product vision and roadmap. For current technical
+state, use `docs/CURRENT_STATE.md`. For launch readiness, use
+`docs/LAUNCH_HANDOFF.md`.
 
-## Target Audience
+## Product Promise
 
-### Primary Audience
-Christians, families, bilingual users, and learners who want a focused way to memorize Scripture in Spanish, English, or both.
-
-### Core User Types
+Verso helps people memorize Scripture one verse at a time in Spanish, English,
+or both. It should feel warm, premium, calm, spiritually respectful, and simple
+enough for a family or child to understand without feeling childish.
 
-#### 1. Focused Individual Memorizer
-Wants one clear daily verse and a simple path to practice.
+## Product Boundaries
 
-#### 2. Bilingual Scripture Learner
-Wants to memorize in Spanish and English side by side.
+Implemented core:
 
-#### 3. Parent or Family User
-Needs an interface simple enough for a child to understand.
+- one active verse experience
+- bilingual memorization modes
+- Home, Memorize, Cards, Paths, and Saved
+- saved verse review
+- preset and custom Paths
+- shareable verse cards
 
-#### 4. Warm-Design Sensitive User
-Wants an app that feels calm, polished, and spiritually respectful rather than noisy or childish.
+Launch scope:
 
-## Core Features
+- Cloudflare-hosted progressive web app
+- Paths included as a premium feature
+- current paywall/pricing values preserved from app/code and approved price
+  sheet
+- legal, payment, API.Bible, and Cards navigation blockers resolved before
+  public monetized launch
+- current work prepared on the unmerged
+  `fix/p0-cards-crash-reference-language` branch, with `main` untouched until a
+  later explicit merge checkpoint
 
-### 1. Verse of the Day
-The Verse of the Day is the single source of truth for the active verse.
+Future consideration:
 
-Used across:
-- Home
-- Memorize
-- Flashcards
-- review actions tied to the active verse
+- Capacitor/App Store release after the PWA is proven
+- RevenueCat plus Apple in-app purchases for native iOS
+- audio Bible support if licensing and product fit are confirmed
+- reduced launch translation list based on rights and user value
 
-### 2. Memorize Flow
-A structured step-by-step memorization sequence for the active verse.
-
-### 3. Flashcards
-Single-verse flashcards tied to the current active verse in MVP.
-
-### 4. Saved Verses
-A place for verses the user intentionally chooses to keep for later.
-
-### 5. Bilingual Display Modes
-Users can choose:
-- Spanish only
-- English only
-- Both languages
-
-### 6. Translation Controls
-Users can choose translation pairings and override default smart pairs.
-
-### 7. Reminders
-Daily reminder settings available in onboarding and Settings.
-
-### 8. Appearance Modes
-Full-app support for:
-- Light
-- Dark
-- Auto
-
-## Information Architecture
-
-### Recommended Bottom Navigation for MVP
-- Home
-- Memorize
-- Flashcards
-- Saved
-
-### Why This Structure Wins
-It is simpler than the current setup.
-It removes a weak Stats destination.
-It keeps every tab tied to a clear job.
-
-### Tab Purposes
-
-#### Home
-Daily focus screen.
-Shows the Verse of the Day, active translation pairing, main memorization CTA, and a small progress summary.
-
-#### Memorize
-Primary practice flow for the active verse.
-
-#### Flashcards
-Active-verse recall practice.
-
-#### Saved
-User-kept verses only.
-Not a dashboard.
-Not a duplicate of Home.
-
-### What Happens to Stats
-Stats should not exist as a full MVP tab.
-
-Instead:
-- show light progress summary on Home
-- optionally show simple counts inside Saved
-- avoid milestone ladders and filler dashboards
-
-## High-Level Tech Stack
-
-### Frontend
-Modern responsive web app
-
-Why:
-- aligns with web-first direction
-- supports full-screen responsive layouts
-- avoids fake phone-frame design
-- enables consistent light and dark modes
-
-### Design System
-Reusable UI system with strict typography, spacing, button, theme, and state rules
-
-Why:
-- reduces drift
-- keeps screens visually consistent
-- improves rendering quality and trust
-
-### State Layer
-Centralized product state for:
-- active verse
-- language mode
-- translation selection
-- theme
-- saved state
-- memorization progress state
-
-Why:
-- prevents screen mismatch
-- keeps verse data and labels synced
-- makes Flashcards and Memorize trustworthy
-
-### Content/Data Layer
-Structured verse content by:
-- book
-- chapter
-- verse number
-- Spanish translation
-- English translation
-- translation metadata
-
-Why:
-- ensures real verse text matches visible labels
-- supports bilingual rendering without hacks
-
-### Notifications
-Reminder service for:
-- app notifications
-- optional SMS if supported later
-
-Why:
-- supports daily habit without bloating core flow
-
-## Conceptual Data Model
-
-### Core Entities
-
-#### User
-Stores:
-- interface language
-- bilingual memorization preference
-- translation preferences
-- appearance setting
-- reminder settings
-
-#### Verse
-Stores:
-- canonical reference
-- book name
-- chapter number
-- verse number
-- supported translation text values
-
-#### Active Verse State
-Stores:
-- current Verse of the Day
-- active translation pairing
-- active bilingual mode
-- current memorization step
-- completion state
-
-#### Saved Verse
-Stores:
-- user ID
-- verse ID
-- saved timestamp
-
-#### Progress Snapshot
-Stores lightweight progress info such as:
-- verses memorized count
-- current streak if retained
-- last practiced date
-- current verse completion
-
-### ERD Sketch in Words
-A User has one settings profile.
-A Verse can have multiple translation text records.
-A User has one active verse state at a time.
-A User can save many verses.
-A User can have lightweight progress snapshots tied to verse activity.
-
-## UI Design Principles
-
-### 1. One Primary Action Per Screen
-Each screen should make the next step obvious.
-
-### 2. One Active Verse, Everywhere
-Do not make users wonder which verse they are practicing.
-
-### 3. Show Only What Helps
-Remove shortcut clutter, weak stats, and decorative cards.
-
-### 4. Premium Clarity
-Typography must feel sharp, intentional, and readable in both themes.
-
-### 5. Child-Simple, Not Childish
-Warm visuals are welcome.
-Confusion is not.
-
-### 6. Respect the Content
-The app should feel spiritually respectful.
-No noisy gamification.
-No chaotic motion.
-No gimmicky copy.
-
-### 7. Trust Through Accuracy
-Translation labels must always match the verse text shown.
-
-## Security & Compliance Notes
-
-### Core Security Principles
-- protect user settings and saved verses
-- store reminder preferences safely
-- avoid misleading translation labels or incorrect verse mapping
-- treat verse text and translation metadata as trusted content
-
-### Privacy Notes
-MVP should store only the minimum user data needed for:
-- preferences
-- saved verses
-- reminders
-- lightweight progress
-
-### Compliance Caution
-If SMS reminders are added, legal and consent requirements must be handled explicitly before launch.
-
-## MVP Roadmap
-
-### MVP
-- Home
-- Memorize
-- Flashcards
-- Saved
-- Verse of the Day as source of truth
-- bilingual display modes
-- translation controls
-- reminders
-- full light/dark/auto themes
-- stable hold-to-peek
-- crisp responsive UI
-
-### V1
-- better saved verse organization
-- lightweight memorized history
-- clearer completion summaries
-- improved reminder controls
-- more polished onboarding
-
-### V2
-- optional saved-verse review flows
-- richer progress history
-- family/shared usage ideas
-- more advanced encouragement systems, if they remain calm and useful
-
-## Known Risks & Mitigations
-
-### Risk: Verse Mismatch Across Screens
-Home, Memorize, and Flashcards may drift out of sync.
-
-Mitigation:
-Use one shared active verse state as the single source of truth.
-
-### Risk: Translation Labels Do Not Match Verse Text
-Users lose trust immediately.
-
-Mitigation:
-Bind text rendering directly to selected translation metadata.
-Never update labels without updating source text.
-
-### Risk: Light Mode Feels Fake or Incomplete
-The product feels unfinished.
-
-Mitigation:
-Treat light mode as a first-class theme across the full viewport.
-
-### Risk: Settings Become Overloaded
-Users confuse app language, bilingual mode, and translation choices.
-
-Mitigation:
-Separate each setting clearly and explain its purpose in plain language.
-
-### Risk: Buttons Feel Decorative
-Core actions feel unreliable.
-
-Mitigation:
-Define interaction QA for every primary CTA and hold action.
-
-### Risk: Progress Adds Noise
-Dashboard-style stats weaken the product.
-
-Mitigation:
-Replace full Stats with small, useful summaries only.
-
-## Future Expansion Ideas
-
-### Good Future Expansions
-- optional review mode for saved verses
-- gentle memorization history
-- family or classroom-friendly flows
-- richer encouragement moments
-- verse collections curated by theme or season
-
-### Expansion Rule
-Any future feature must preserve the core identity:
-one focused verse, clear memorization, low friction, high trust.
-
-## Final Product Positioning
-Verso should feel like a calm, premium place to return to Scripture daily.
-It should not try to do everything.
-It should do one thing beautifully:
-help users memorize one verse at a time, clearly and consistently.
+Non-goals for launch:
+
+- full Bible reading app
+- sermon notes or commentary platform
+- dense study tools
+- heavy achievement system
+- Swift rewrite
+
+## Target Users
+
+Implemented target:
+
+- Christians and families who want focused Scripture memorization
+- bilingual Spanish/English users
+- learners who benefit from clear, repeated practice
+- users who value a calm, polished, spiritually respectful interface
+
+## Core Product Pillars
+
+### One Verse At A Time
+
+Verso should avoid becoming a general Bible app. Home, Memorize, Cards, and
+Saved must keep the active verse and selected translations trustworthy.
+
+### Bilingual By Design
+
+Spanish and English are first-class modes. Spanish appears before English when
+both languages are shown.
+
+### Trust Through Accuracy
+
+Translation labels must match the rendered verse text. Search, paths, saved
+review, sharing, and completion snapshots must not silently rederive the wrong
+translation.
+
+### Calm Premium Focus
+
+The interface should reduce noise. Progress and encouragement should be light,
+honest, and useful.
+
+### Cinematic Memory Companion
+
+Future brand/design work should preserve this durable direction:
+
+- quiet premium memory companion.
+- dark charcoal/ink base with ivory text.
+- teal for primary action and live motion.
+- violet for identity and active navigation.
+- gold reserved for earned completion and milestones.
+- avoid muddy brown, sepia, and dull olive-gold.
+- intentional growth metaphor: sprout -> flower -> fruit.
+- flower mark as a possible logo direction.
+- fruit xN repetition-count concept.
+- calm dawn and cinematic nighttime ritual.
+- editorial serif plus readable humanist sans direction.
+- typography subject to licensing, performance, and accessibility review.
+- design-system tokens before broad reskinning.
+- one surface at a time.
+- do not combine visual reskin work with API or product-logic changes.
+
+### Launch Discipline
+
+Every feature must be labeled as implemented, partially implemented, planned,
+launch blocker, future consideration, or requires owner confirmation.
+
+## Launch Feature Set
+
+Implemented:
+
+- Home active verse experience
+- Memorize staged practice
+- Cards citation challenge
+- Saved verses
+- Paths and custom Paths
+- Settings
+- Onboarding
+- Product tour
+- Share modal/image generation
+- API.Bible service/proxy scaffolding
+- Supabase auth/subscription scaffolding
+- Paywall UI
+
+Partially implemented:
+
+- production payment entitlement architecture
+- Supabase-backed persistence beyond auth/subscription/event scaffolding
+- production reminders
+- Cloudflare deployment configuration
+- PWA install readiness
+- commercial Bible translation rights
+
+Launch blockers:
+
+- bilingual Cards cross-language keyboard navigation
+- production Stripe/RevenueCat integration
+- disabling or production-gating test-premium bypass
+- API.Bible commercial-use and translation-rights confirmation
+- legal identity/contact/domain/jurisdiction/effective-date/refund decisions
+- production Cloudflare/PWA smoke test
+
+Planned app-completion work:
+
+- Cards responsive layout for long bilingual references.
+- Home long-reference/button collision.
+- Share composition polish.
+- Saved bilingual typography polish.
+- Cards/Memorize caret consistency.
+- Custom Path preview and Add to Path confirmation.
+- Full Path/Series completion celebration.
+- Colombian Spanish audit and localization source of truth.
+
+## Cards Launch Blocker
+
+Bilingual Cards cross-language keyboard navigation remains unresolved. Previous
+experimental Left/Right and Up/Down approaches were reverted because they
+caused sticky focus, swallowed first-character input, row skipping, or caret
+flicker. The repository is currently clean at e578706. Another implementation
+must begin with an architectural diagnosis of the hidden-input, focus,
+cursor-ref, cursor-state, and visible-caret model.
+
+## Translation Strategy
+
+Current API.Bible access is suitable for noncommercial development/testing.
+A monetized launch requires commercial-use and translation-rights confirmation.
+
+Future launch planning should reduce the translation list to approximately two
+or three commercially viable bilingual pairs based on:
+
+- user preference
+- Spanish/English pairing
+- commercial availability
+- licensing cost
+- attribution requirements
+
+NASB and NKJV are candidates. Reina-Valera should be treated as a
+direct-rights/licensing inquiry until confirmed. Do not claim commercial
+approval without repository proof.
+
+## Roadmap
+
+### Launch PWA
+
+- Cloudflare-hosted PWA
+- current tab structure
+- premium-gated Paths
+- Stripe/RevenueCat web entitlement path
+- legal and Bible licensing complete
+- Cards blocker resolved
+
+### V1 After Launch
+
+- production analytics review
+- stronger Supabase sync if needed
+- reminder delivery if validated
+- translation set refinement
+- Cards layout polish for long bilingual references
+- brand package, icon, wordmark, coded tokens, motion system, and screenshot
+  direction
+- flower/fruit completion visual system refinement
+- audio Bible exploration if licensing and product fit are confirmed
+
+### Later Mobile Phase
+
+- Capacitor wrapper
+- App Store release
+- RevenueCat plus Apple in-app purchases
+- native share/subscription restore QA
+
+### Future Considerations
+
+- audio Bible support
+- family/group practice
+- expanded path library
+- additional translations after rights confirmation
