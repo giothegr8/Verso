@@ -16,14 +16,18 @@ interface FlashcardsProps {
   onComplete?: () => void;
 }
 
+type CitationLanguage = 'es' | 'en';
+type LogicalCursor = { lang: CitationLanguage; pos: number };
+
 export default function Flashcards({ state, setState, onMemorize, onRestartMemorization, onGoToSaved, onComplete }: FlashcardsProps) {
   const [isFlipped, setIsFlipped] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
   const [clueCount, setClueCount] = useState<{ es: number, en: number }>({ es: 0, en: 0 });
   const [revealedIndices, setRevealedIndices] = useState<{ es: number[], en: number[] }>({ es: [], en: [] });
-  const [activeLanguage, setActiveLanguage] = useState<'es' | 'en' | null>(null);
-  const [cursorPositionEs, setCursorPositionEs] = useState<number>(0);
-  const [cursorPositionEn, setCursorPositionEn] = useState<number>(0);
+  const [logicalCursor, setLogicalCursor] = useState<LogicalCursor>(() => ({
+    lang: state.memorizeMode === 'en' ? 'en' : 'es',
+    pos: 0
+  }));
   const [isCorrect, setIsCorrect] = useState(() => {
     return !!state.activeAttempt?.citationCorrect;
   });
@@ -37,19 +41,15 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
   // on the next user edit/submit/reset/verse change. Not a toast.
   const [clueFeedback, setClueFeedback] = useState<'revealed' | 'check-first' | 'corrected' | null>(null);
 
-  const inputRefEs = React.useRef<HTMLInputElement>(null);
-  const inputRefEn = React.useRef<HTMLInputElement>(null);
-
-  const cursorPositionEsRef = React.useRef(0);
-  const cursorPositionEnRef = React.useRef(0);
-
-  useEffect(() => {
-    cursorPositionEsRef.current = cursorPositionEs;
-  }, [cursorPositionEs]);
-
-  useEffect(() => {
-    cursorPositionEnRef.current = cursorPositionEn;
-  }, [cursorPositionEn]);
+  const sharedInputRef = React.useRef<HTMLInputElement>(null);
+  const logicalCursorRef = React.useRef<LogicalCursor>({
+    lang: state.memorizeMode === 'en' ? 'en' : 'es',
+    pos: 0
+  });
+  const isComposingRef = React.useRef(false);
+  const printableKeyHandledRef = React.useRef(false);
+  const ignoreNextBeforeInputRef = React.useRef(false);
+  const lastCompositionTextRef = React.useRef("");
 
   // Clear errors on any input change
   useEffect(() => {
@@ -198,13 +198,7 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
     setIsCompleted(false);
     setClueCount({ es: 0, en: 0 });
     setRevealedIndices({ es: [], en: [] });
-    // Resolve to the rendered challenge language (matching the autofocus effect's
-    // targetLang) rather than null, so the active-slot caret stays visible after a
-    // verse change, restart, language change, or initial mount. A null here used to
-    // win over the autofocus effect's value and hide the caret entirely.
-    setActiveLanguage(state.memorizeMode === 'en' ? 'en' : 'es');
-    setCursorPositionEs(0);
-    setCursorPositionEn(0);
+    writeCursor(state.memorizeMode === 'en' ? 'en' : 'es', 0);
     setIsCorrect(!!state.activeAttempt?.citationCorrect);
     setShowError(false);
     setHasSubmitted(!!state.activeAttempt?.citationCorrect);
@@ -213,22 +207,16 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
     setClueFeedback(null);
   }, [verse.id, state.selectedTranslations.es, state.selectedTranslations.en, state.memorizeMode, state.activeAttempt?.citationCorrect]);
 
-  // Autofocus the appropriate hidden input for citation challenges when eligible
-  // and ready. Focus synchronously before paint (useLayoutEffect, no timer) so
-  // the hidden input is focused the instant the challenge is visible and the very
-  // first printable key is captured. preventScroll avoids any focus-induced jump.
+  // Autofocus the shared hidden input for citation challenges when eligible and
+  // ready. Focus synchronously before paint (useLayoutEffect, no timer) so the
+  // input is focused the instant the challenge is visible and the very first
+  // printable key is captured. preventScroll avoids any focus-induced jump.
   useLayoutEffect(() => {
     if (isEligible && !isCorrect && !isCompleted && !isFlipped && attemptsLeft > 0) {
-      const isEnOnly = state.memorizeMode === 'en';
-      const refToFocus = isEnOnly ? inputRefEn : inputRefEs;
-      const targetLang = isEnOnly ? 'en' : 'es';
-
-      if (refToFocus.current) {
-        refToFocus.current.focus({ preventScroll: true });
-        setActiveLanguage(targetLang);
-        const currentCursor = targetLang === 'es' ? cursorPositionEsRef.current : cursorPositionEnRef.current;
-        refToFocus.current.setSelectionRange(currentCursor, currentCursor + 1);
-      }
+      const current = logicalCursorRef.current;
+      const targetLang = state.memorizeMode === 'en' ? 'en' : (state.memorizeMode === 'es' ? 'es' : current.lang);
+      writeCursor(targetLang, current.pos);
+      focusSharedInput();
     }
   }, [verse.id, isEligible, isCorrect, isCompleted, isFlipped, attemptsLeft, state.memorizeMode]);
 
@@ -414,11 +402,11 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
       : getTargetChars(enRef, revealedIndices.en);
     
     if (isCorrect || state.activeAttempt?.citationCorrect) {
-      setUserInputEs(esTarget);
-      setUserInputEn(enTarget);
+      writeUserInput('es', esTarget);
+      writeUserInput('en', enTarget);
     } else {
-      setUserInputEs(" ".repeat(esTarget.length));
-      setUserInputEn(" ".repeat(enTarget.length));
+      writeUserInput('es', " ".repeat(esTarget.length));
+      writeUserInput('en', " ".repeat(enTarget.length));
     }
   }, [verse.id, state.memorizeMode, isCorrect, state.activeAttempt?.citationCorrect]);
 
@@ -427,13 +415,9 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
     setIsFlipped(false);
     setClueCount({ es: 0, en: 0 });
     setRevealedIndices({ es: [], en: [] });
-    // Same deterministic resolution as the verse/config reset effect: keep the
-    // active-slot caret visible after a challenge restart instead of nulling it.
-    setActiveLanguage(state.memorizeMode === 'en' ? 'en' : 'es');
-    setCursorPositionEs(0);
-    setCursorPositionEn(0);
-    setUserInputEs("");
-    setUserInputEn("");
+    writeCursor(state.memorizeMode === 'en' ? 'en' : 'es', 0);
+    writeUserInput('es', "");
+    writeUserInput('en', "");
     setIsCorrect(false);
     setShowError(false);
     setHasSubmitted(false);
@@ -467,11 +451,10 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
   // CASE 4 — every slot filled and previously submitted wrong: correct exactly
   //          one identified incorrect slot, keeping other wrong marks; require a
   //          fresh Check. Never auto-submits or completes the card.
-  const handleClue = (e: React.MouseEvent, lang: 'es' | 'en') => {
+  const handleClue = (e: React.MouseEvent, lang: CitationLanguage) => {
     e.stopPropagation();
-    const inputRef = lang === 'es' ? inputRefEs : inputRefEn;
     if (clueCount[lang] >= 1 || isCorrect || isCompleted || attemptsLeft === 0) {
-      inputRef.current?.focus();
+      activateLanguage(lang);
       return;
     }
 
@@ -514,13 +497,13 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
       setRevealedIndices(newRevealed);
 
       const newN = Math.max(0, n - 1);
-      const cur = (lang === 'es' ? cursorPositionEsRef : cursorPositionEnRef).current;
+      const cur = logicalCursorRef.current.lang === lang ? logicalCursorRef.current.pos : 0;
       const shifted = cur > removedFillIdx ? cur - 1 : cur;
       writeCursor(lang, Math.min(Math.max(0, shifted), Math.max(0, newN - 1)));
 
       setClueCount(prev => ({ ...prev, [lang]: prev[lang] + 1 }));
       setClueFeedback('revealed');
-      inputRef.current?.focus();
+      focusSharedInput();
       return;
     }
 
@@ -529,7 +512,7 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
     // so the existing validation can identify the incorrect slots.
     if (!hasSubmitted) {
       setClueFeedback('check-first');
-      inputRef.current?.focus();
+      activateLanguage(lang);
       return;
     }
 
@@ -544,13 +527,13 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
       writeUserInput(lang, corrected.join(''));
       setClueCount(prev => ({ ...prev, [lang]: prev[lang] + 1 }));
       setClueFeedback('corrected');
-      inputRef.current?.focus();
+      activateLanguage(lang);
       return;
     }
 
     // Fallback (filled + submitted but no incorrect slot found): nudge to Check.
     setClueFeedback('check-first');
-    inputRef.current?.focus();
+    activateLanguage(lang);
   };
 
   function getFillableIndices(ref: string, revealed: number[]): number[] {
@@ -565,18 +548,15 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
     return indices;
   }
 
-  const handleCharClick = (lang: 'es' | 'en', fillIdx: number) => {
+  const handleCharClick = (lang: CitationLanguage, fillIdx: number) => {
     if (isCorrect || attemptsLeft === 0 || isFlipped) return;
 
     const n = slotCountFor(lang);
     writeCursor(lang, Math.min(Math.max(0, fillIdx), Math.max(0, n - 1)));
-    setActiveLanguage(lang);
-
-    const inputRef = lang === 'es' ? inputRefEs : inputRefEn;
-    inputRef.current?.focus();
+    focusSharedInput();
   };
 
-  const renderPlaceholder = (ref: string, revealed: number[], userInput: string, lang: 'es' | 'en') => {
+  const renderPlaceholder = (ref: string, revealed: number[], userInput: string, lang: CitationLanguage) => {
     const fillableIndices = getFillableIndices(ref, revealed);
     const words = ref.split(' ');
     
@@ -616,8 +596,8 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
                   let userChar = "";
                   let isWrong = false;
                   
-                  const isRefActive = activeLanguage === lang;
-                  const isSlotActive = isRefActive && !isRevealedByClue && !isCorrect && fillIdx !== -1 && fillIdx === (lang === 'es' ? cursorPositionEs : cursorPositionEn);
+                  const isRefActive = logicalCursor.lang === lang;
+                  const isSlotActive = isRefActive && !isRevealedByClue && !isCorrect && fillIdx !== -1 && fillIdx === logicalCursor.pos;
                   
                   if (!isRevealedByClue) {
                     if (fillIdx !== -1 && fillIdx < userInput.length) {
@@ -628,30 +608,39 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
                     }
                   }
 
+                  const hasVisibleAnswer = Boolean(isCorrect || state.activeAttempt?.citationCorrect || isRevealedByClue || (userChar && userChar !== " "));
+                  const slotTextClass = hasVisibleAnswer
+                    ? isWrong
+                      ? 'text-coral bg-coral/5'
+                      : isCorrect || state.activeAttempt?.citationCorrect || (hasSubmitted && !isWrong)
+                        ? 'text-teal'
+                        : 'text-playful-purple'
+                    : 'text-transparent';
+                  const underlineClass = hasVisibleAnswer
+                    ? isWrong
+                      ? 'bg-coral'
+                      : isCorrect || state.activeAttempt?.citationCorrect || (hasSubmitted && !isWrong)
+                        ? 'bg-teal'
+                        : 'bg-playful-purple'
+                    : 'bg-earth/20 dark:bg-white/20 group-hover:bg-earth/40';
+
                   return (
                     <span 
                       key={i} 
+                      data-cards-lang={fillIdx !== -1 ? lang : undefined}
+                      data-cards-slot={fillIdx !== -1 ? fillIdx : undefined}
                       onClick={(e) => { e.stopPropagation(); if (fillIdx !== -1) handleCharClick(lang, fillIdx); }}
-                      className={`w-6 sm:w-7 h-12 sm:h-14 flex items-center justify-center text-2xl sm:text-3xl font-serif font-black border-b-[3px] transition-all duration-300 leading-none cursor-text relative ${
-                        isCorrect || state.activeAttempt?.citationCorrect || isRevealedByClue || (userChar && userChar !== " ")
-                          ? isWrong 
-                            ? 'border-coral text-coral bg-coral/5' 
-                            : isCorrect || state.activeAttempt?.citationCorrect || (hasSubmitted && !isWrong)
-                              ? 'border-teal text-teal'
-                              : 'border-playful-purple text-playful-purple' 
-                          : 'border-earth/20 dark:border-white/20 text-transparent hover:border-earth/40'
-                      }`}
+                      className={`group w-6 sm:w-7 h-12 sm:h-14 flex items-center justify-center text-2xl sm:text-3xl font-serif font-black transition-all duration-300 leading-none cursor-text relative ${slotTextClass}`}
                     >
                       {isCorrect || state.activeAttempt?.citationCorrect ? char : (isRevealedByClue ? char : (userChar === " " ? "" : userChar))}
+                      <span
+                        aria-hidden="true"
+                        className={`pointer-events-none absolute inset-x-0 bottom-0 h-[3px] rounded-full transition-colors duration-300 ${underlineClass}`}
+                      />
                       {isSlotActive && !isRevealedByClue && !isCorrect && (
-                        <motion.div
-                          layoutId={`cards-caret-${lang}`}
-                          animate={{ opacity: [0.55, 1, 0.55] }}
-                          transition={{
-                            layout: { duration: 0.16, ease: "easeOut" },
-                            opacity: { duration: 1.5, repeat: Infinity, ease: "easeInOut" },
-                          }}
-                          className="absolute inset-x-0 -bottom-[2.5px] h-[2.5px] rounded-full bg-earth dark:bg-ivory"
+                        <span
+                          aria-hidden="true"
+                          className="pointer-events-none absolute inset-x-0 bottom-0 h-[3px] rounded-full bg-playful-purple z-20"
                         />
                       )}
                     </span>
@@ -685,8 +674,8 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
             let userChar = "";
             let isWrong = false;
             
-            const isRefActive = activeLanguage === lang;
-            const isSlotActive = isRefActive && !isRevealedByClue && !isCorrect && fillIdx !== -1 && fillIdx === (lang === 'es' ? cursorPositionEs : cursorPositionEn);
+            const isRefActive = logicalCursor.lang === lang;
+            const isSlotActive = isRefActive && !isRevealedByClue && !isCorrect && fillIdx !== -1 && fillIdx === logicalCursor.pos;
             
             if (!isRevealedByClue && fillIdx !== -1 && fillIdx < userInput.length) {
               userChar = userInput[fillIdx];
@@ -695,31 +684,40 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
               }
             }
 
+            const hasVisibleAnswer = Boolean(isCorrect || state.activeAttempt?.citationCorrect || isRevealedByClue || (userChar && userChar !== " "));
+            const slotTextClass = hasVisibleAnswer
+              ? isWrong
+                ? 'text-coral bg-coral/5'
+                : isCorrect || state.activeAttempt?.citationCorrect || (hasSubmitted && !isWrong)
+                  ? 'text-teal'
+                  : 'text-playful-purple'
+              : 'text-transparent';
+            const underlineClass = hasVisibleAnswer
+              ? isWrong
+                ? 'bg-coral'
+                : isCorrect || state.activeAttempt?.citationCorrect || (hasSubmitted && !isWrong)
+                  ? 'bg-teal'
+                  : 'bg-playful-purple'
+              : 'bg-earth/20 dark:bg-white/20 group-hover:bg-earth/40';
+
             return (
               <span 
                 key={i} 
+                data-cards-lang={fillIdx !== -1 ? lang : undefined}
+                data-cards-slot={fillIdx !== -1 ? fillIdx : undefined}
                 onClick={(e) => { e.stopPropagation(); if (fillIdx !== -1) handleCharClick(lang, fillIdx); }}
-                className={`w-6 sm:w-7 h-12 flex items-center justify-center text-2xl sm:text-3xl font-serif font-black border-b-[3px] transition-all duration-300 leading-none cursor-text relative ${
-                  isCorrect || state.activeAttempt?.citationCorrect || isRevealedByClue || (userChar && userChar !== " ")
-                    ? isWrong 
-                      ? 'border-coral text-coral bg-coral/5' 
-                      : isCorrect || state.activeAttempt?.citationCorrect || (hasSubmitted && !isWrong)
-                        ? 'border-teal text-teal'
-                        : 'border-playful-purple text-playful-purple' 
-                    : 'border-earth/20 dark:border-white/20 text-transparent hover:border-earth/40'
-                }`}
+                className={`group w-6 sm:w-7 h-12 flex items-center justify-center text-2xl sm:text-3xl font-serif font-black transition-all duration-300 leading-none cursor-text relative ${slotTextClass}`}
               >
                 {isCorrect || state.activeAttempt?.citationCorrect ? char : (isRevealedByClue ? char : (userChar === " " ? "" : userChar))}
+                <span
+                  aria-hidden="true"
+                  className={`pointer-events-none absolute inset-x-0 bottom-0 h-[3px] rounded-full transition-colors duration-300 ${underlineClass}`}
+                />
                 {isSlotActive && !isRevealedByClue && !isCorrect && (
-                  <motion.div
-                          layoutId={`cards-caret-${lang}`}
-                          animate={{ opacity: [0.55, 1, 0.55] }}
-                          transition={{
-                            layout: { duration: 0.16, ease: "easeOut" },
-                            opacity: { duration: 1.5, repeat: Infinity, ease: "easeInOut" },
-                          }}
-                          className="absolute inset-x-0 -bottom-[2.5px] h-[2.5px] rounded-full bg-earth dark:bg-ivory"
-                        />
+                  <span
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-x-0 bottom-0 h-[3px] rounded-full bg-playful-purple z-20"
+                  />
                 )}
               </span>
             );
@@ -762,17 +760,40 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
   useEffect(() => { userInputEsRef.current = userInputEs; }, [userInputEs]);
   useEffect(() => { userInputEnRef.current = userInputEn; }, [userInputEn]);
 
-  const writeUserInput = (lang: 'es' | 'en', value: string) => {
+  const writeUserInput = (lang: CitationLanguage, value: string) => {
     if (lang === 'es') { userInputEsRef.current = value; setUserInputEs(value); }
     else { userInputEnRef.current = value; setUserInputEn(value); }
   };
-  const writeCursor = (lang: 'es' | 'en', value: number) => {
-    if (lang === 'es') { cursorPositionEsRef.current = value; setCursorPositionEs(value); }
-    else { cursorPositionEnRef.current = value; setCursorPositionEn(value); }
+
+  const isLanguageAvailable = (lang: CitationLanguage) =>
+    state.memorizeMode === 'both' || state.memorizeMode === lang;
+
+  const slotCountFor = (lang: CitationLanguage) =>
+    getFillableIndices(lang === 'es' ? esRef : enRef, revealedIndices[lang]).length;
+
+  const clampCursor = (lang: CitationLanguage, value: number): LogicalCursor => {
+    const resolvedLang = isLanguageAvailable(lang) ? lang : (state.memorizeMode === 'en' ? 'en' : 'es');
+    const n = slotCountFor(resolvedLang);
+    return {
+      lang: resolvedLang,
+      pos: Math.min(Math.max(0, value), Math.max(0, n - 1))
+    };
   };
 
-  const slotCountFor = (lang: 'es' | 'en') =>
-    getFillableIndices(lang === 'es' ? esRef : enRef, revealedIndices[lang]).length;
+  const writeCursor = (lang: CitationLanguage, value: number) => {
+    const next = clampCursor(lang, value);
+    logicalCursorRef.current = next;
+    setLogicalCursor(next);
+  };
+
+  const focusSharedInput = () => {
+    sharedInputRef.current?.focus({ preventScroll: true });
+  };
+
+  const activateLanguage = (lang: CitationLanguage) => {
+    writeCursor(lang, logicalCursorRef.current.pos);
+    focusSharedInput();
+  };
 
   // Force the value to exactly `n` editable slots: pad short, clamp long. This
   // is what prevents interior/trailing length drift from hiding unmatched chars.
@@ -786,13 +807,13 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
   // Accept one character at the authoritative logical cursor, then advance the
   // cursor (kept visible on the final slot). Non-letter/number (e.g. the colon
   // separator) is never stored.
-  const acceptChar = (lang: 'es' | 'en', typedChar: string) => {
+  const acceptChar = (typedChar: string) => {
     if (!/[\p{L}\p{N}]/u.test(typedChar)) return;
+    const { lang, pos: cursorPos } = logicalCursorRef.current;
     const n = slotCountFor(lang);
     if (n <= 0) return;
     const valueRef = lang === 'es' ? userInputEsRef : userInputEnRef;
-    const cursorRef = lang === 'es' ? cursorPositionEsRef : cursorPositionEnRef;
-    const pos = Math.min(Math.max(0, cursorRef.current), n - 1);
+    const pos = Math.min(Math.max(0, cursorPos), n - 1);
     const arr = padToSlots(valueRef.current, n);
     arr[pos] = typedChar;
     writeUserInput(lang, arr.join(''));
@@ -802,13 +823,13 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
 
   // Backspace symmetric with forward typing: clear the active char if present,
   // else step back one slot and clear it. Never jumps to slot zero.
-  const backspaceChar = (lang: 'es' | 'en') => {
+  const backspaceChar = () => {
+    const { lang, pos: cursorPos } = logicalCursorRef.current;
     const n = slotCountFor(lang);
     if (n <= 0) return;
     const valueRef = lang === 'es' ? userInputEsRef : userInputEnRef;
-    const cursorRef = lang === 'es' ? cursorPositionEsRef : cursorPositionEnRef;
     const arr = padToSlots(valueRef.current, n);
-    const pos = Math.min(Math.max(0, cursorRef.current), n - 1);
+    const pos = Math.min(Math.max(0, cursorPos), n - 1);
     const target = (arr[pos] && arr[pos] !== ' ') ? pos : Math.max(0, pos - 1);
     arr[target] = ' ';
     writeUserInput(lang, arr.join(''));
@@ -816,18 +837,203 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
     setClueFeedback(null);
   };
 
-  // Derive the single inserted character from a controlled-input change by
-  // diffing against the authoritative previous value (caret-position agnostic,
-  // so a desynced native caret can never misplace a character).
-  const extractInsertedChar = (lang: 'es' | 'en', raw: string): string => {
-    const prev = (lang === 'es' ? userInputEsRef : userInputEnRef).current;
-    if (raw.length <= prev.length) return "";
-    let i = 0;
-    while (i < prev.length && raw[i] === prev[i]) i++;
-    return raw[i] ?? raw[raw.length - 1] ?? "";
+  const getRenderedRowMovePosition = (lang: CitationLanguage, key: 'ArrowUp' | 'ArrowDown', cur: number) => {
+    const currentSlot = document.querySelector<HTMLElement>(`[data-cards-lang="${lang}"][data-cards-slot="${cur}"]`);
+    if (!currentSlot) return cur;
+
+    const currentRect = currentSlot.getBoundingClientRect();
+    const currentX = currentRect.left + currentRect.width / 2;
+    const allSlots = Array.from(document.querySelectorAll<HTMLElement>(`[data-cards-lang="${lang}"][data-cards-slot]`));
+
+    const candidates = allSlots.filter(slot => {
+      const rect = slot.getBoundingClientRect();
+      const centerY = rect.top + rect.height / 2;
+      return key === 'ArrowUp'
+        ? centerY < currentRect.top
+        : centerY > currentRect.top + currentRect.height;
+    });
+
+    if (candidates.length === 0) return cur;
+
+    const rowY = key === 'ArrowUp'
+      ? Math.max(...candidates.map(slot => {
+          const rect = slot.getBoundingClientRect();
+          return rect.top + rect.height / 2;
+        }))
+      : Math.min(...candidates.map(slot => {
+          const rect = slot.getBoundingClientRect();
+          return rect.top + rect.height / 2;
+        }));
+
+    const rowCandidates = candidates.filter(slot => {
+      const rect = slot.getBoundingClientRect();
+      const centerY = rect.top + rect.height / 2;
+      return Math.abs(centerY - rowY) < 15;
+    });
+
+    let bestSlot = rowCandidates[0];
+    let bestDistance = Infinity;
+    rowCandidates.forEach(slot => {
+      const rect = slot.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const distance = Math.abs(centerX - currentX);
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        bestSlot = slot;
+      }
+    });
+
+    const nextSlot = Number(bestSlot?.dataset.cardsSlot);
+    if (!Number.isFinite(nextSlot)) return cur;
+    return nextSlot;
   };
 
-  const isCitationFilled = (lang: 'es' | 'en'): boolean => {
+  const moveHorizontalCursor = (direction: -1 | 1) => {
+    const { lang, pos } = logicalCursorRef.current;
+    const maxPos = Math.max(0, slotCountFor(lang) - 1);
+    const nextPos = pos + direction;
+
+    if (nextPos >= 0 && nextPos <= maxPos) {
+      writeCursor(lang, nextPos);
+      return;
+    }
+
+    if (state.memorizeMode === 'both' && lang === 'es' && direction === 1 && slotCountFor('en') > 0) {
+      writeCursor('en', 0);
+      return;
+    }
+
+    if (state.memorizeMode === 'both' && lang === 'en' && direction === -1 && slotCountFor('es') > 0) {
+      writeCursor('es', Math.max(0, slotCountFor('es') - 1));
+      return;
+    }
+
+    writeCursor(lang, direction < 0 ? 0 : maxPos);
+  };
+
+  const moveVerticalCursor = (key: 'ArrowUp' | 'ArrowDown') => {
+    const { lang, pos } = logicalCursorRef.current;
+    const nextPos = getRenderedRowMovePosition(lang, key, pos);
+    if (nextPos !== pos) writeCursor(lang, nextPos);
+  };
+
+  const resetCompositionGuards = () => {
+    ignoreNextBeforeInputRef.current = false;
+    lastCompositionTextRef.current = "";
+  };
+
+  const resetCompositionGuardsSoon = () => {
+    window.setTimeout(resetCompositionGuards, 0);
+  };
+
+  const commitPrintableText = (text: string) => {
+    const typedChar = Array.from(text).find(char => /[\p{L}\p{N}]/u.test(char));
+    if (!typedChar) return false;
+    acceptChar(typedChar);
+    setHasSubmitted(false);
+    setShowError(false);
+    return true;
+  };
+
+  const clearSharedInputValue = () => {
+    if (sharedInputRef.current) sharedInputRef.current.value = "";
+  };
+
+  const handleSharedKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (isComposingRef.current || e.nativeEvent.isComposing) return;
+
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const esOk = state.memorizeMode === 'en' || isCitationFilled('es');
+      const enOk = state.memorizeMode === 'es' || isCitationFilled('en');
+      if (isEligible && esOk && enOk && !isCorrect && attemptsLeft > 0) handleSubmit();
+      return;
+    }
+
+    if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      moveHorizontalCursor(-1);
+      return;
+    }
+
+    if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      moveHorizontalCursor(1);
+      return;
+    }
+
+    if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      moveVerticalCursor(e.key);
+      return;
+    }
+
+    if (e.key === 'Backspace') {
+      e.preventDefault();
+      backspaceChar();
+      return;
+    }
+
+    if (!e.metaKey && !e.ctrlKey && !e.altKey && e.key.length === 1) {
+      e.preventDefault();
+      printableKeyHandledRef.current = true;
+      commitPrintableText(e.key);
+      queueMicrotask(() => {
+        printableKeyHandledRef.current = false;
+      });
+    }
+  };
+
+  const handleSharedBeforeInput = (e: React.FormEvent<HTMLInputElement>) => {
+    const nativeEvent = e.nativeEvent as InputEvent;
+    if (isComposingRef.current || nativeEvent.isComposing || !nativeEvent.data) return;
+    e.preventDefault();
+
+    if (ignoreNextBeforeInputRef.current) {
+      if (nativeEvent.data === lastCompositionTextRef.current) {
+        clearSharedInputValue();
+        return;
+      }
+      resetCompositionGuards();
+    }
+
+    if (!printableKeyHandledRef.current) commitPrintableText(nativeEvent.data);
+    clearSharedInputValue();
+  };
+
+  const handleSharedCompositionStart = () => {
+    isComposingRef.current = true;
+    resetCompositionGuards();
+  };
+
+  const handleSharedCompositionEnd = (e: React.CompositionEvent<HTMLInputElement>) => {
+    isComposingRef.current = false;
+    const didCommit = commitPrintableText(e.data);
+    if (didCommit) {
+      lastCompositionTextRef.current = e.data;
+      ignoreNextBeforeInputRef.current = true;
+      resetCompositionGuardsSoon();
+    } else {
+      resetCompositionGuards();
+    }
+    clearSharedInputValue();
+  };
+
+  const handleSharedChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const nativeEvent = e.nativeEvent as InputEvent;
+    if (isComposingRef.current || nativeEvent.isComposing) return;
+    e.currentTarget.value = "";
+    clearSharedInputValue();
+  };
+
+  const handleSharedBlur = () => {
+    isComposingRef.current = false;
+    printableKeyHandledRef.current = false;
+    resetCompositionGuards();
+    clearSharedInputValue();
+  };
+
+  const isCitationFilled = (lang: CitationLanguage): boolean => {
     const target = getTargetChars(lang === 'es' ? esRef : enRef, revealedIndices[lang]);
     const val = (lang === 'es' ? userInputEsRef : userInputEnRef).current;
     return val.length === target.length && !val.includes(' ');
@@ -1167,8 +1373,7 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
             className="absolute inset-0 backface-hidden"
             onClick={() => {
               if (!isFlipped && !isCorrect && attemptsLeft > 0) {
-                if (state.memorizeMode === 'en') inputRefEn.current?.focus();
-                else inputRefEs.current?.focus();
+                focusSharedInput();
               }
             }}
           >
@@ -1201,10 +1406,23 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
 
                   {/* Middle Section - Reference Placeholder Area */}
                   <div className="flex-1 flex flex-col justify-center items-center space-y-10 sm:space-y-16">
+                    <input
+                      ref={sharedInputRef}
+                      type="text"
+                      disabled={isCorrect || attemptsLeft === 0}
+                      onKeyDown={handleSharedKeyDown}
+                      onBeforeInput={handleSharedBeforeInput}
+                      onCompositionStart={handleSharedCompositionStart}
+                      onCompositionEnd={handleSharedCompositionEnd}
+                      onChange={handleSharedChange}
+                      onBlur={handleSharedBlur}
+                      className="sr-only"
+                      style={{ opacity: 0, pointerEvents: 'none', caretColor: 'transparent' }}
+                    />
                     {(state.memorizeMode === 'es' || state.memorizeMode === 'both') && (
                       <div 
                         className="space-y-6 sm:space-y-10 w-full cursor-text flex flex-col items-center"
-                        onClick={(e) => { e.stopPropagation(); if (!isCorrect && attemptsLeft > 0) inputRefEs.current?.focus(); }}
+                        onClick={(e) => { e.stopPropagation(); if (!isCorrect && attemptsLeft > 0) activateLanguage('es'); }}
                       >
                         <div className="flex items-center gap-3 opacity-60 mb-2 mt-2">
                           <div className="h-px w-8 bg-earth/20 dark:bg-white/20" />
@@ -1234,64 +1452,6 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
                             </motion.button>
                           )}
                         </div>
-                        <input 
-                          ref={inputRefEs}
-                          type="text"
-                          value={userInputEs}
-                          disabled={isCorrect || attemptsLeft === 0}
-                          onFocus={() => setActiveLanguage('es')}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault();
-                              const esOk = state.memorizeMode === 'en' || isCitationFilled('es');
-                              const enOk = state.memorizeMode === 'es' || isCitationFilled('en');
-                              if (isEligible && esOk && enOk && !isCorrect && attemptsLeft > 0) handleSubmit();
-                              return;
-                            }
-                            if (e.key === 'ArrowLeft') {
-                              e.preventDefault();
-                              writeCursor('es', Math.max(0, cursorPositionEsRef.current - 1));
-                              return;
-                            }
-                            if (e.key === 'ArrowRight') {
-                              e.preventDefault();
-                              const maxPos = Math.max(0, slotCountFor('es') - 1);
-                              writeCursor('es', Math.min(maxPos, cursorPositionEsRef.current + 1));
-                              return;
-                            }
-                            if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
-                              e.preventDefault();
-                              const fillableAll = getFillableIndices(esRef, revealedIndices.es);
-                              const bookStr = esRef.split(' ').slice(0, -1).join(' ');
-                              const bookCharsCount = bookStr.length + (bookStr.length > 0 ? 1 : 0);
-                              const firstNumFillIdx = fillableAll.findIndex(gi => gi >= bookCharsCount);
-                              const bookFillCount = firstNumFillIdx === -1 ? fillableAll.length : firstNumFillIdx;
-                              const numFillCount = firstNumFillIdx === -1 ? 0 : fillableAll.length - firstNumFillIdx;
-                              const cur = cursorPositionEsRef.current;
-                              let newPos = cur;
-                              if (e.key === 'ArrowDown' && cur < bookFillCount && numFillCount > 0) {
-                                newPos = firstNumFillIdx + Math.min(numFillCount - 1, cur);
-                              } else if (e.key === 'ArrowUp' && firstNumFillIdx !== -1 && cur >= firstNumFillIdx && bookFillCount > 0) {
-                                newPos = Math.min(bookFillCount - 1, cur - firstNumFillIdx);
-                              }
-                              if (newPos !== cur) writeCursor('es', newPos);
-                              return;
-                            }
-                            if (e.key === 'Backspace') {
-                              e.preventDefault();
-                              backspaceChar('es');
-                              return;
-                            }
-                          }}
-                          onChange={(e) => {
-                            const inserted = extractInsertedChar('es', e.target.value);
-                            if (inserted) acceptChar('es', inserted);
-                            setHasSubmitted(false);
-                            setShowError(false);
-                          }}
-                          className="sr-only"
-                          style={{ opacity: 0, pointerEvents: 'none', caretColor: 'transparent' }}
-                        />
                         <div className="flex justify-center w-full">
                           {renderPlaceholder(esRef, revealedIndices.es, userInputEs, 'es')}
                         </div>
@@ -1301,7 +1461,7 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
                     {(state.memorizeMode === 'en' || state.memorizeMode === 'both') && (
                       <div 
                         className="space-y-6 sm:space-y-10 w-full cursor-text flex flex-col items-center"
-                        onClick={(e) => { e.stopPropagation(); if (!isCorrect && attemptsLeft > 0) inputRefEn.current?.focus(); }}
+                        onClick={(e) => { e.stopPropagation(); if (!isCorrect && attemptsLeft > 0) activateLanguage('en'); }}
                       >
                         <div className="flex items-center gap-3 opacity-60 mb-2 mt-2">
                           <div className="h-px w-8 bg-earth/20 dark:bg-white/20" />
@@ -1331,64 +1491,6 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
                             </motion.button>
                           )}
                         </div>
-                        <input 
-                          ref={inputRefEn}
-                          type="text"
-                          value={userInputEn}
-                          disabled={isCorrect || attemptsLeft === 0}
-                          onFocus={() => setActiveLanguage('en')}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault();
-                              const esOk = state.memorizeMode === 'en' || isCitationFilled('es');
-                              const enOk = state.memorizeMode === 'es' || isCitationFilled('en');
-                              if (isEligible && esOk && enOk && !isCorrect && attemptsLeft > 0) handleSubmit();
-                              return;
-                            }
-                            if (e.key === 'ArrowLeft') {
-                              e.preventDefault();
-                              writeCursor('en', Math.max(0, cursorPositionEnRef.current - 1));
-                              return;
-                            }
-                            if (e.key === 'ArrowRight') {
-                              e.preventDefault();
-                              const maxPos = Math.max(0, slotCountFor('en') - 1);
-                              writeCursor('en', Math.min(maxPos, cursorPositionEnRef.current + 1));
-                              return;
-                            }
-                            if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
-                              e.preventDefault();
-                              const fillableAll = getFillableIndices(enRef, revealedIndices.en);
-                              const bookStr = enRef.split(' ').slice(0, -1).join(' ');
-                              const bookCharsCount = bookStr.length + (bookStr.length > 0 ? 1 : 0);
-                              const firstNumFillIdx = fillableAll.findIndex(gi => gi >= bookCharsCount);
-                              const bookFillCount = firstNumFillIdx === -1 ? fillableAll.length : firstNumFillIdx;
-                              const numFillCount = firstNumFillIdx === -1 ? 0 : fillableAll.length - firstNumFillIdx;
-                              const cur = cursorPositionEnRef.current;
-                              let newPos = cur;
-                              if (e.key === 'ArrowDown' && cur < bookFillCount && numFillCount > 0) {
-                                newPos = firstNumFillIdx + Math.min(numFillCount - 1, cur);
-                              } else if (e.key === 'ArrowUp' && firstNumFillIdx !== -1 && cur >= firstNumFillIdx && bookFillCount > 0) {
-                                newPos = Math.min(bookFillCount - 1, cur - firstNumFillIdx);
-                              }
-                              if (newPos !== cur) writeCursor('en', newPos);
-                              return;
-                            }
-                            if (e.key === 'Backspace') {
-                              e.preventDefault();
-                              backspaceChar('en');
-                              return;
-                            }
-                          }}
-                          onChange={(e) => {
-                            const inserted = extractInsertedChar('en', e.target.value);
-                            if (inserted) acceptChar('en', inserted);
-                            setHasSubmitted(false);
-                            setShowError(false);
-                          }}
-                          className="sr-only"
-                          style={{ opacity: 0, pointerEvents: 'none', caretColor: 'transparent' }}
-                        />
                         <div className="flex justify-center w-full">
                           {renderPlaceholder(enRef, revealedIndices.en, userInputEn, 'en')}
                         </div>
