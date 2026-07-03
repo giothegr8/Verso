@@ -29,6 +29,9 @@ export const TRANSLATION_PAIRS: TranslationPair[] = [
 ];
 
 export type LanguageMode = "es" | "en" | "both";
+export type MemorizeLanguage = "es" | "en";
+export const ACTIVE_ATTEMPT_SCHEMA_VERSION = 2;
+export const MEMORIZE_TYPING_STATE_SCHEMA_VERSION = 2;
 
 // Where a share originated, used to choose the provenance/footer line.
 export type ShareSource = "daily" | "custom" | "saved";
@@ -219,6 +222,8 @@ export interface AppState {
 }
 
 export interface ActiveAttemptSnapshot {
+  schemaVersion?: number;
+  attemptId?: string;
   verseId: string;
   reference: string;
   translations: TranslationPair;
@@ -228,6 +233,14 @@ export interface ActiveAttemptSnapshot {
   pathId?: string | null;
   pathDay?: number | null;
   dayReference?: string | null;
+  uiLanguage?: "es" | "en";
+  languageOrder?: MemorizeLanguage[];
+  currentPassIndex?: number;
+  completedLanguages?: Partial<Record<MemorizeLanguage, boolean>>;
+  cardsReady?: boolean;
+  textComplete?: boolean;
+  contextKey?: string;
+  verseContentKey?: string;
   citationCorrect?: boolean;
   // Latches to true once the attempt advances past Step 1 (stage >= 2). Used by
   // the challenge-in-progress guard so protection survives reviewing back to

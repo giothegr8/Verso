@@ -14,7 +14,17 @@ import {
   Loader2,
   AlertCircle
 } from "lucide-react";
-import { AppState, LanguageMode, Translation, TRANSLATION_PAIRS, Verse } from "./types";
+import {
+  ACTIVE_ATTEMPT_SCHEMA_VERSION,
+  ActiveAttemptSnapshot,
+  ActiveVerseSource,
+  AppState,
+  LanguageMode,
+  MemorizeLanguage,
+  Translation,
+  TRANSLATION_PAIRS,
+  Verse
+} from "./types";
 import { MOCK_VERSES, getVerseByDate, PATHS } from "./constants";
 import { getLocalDateString, getLocalizedBookName } from "./utils/verseUtils";
 import { rotateReminder } from "./utils/reminderRotation";
@@ -157,6 +167,257 @@ const isFailureSentinel = (txt?: string): boolean => {
   return low.includes("error loading") || low.includes("error al cargar");
 };
 
+type AttemptReviewPair = { mode: LanguageMode; es?: Translation; en?: Translation };
+
+const getAttemptLanguageOrder = (
+  mode: LanguageMode,
+  uiLanguage: "es" | "en"
+): MemorizeLanguage[] => {
+  if (mode === "both") {
+    return uiLanguage === "en" ? ["en", "es"] : ["es", "en"];
+  }
+  return [mode];
+};
+
+const sameLanguageOrder = (a?: MemorizeLanguage[], b?: MemorizeLanguage[]) => {
+  if (!a || !b || a.length !== b.length) return false;
+  return a.every((lang, idx) => lang === b[idx]);
+};
+
+const createAttemptId = () => {
+  try {
+    if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+      return crypto.randomUUID();
+    }
+  } catch {
+    // Fall back below.
+  }
+  return `attempt_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+};
+
+const getEmptyTranslationText = (): Verse["text"] => ({
+  es: { RVR1960: "", NVI: "", NBLA: "", KJV: "", NIV: "", NASB: "" },
+  en: { KJV: "", NIV: "", NASB: "", RVR1960: "", NVI: "", NBLA: "" }
+});
+
+const getAttemptPathId = (state: AppState) =>
+  state.pathProgress.selectedPathId || state.customPathProgress.selectedPathId || null;
+
+const getAttemptPathDay = (state: AppState, source: ActiveVerseSource) => {
+  if (source !== "path") return null;
+  return state.pathProgress.selectedPathId
+    ? state.pathProgress.currentDay
+    : state.customPathProgress.selectedPathId
+      ? state.customPathProgress.currentDay
+      : null;
+};
+
+const getAttemptContextKey = (
+  state: AppState,
+  source: ActiveVerseSource,
+  verse: Verse,
+  reference: string
+) => {
+  const pathId = getAttemptPathId(state) || "";
+  const pathDay = getAttemptPathDay(state, source) ?? "";
+  const dailyDate = source === "daily" ? (state.lastVotdDate || getLocalDateString()) : "";
+  const customId = source === "custom" ? verse.id : "";
+  const savedId = source === "saved" ? verse.id : "";
+  return JSON.stringify({
+    source,
+    verseId: verse.id,
+    reference,
+    pathId: source === "path" ? pathId : "",
+    pathDay,
+    dailyDate,
+    customId,
+    savedId
+  });
+};
+
+const getAttemptVerseContentKey = (verse: Verse, translations: { es: Translation; en: Translation }) => {
+  return JSON.stringify({
+    verseId: verse.id,
+    book: verse.book,
+    chapter: verse.chapter,
+    verse: verse.verse,
+    preferredTranslation: verse.preferredTranslation || "",
+    source: verse.source || "",
+    esTranslation: translations.es,
+    enTranslation: translations.en,
+    esText: verse.text?.es?.[translations.es] || "",
+    enText: verse.text?.en?.[translations.en] || ""
+  });
+};
+
+const createCompletedLanguages = (languageOrder: MemorizeLanguage[]) => {
+  return languageOrder.reduce<Partial<Record<MemorizeLanguage, boolean>>>((acc, lang) => {
+    acc[lang] = false;
+    return acc;
+  }, {});
+};
+
+const isValidAttemptSnapshotShape = (attempt?: ActiveAttemptSnapshot | null): attempt is ActiveAttemptSnapshot => {
+  if (!attempt || attempt.schemaVersion !== ACTIVE_ATTEMPT_SCHEMA_VERSION) return false;
+  if (!attempt.attemptId || typeof attempt.attemptId !== "string") return false;
+  if (attempt.uiLanguage !== "es" && attempt.uiLanguage !== "en") return false;
+  if (!attempt.translations?.es || !attempt.translations?.en) return false;
+  if (attempt.memorizeMode !== "es" && attempt.memorizeMode !== "en" && attempt.memorizeMode !== "both") return false;
+  if (!attempt.verse || attempt.verseId !== attempt.verse.id) return false;
+  if (!attempt.contextKey || !attempt.verseContentKey) return false;
+
+  const expectedOrder = getAttemptLanguageOrder(attempt.memorizeMode, attempt.uiLanguage);
+  if (!sameLanguageOrder(attempt.languageOrder, expectedOrder)) return false;
+
+  const passIndex = attempt.currentPassIndex ?? 0;
+  if (!Number.isInteger(passIndex) || passIndex < 0 || passIndex >= expectedOrder.length) return false;
+
+  return attempt.verseContentKey === getAttemptVerseContentKey(attempt.verse, attempt.translations);
+};
+
+const sanitizeHydratedAttemptState = (merged: AppState) => {
+  const activeAttempt = isValidAttemptSnapshotShape(merged.activeAttempt)
+    ? merged.activeAttempt
+    : null;
+  merged.activeAttempt = activeAttempt;
+
+  const stages = merged.progress.verseStages || {};
+  const nextStages: Record<string, number> = {};
+  const activeAttemptCardsReady = !!(
+    activeAttempt?.cardsReady &&
+    activeAttempt.textComplete &&
+    activeAttempt.languageOrder?.every(lang => activeAttempt.completedLanguages?.[lang] === true)
+  );
+  Object.entries(stages).forEach(([verseId, stageValue]) => {
+    const stage = Number(stageValue);
+    if (stage === 7) {
+      nextStages[verseId] = 7;
+      return;
+    }
+    if (
+      activeAttempt &&
+      verseId === activeAttempt.verseId &&
+      stage >= 1 &&
+      (stage <= 5 || (stage === 6 && activeAttemptCardsReady))
+    ) {
+      nextStages[verseId] = stage;
+    }
+  });
+  merged.progress.verseStages = nextStages;
+};
+
+const resolveVerseForAttempt = (
+  state: AppState,
+  verseId: string,
+  source: ActiveVerseSource
+): Verse => {
+  if (source === "custom" && state.selectedCustomVerse) {
+    return state.selectedCustomVerse;
+  }
+
+  if (verseId) {
+    const fromMock = MOCK_VERSES.find(v => v.id === verseId);
+    const fromCustomList = state.customVerses.find(v => v.id === verseId);
+    if (fromMock) return fromMock;
+    if (fromCustomList) return fromCustomList;
+
+    for (const p of state.customPaths) {
+      const vData = p.verses.find(v => v.id === verseId);
+      if (vData) {
+        const isEsText = vData.translation
+          ? isEsTranslation(vData.translation)
+          : p.language === "es";
+        const slotKey = vData.translation || (isEsText ? "RVR1960" : "KJV");
+        const ptext = getEmptyTranslationText();
+        if (vData.text) {
+          ptext[isEsText ? "es" : "en"][slotKey] = vData.text;
+        }
+        return {
+          id: vData.id,
+          book: vData.reference.split(" ").slice(0, -1).join(" "),
+          chapter: parseInt(vData.reference.split(" ").pop()?.split(":")[0] || "1"),
+          verse: parseInt(vData.reference.split(" ").pop()?.split(":")[1] || "1"),
+          text: ptext,
+          copyright: vData.copyright
+        } as Verse;
+      }
+    }
+  }
+
+  return getVerseByDate(getLocalDateString());
+};
+
+const buildAttemptSnapshot = (
+  state: AppState,
+  resolvedVerse: Verse,
+  source: ActiveVerseSource,
+  reviewPair?: AttemptReviewPair
+): ActiveAttemptSnapshot => {
+  const effMode: LanguageMode = reviewPair?.mode ?? state.memorizeMode;
+  const translations = {
+    es: reviewPair?.es ?? state.selectedTranslations.es,
+    en: reviewPair?.en ?? state.selectedTranslations.en,
+  };
+  const reference = `${resolvedVerse.book} ${resolvedVerse.chapter}:${resolvedVerse.verse}`;
+  const languageOrder = getAttemptLanguageOrder(effMode, state.primaryLanguage);
+
+  return {
+    schemaVersion: ACTIVE_ATTEMPT_SCHEMA_VERSION,
+    attemptId: createAttemptId(),
+    verseId: resolvedVerse.id,
+    reference,
+    translations,
+    memorizeMode: effMode,
+    verse: resolvedVerse,
+    source,
+    pathId: getAttemptPathId(state),
+    pathDay: getAttemptPathDay(state, source),
+    dayReference: source === "path" ? reference : null,
+    uiLanguage: state.primaryLanguage,
+    languageOrder,
+    currentPassIndex: 0,
+    completedLanguages: createCompletedLanguages(languageOrder),
+    cardsReady: false,
+    textComplete: false,
+    contextKey: getAttemptContextKey(state, source, resolvedVerse, reference),
+    verseContentKey: getAttemptVerseContentKey(resolvedVerse, translations),
+  };
+};
+
+const isAttemptCompatibleWithRequest = (
+  attempt: ActiveAttemptSnapshot | null | undefined,
+  expected: ActiveAttemptSnapshot
+) => {
+  if (!isValidAttemptSnapshotShape(attempt)) return false;
+  return (
+    attempt.verseId === expected.verseId &&
+    attempt.source === expected.source &&
+    attempt.contextKey === expected.contextKey &&
+    attempt.memorizeMode === expected.memorizeMode &&
+    attempt.uiLanguage === expected.uiLanguage &&
+    sameLanguageOrder(attempt.languageOrder, expected.languageOrder) &&
+    attempt.translations.es === expected.translations.es &&
+    attempt.translations.en === expected.translations.en &&
+    attempt.verseContentKey === expected.verseContentKey
+  );
+};
+
+const isAttemptCompatibleWithCurrentConfig = (
+  attempt: ActiveAttemptSnapshot | null | undefined,
+  state: AppState
+) => {
+  if (!isValidAttemptSnapshotShape(attempt)) return false;
+  const expectedOrder = getAttemptLanguageOrder(state.memorizeMode, state.primaryLanguage);
+  return (
+    attempt.memorizeMode === state.memorizeMode &&
+    attempt.uiLanguage === state.primaryLanguage &&
+    sameLanguageOrder(attempt.languageOrder, expectedOrder) &&
+    attempt.translations.es === state.selectedTranslations.es &&
+    attempt.translations.en === state.selectedTranslations.en &&
+    attempt.verseContentKey === getAttemptVerseContentKey(attempt.verse, attempt.translations)
+  );
+};
+
 function AppInner() {
   const { user, profile, isPremium: realPremium, loading: authLoading } = useAuth();
   const [mockPremium, setMockPremium] = useState(() => localStorage.getItem('verso_test_premium') === 'true');
@@ -238,6 +499,7 @@ function AppInner() {
         if (!merged.customPathProgress.previouslyCompletedPathIds) {
           merged.customPathProgress.previouslyCompletedPathIds = [];
         }
+        sanitizeHydratedAttemptState(merged);
         
         return merged;
       } catch (e) {
@@ -254,7 +516,7 @@ function AppInner() {
   const [pendingAttempt, setPendingAttempt] = useState<{
     type: "start" | "another" | "navigate";
     verseId?: string;
-    source?: "daily" | "path" | "custom" | "extra" | "saved" | "daily";
+    source?: ActiveVerseSource;
     destinationTab?: string;
     // Review Now (Saved) may request reopening a completed verse in the exact
     // language/translation it was completed in, overriding the global selection.
@@ -480,13 +742,15 @@ function AppInner() {
     es: state.selectedTranslations.es,
     en: state.selectedTranslations.en,
     mode: state.memorizeMode,
+    uiLanguage: state.primaryLanguage,
   });
   useEffect(() => {
     const prev = prevMemorizeConfigRef.current;
     if (
       prev.es === state.selectedTranslations.es &&
       prev.en === state.selectedTranslations.en &&
-      prev.mode === state.memorizeMode
+      prev.mode === state.memorizeMode &&
+      prev.uiLanguage === state.primaryLanguage
     ) {
       return;
     }
@@ -494,15 +758,27 @@ function AppInner() {
       es: state.selectedTranslations.es,
       en: state.selectedTranslations.en,
       mode: state.memorizeMode,
+      uiLanguage: state.primaryLanguage,
     };
-    setState(s => ({
-      ...s,
-      progress: {
-        ...s.progress,
-        verseStages: {}
+    setState(s => {
+      if (!s.activeAttempt) return s;
+      if (isAttemptCompatibleWithCurrentConfig(s.activeAttempt, s)) return s;
+
+      const nextStages = { ...(s.progress.verseStages || {}) };
+      if (Number(nextStages[s.activeAttempt.verseId]) !== 7) {
+        delete nextStages[s.activeAttempt.verseId];
       }
-    }));
-  }, [state.selectedTranslations.es, state.selectedTranslations.en, state.memorizeMode]);
+
+      return {
+        ...s,
+        activeAttempt: null,
+        progress: {
+          ...s.progress,
+          verseStages: nextStages
+        }
+      };
+    });
+  }, [state.selectedTranslations.es, state.selectedTranslations.en, state.memorizeMode, state.primaryLanguage]);
 
   // Latch activeAttempt.started once the verse advances past Step 1 (stage 2-6).
   // Once latched it stays set even if the user reviews back to Step 1, so the
@@ -521,82 +797,42 @@ function AppInner() {
     });
   }, [state.activeAttempt, state.progress.verseStages]);
 
-  const startMemorizing = (verseId: string, source: "daily" | "path" | "custom" | "extra" | "saved" = "daily", reviewPair?: { mode: LanguageMode; es?: Translation; en?: Translation }) => {
+  const startMemorizing = (verseId: string, source: ActiveVerseSource = "daily", reviewPair?: AttemptReviewPair) => {
     localStorage.removeItem(`memorize_failed_${verseId}`);
 
-    // 1. If we click on the SAME verse that is currently active, resume it
-    if (state.activeAttempt && state.activeAttempt.verseId === verseId) {
+    const resolvedVerse = resolveVerseForAttempt(state, verseId, source);
+    const expectedAttempt = buildAttemptSnapshot(state, resolvedVerse, source, reviewPair);
+
+    // 1. If we click on the same compatible attempt, resume it.
+    if (isAttemptCompatibleWithRequest(state.activeAttempt, expectedAttempt)) {
       setActiveTab("memorize");
       return;
     }
 
-    // 2. If we have an in-progress attempt on a DIFFERENT verse, prompt them first
-    if (activeAttemptInProgress && state.activeAttempt) {
+    // 2. If a different compatible attempt is in progress, prompt before leaving it.
+    // An incompatible same-verse attempt is replaced with a fresh attempt below.
+    if (activeAttemptInProgress && state.activeAttempt && state.activeAttempt.verseId !== verseId) {
       setPendingAttempt({ type: "start", verseId, source, reviewPair });
       return;
     }
 
-    // 3. Otherwise, proceed to memorize
+    // 3. Otherwise, proceed with a fresh attempt for the requested context.
     startMemorizingBypassingCheck(verseId, source, reviewPair);
   };
 
-  const startMemorizingBypassingCheck = (verseId: string, source: "daily" | "path" | "custom" | "extra" | "saved" = "daily", reviewPair?: { mode: LanguageMode; es?: Translation; en?: Translation }) => {
+  const startMemorizingBypassingCheck = (verseId: string, source: ActiveVerseSource = "daily", reviewPair?: AttemptReviewPair) => {
     localStorage.removeItem(`memorize_failed_${verseId}`);
     localStorage.removeItem(`citation_failed_${verseId}`);
     setState(s => {
-      let resolvedVerse: Verse;
-      if (source === "custom" && s.selectedCustomVerse) {
-        resolvedVerse = s.selectedCustomVerse;
-      } else if (verseId) {
-        const fromMock = MOCK_VERSES.find(v => v.id === verseId);
-        const fromCustomList = s.customVerses.find(v => v.id === verseId);
-        if (fromMock) {
-          resolvedVerse = fromMock;
-        } else if (fromCustomList) {
-          resolvedVerse = fromCustomList;
-        } else {
-          let pathVerse: Verse | null = null;
-          for (const p of s.customPaths) {
-            const vData = p.verses.find(v => v.id === verseId);
-            if (vData) {
-              // Place the stored single-language text only in its own translation slot,
-              // leaving the other language empty so the lazy fetch can fill the missing language.
-              // (A real fetched bilingual verse is already preferred above via fromCustomList.)
-              const isEsText = vData.translation
-                ? ["RVR1960", "NVI", "NBLA"].includes(vData.translation)
-                : p.language === 'es';
-              const slotKey = vData.translation || (isEsText ? "RVR1960" : "KJV");
-              const ptext = {
-                es: { RVR1960: "", NVI: "", NBLA: "", KJV: "", NIV: "", NASB: "" },
-                en: { KJV: "", NIV: "", NASB: "", RVR1960: "", NVI: "", NBLA: "" }
-              };
-              if (vData.text) (ptext as any)[isEsText ? 'es' : 'en'][slotKey] = vData.text;
-              pathVerse = {
-                id: vData.id,
-                book: vData.reference.split(' ').slice(0, -1).join(' '),
-                chapter: parseInt(vData.reference.split(' ').pop()?.split(':')[0] || '1'),
-                verse: parseInt(vData.reference.split(' ').pop()?.split(':')[1] || '1'),
-                text: ptext,
-                copyright: vData.copyright
-              } as Verse;
-              break;
-            }
-          }
-          resolvedVerse = pathVerse || getVerseByDate(getLocalDateString());
-        }
-      } else {
-        resolvedVerse = getVerseByDate(getLocalDateString());
-      }
+      const resolvedVerse = resolveVerseForAttempt(s, verseId, source);
+      const snapshot = buildAttemptSnapshot(s, resolvedVerse, source, reviewPair);
 
       // Review Now from Saved supplies the completed language/translation so the
       // verse reopens in the translation represented by the Saved card rather
       // than whatever is currently selected in Settings. When no override is
       // supplied this is a no-op and the global selection is used as before.
-      const effMode: LanguageMode = reviewPair?.mode ?? s.memorizeMode;
-      const effTranslations = {
-        es: reviewPair?.es ?? s.selectedTranslations.es,
-        en: reviewPair?.en ?? s.selectedTranslations.en,
-      };
+      const effMode = snapshot.memorizeMode;
+      const effTranslations = snapshot.translations;
 
       // Custom verses resolve their displayed translation from preferredTranslation
       // (see getValidatedVerse). Align it with the reviewed translation so the
@@ -612,18 +848,6 @@ function AppInner() {
         reviewedSingle && isCustomResolved
           ? s.customVerses.map(v => v.id === resolvedVerse.id ? { ...v, preferredTranslation: reviewedSingle } : v)
           : s.customVerses;
-
-      const reference = `${resolvedVerse.book} ${resolvedVerse.chapter}:${resolvedVerse.verse}`;
-      const snapshot = {
-        verseId: resolvedVerse.id,
-        reference,
-        translations: { ...effTranslations },
-        memorizeMode: effMode,
-        verse: resolvedVerse,
-        source: source,
-        pathId: s.pathProgress.selectedPathId || s.customPathProgress.selectedPathId,
-        pathDay: source === "path" ? (s.pathProgress.selectedPathId ? s.pathProgress.currentDay : s.customPathProgress.currentDay) : null,
-      };
 
       return {
         ...s,
@@ -752,17 +976,7 @@ function AppInner() {
           updatedCustom = [...prev.customVerses, newVerse];
         }
 
-        const reference = `${newVerse.book} ${newVerse.chapter}:${newVerse.verse}`;
-        const snapshot = {
-          verseId: newVerseId,
-          reference,
-          translations: { ...prev.selectedTranslations },
-          memorizeMode: prev.memorizeMode,
-          verse: newVerse,
-          source: "extra" as const,
-          pathId: prev.pathProgress.selectedPathId || prev.customPathProgress.selectedPathId,
-          pathDay: null,
-        };
+        const snapshot = buildAttemptSnapshot(prev, newVerse, "extra");
 
         return {
           ...prev,
@@ -1107,17 +1321,7 @@ function AppInner() {
                 const resolvedVerse = MOCK_VERSES.find(v => v.id === verseId) || 
                                       s.customVerses.find(v => v.id === verseId);
                 if (resolvedVerse) {
-                  const reference = `${resolvedVerse.book} ${resolvedVerse.chapter}:${resolvedVerse.verse}`;
-                  nextAttempt = {
-                    verseId: resolvedVerse.id,
-                    reference,
-                    translations: { ...s.selectedTranslations },
-                    memorizeMode: s.memorizeMode,
-                    verse: resolvedVerse,
-                    source: s.activeSource || "saved",
-                    pathId: s.pathProgress.selectedPathId || s.customPathProgress.selectedPathId,
-                    pathDay: s.activeSource === "path" ? (s.pathProgress.selectedPathId ? s.pathProgress.currentDay : s.customPathProgress.currentDay) : null,
-                  };
+                  nextAttempt = buildAttemptSnapshot(s, resolvedVerse, s.activeSource || "saved");
                 }
               }
               return {

@@ -1,6 +1,13 @@
 import React, { useState, useMemo, useEffect, useLayoutEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { AppState, Verse, Translation } from "../types";
+import {
+  ACTIVE_ATTEMPT_SCHEMA_VERSION,
+  ActiveAttemptSnapshot,
+  AppState,
+  MemorizeLanguage,
+  Verse,
+  Translation
+} from "../types";
 import { loadVerseAndMerge } from "../services/bibleService";
 import { MOCK_VERSES, getVerseByDate } from "../constants";
 import { ChevronLeft, ChevronRight, RotateCcw, Sparkles, BookOpen, Brain, HelpCircle, Trophy, Star, Bookmark, CheckCircle2, ArrowRight, Flower2, Sprout, Compass, Layers, Grape, Lock } from "lucide-react";
@@ -18,6 +25,68 @@ interface FlashcardsProps {
 
 type CitationLanguage = 'es' | 'en';
 type LogicalCursor = { lang: CitationLanguage; pos: number };
+
+const getExpectedLanguageOrder = (
+  mode: AppState["memorizeMode"],
+  uiLanguage: AppState["primaryLanguage"]
+): MemorizeLanguage[] => {
+  if (mode === "both") return uiLanguage === "en" ? ["en", "es"] : ["es", "en"];
+  return [mode];
+};
+
+const sameLanguageOrder = (a?: MemorizeLanguage[], b?: MemorizeLanguage[]) => {
+  if (!a || !b || a.length !== b.length) return false;
+  return a.every((lang, idx) => lang === b[idx]);
+};
+
+const getAttemptVerseContentKey = (attempt: ActiveAttemptSnapshot) => {
+  return JSON.stringify({
+    verseId: attempt.verse.id,
+    book: attempt.verse.book,
+    chapter: attempt.verse.chapter,
+    verse: attempt.verse.verse,
+    preferredTranslation: attempt.verse.preferredTranslation || "",
+    source: attempt.verse.source || "",
+    esTranslation: attempt.translations.es,
+    enTranslation: attempt.translations.en,
+    esText: attempt.verse.text?.es?.[attempt.translations.es] || "",
+    enText: attempt.verse.text?.en?.[attempt.translations.en] || ""
+  });
+};
+
+const isValidCardsAttempt = (
+  attempt: ActiveAttemptSnapshot | null | undefined,
+  state: AppState,
+  verse: Verse
+): attempt is ActiveAttemptSnapshot => {
+  if (!attempt || attempt.schemaVersion !== ACTIVE_ATTEMPT_SCHEMA_VERSION) return false;
+  if (!attempt.attemptId || typeof attempt.attemptId !== "string") return false;
+  if (attempt.verseId !== verse.id || !attempt.verse || attempt.verse.id !== verse.id) return false;
+  if (attempt.uiLanguage !== "es" && attempt.uiLanguage !== "en") return false;
+  if (attempt.memorizeMode !== state.memorizeMode) return false;
+  if (attempt.translations?.es !== state.selectedTranslations.es) return false;
+  if (attempt.translations?.en !== state.selectedTranslations.en) return false;
+  if (attempt.source !== state.activeSource) return false;
+  if (attempt.source === "path") {
+    const pathId = state.pathProgress.selectedPathId || state.customPathProgress.selectedPathId || null;
+    const pathDay = state.pathProgress.selectedPathId
+      ? state.pathProgress.currentDay
+      : state.customPathProgress.selectedPathId
+        ? state.customPathProgress.currentDay
+        : null;
+    if (attempt.pathId !== pathId || attempt.pathDay !== pathDay) return false;
+  }
+
+  const expectedOrder = getExpectedLanguageOrder(attempt.memorizeMode, attempt.uiLanguage);
+  if (!sameLanguageOrder(attempt.languageOrder, expectedOrder)) return false;
+  if (!attempt.contextKey || !attempt.verseContentKey) return false;
+  return attempt.verseContentKey === getAttemptVerseContentKey(attempt);
+};
+
+const isCardsReadyAttempt = (attempt: ActiveAttemptSnapshot) => {
+  if (!attempt.cardsReady || !attempt.textComplete || !attempt.languageOrder) return false;
+  return attempt.languageOrder.every(lang => attempt.completedLanguages?.[lang] === true);
+};
 
 export default function Flashcards({ state, setState, onMemorize, onRestartMemorization, onGoToSaved, onComplete }: FlashcardsProps) {
   const [isFlipped, setIsFlipped] = useState(false);
@@ -76,7 +145,7 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
 
   // Unified Active Verse Logic
   let verse: Verse;
-  if (state.activeAttempt?.verse) {
+  if (state.activeAttempt?.schemaVersion === ACTIVE_ATTEMPT_SCHEMA_VERSION && state.activeAttempt?.verse) {
     verse = state.activeAttempt.verse;
   } else if (state.activeSource === "custom" && state.selectedCustomVerse) {
     verse = state.selectedCustomVerse;
@@ -150,14 +219,9 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
     state.activeSource
   ]);
 
-  // Restore the active-attempt snapshot if it was lost (e.g. after a language
-  // switch) while a genuinely in-progress challenge remains. The App
-  // navigation/settings guard relies solely on activeAttempt, so a missing
-  // snapshot would let the user bypass the "challenge in progress" warning while
-  // sitting on the citation step. We only restore for verses that have advanced
-  // past step 1 (stage >= 2) and are not completed (stage 7), mirroring the
-  // snapshot shape used when a challenge is first started. This only adds
-  // activeAttempt; it never downgrades stage or touches citation state.
+  // A stage number alone is legacy transient state, not enough to safely restore
+  // a bilingual attempt. Completed stage 7 remains authoritative, but orphan
+  // stage 1-6 records are discarded instead of recreating an unscoped attempt.
   useEffect(() => {
     if (state.activeAttempt) return;
     const dbStage = state.progress.verseStages?.[verse.id];
@@ -166,31 +230,43 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
       if (s.activeAttempt) return s;
       const liveStage = s.progress.verseStages?.[verse.id];
       if (liveStage === undefined || liveStage < 2 || liveStage > 6) return s;
-      const reference = `${verse.book} ${verse.chapter}:${verse.verse}`;
+      const nextStages = { ...s.progress.verseStages };
+      delete nextStages[verse.id];
       return {
         ...s,
-        activeAttempt: {
-          verseId: verse.id,
-          reference,
-          translations: { ...s.selectedTranslations },
-          memorizeMode: s.memorizeMode,
-          verse,
-          source: s.activeSource || "saved",
-          pathId: s.pathProgress.selectedPathId || s.customPathProgress.selectedPathId,
-          pathDay: s.activeSource === "path" ? (s.pathProgress.selectedPathId ? s.pathProgress.currentDay : s.customPathProgress.currentDay) : null,
+        progress: {
+          ...s.progress,
+          verseStages: nextStages,
         },
       };
     });
-  }, [verse.id, state.activeAttempt, state.progress.verseStages, state.memorizeMode, setState]);
+  }, [verse.id, state.activeAttempt, state.progress.verseStages, setState]);
 
   const { esText, enText, activePair } = useMemo(() =>
     getValidatedVerse(verse, state),
     [verse, state, state.selectedTranslations.es, state.selectedTranslations.en]
   );
 
+  const activeCardsAttempt = useMemo(() => {
+    return isValidCardsAttempt(state.activeAttempt, state, verse) ? state.activeAttempt : null;
+  }, [
+    state.activeAttempt,
+    state.memorizeMode,
+    state.selectedTranslations.es,
+    state.selectedTranslations.en,
+    state.activeSource,
+    state.pathProgress.selectedPathId,
+    state.pathProgress.currentDay,
+    state.customPathProgress.selectedPathId,
+    state.customPathProgress.currentDay,
+    verse
+  ]);
+
   const isEligible = useMemo(() => {
-    return state.progress.verseStages?.[verse.id] === 6;
-  }, [state.progress.verseStages, verse.id]);
+    return state.progress.verseStages?.[verse.id] === 6 &&
+      !!activeCardsAttempt &&
+      isCardsReadyAttempt(activeCardsAttempt);
+  }, [state.progress.verseStages, verse.id, activeCardsAttempt]);
 
   // Reset state when verse or configuration changes
   useEffect(() => {

@@ -1,6 +1,15 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { AppState, TRANSLATION_PAIRS, TRANSLATION_DETAILS, Verse } from "../types";
+import {
+  ACTIVE_ATTEMPT_SCHEMA_VERSION,
+  ActiveAttemptSnapshot,
+  AppState,
+  MEMORIZE_TYPING_STATE_SCHEMA_VERSION,
+  MemorizeLanguage,
+  TRANSLATION_PAIRS,
+  TRANSLATION_DETAILS,
+  Verse
+} from "../types";
 import { loadVerseAndMerge } from "../services/bibleService";
 import { MOCK_VERSES, getVerseByDate } from "../constants";
 import { CheckCircle2, RotateCcw, Eye, EyeOff, ArrowRight, ArrowLeft, Star, Trophy, Languages, Sparkles, AlertCircle, Bookmark, Layers, MessageCircle, BookOpen, Sprout, Loader2 } from "lucide-react";
@@ -25,6 +34,186 @@ const STAGES = [
   { id: 5, label: "Typing", es: "Escritura" },
 ];
 
+type MemorizeTypingStateV2 = {
+  schemaVersion: number;
+  attemptId: string;
+  currentPassIndex: number;
+  currentStep: number;
+  showHalfwayTransition: boolean;
+  userInputEs: string[];
+  userInputEn: string[];
+  cursorIndexEs: number;
+  cursorIndexEn: number;
+  clueCountEs: number;
+  clueCountEn: number;
+  revealedIndicesEs: number[];
+  revealedIndicesEn: number[];
+  isWrongEs: boolean;
+  isWrongEn: boolean;
+  hasSubmittedEs: boolean;
+  hasSubmittedEn: boolean;
+  incorrectIndicesEs: number[];
+  incorrectIndicesEn: number[];
+  submittedWrongCharsEs: Record<number, string>;
+  submittedWrongCharsEn: Record<number, string>;
+  isCorrectEs: boolean;
+  isCorrectEn: boolean;
+  didFailFlowEs: boolean;
+  didFailFlowEn: boolean;
+};
+
+const getExpectedLanguageOrder = (
+  mode: AppState["memorizeMode"],
+  uiLanguage: AppState["primaryLanguage"]
+): MemorizeLanguage[] => {
+  if (mode === "both") return uiLanguage === "en" ? ["en", "es"] : ["es", "en"];
+  return [mode];
+};
+
+const sameLanguageOrder = (a?: MemorizeLanguage[], b?: MemorizeLanguage[]) => {
+  if (!a || !b || a.length !== b.length) return false;
+  return a.every((lang, idx) => lang === b[idx]);
+};
+
+const clampPassIndex = (idx: number, order: MemorizeLanguage[]) => {
+  if (!Number.isInteger(idx) || idx < 0) return 0;
+  return Math.min(idx, Math.max(order.length - 1, 0));
+};
+
+const getAttemptVerseContentKey = (attempt: ActiveAttemptSnapshot) => {
+  return JSON.stringify({
+    verseId: attempt.verse.id,
+    book: attempt.verse.book,
+    chapter: attempt.verse.chapter,
+    verse: attempt.verse.verse,
+    preferredTranslation: attempt.verse.preferredTranslation || "",
+    source: attempt.verse.source || "",
+    esTranslation: attempt.translations.es,
+    enTranslation: attempt.translations.en,
+    esText: attempt.verse.text?.es?.[attempt.translations.es] || "",
+    enText: attempt.verse.text?.en?.[attempt.translations.en] || ""
+  });
+};
+
+const getVerseContentKey = (verse: Verse, translations: AppState["selectedTranslations"]) => {
+  return JSON.stringify({
+    verseId: verse.id,
+    book: verse.book,
+    chapter: verse.chapter,
+    verse: verse.verse,
+    preferredTranslation: verse.preferredTranslation || "",
+    source: verse.source || "",
+    esTranslation: translations.es,
+    enTranslation: translations.en,
+    esText: verse.text?.es?.[translations.es] || "",
+    enText: verse.text?.en?.[translations.en] || ""
+  });
+};
+
+const createAttemptId = () => {
+  try {
+    if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+      return crypto.randomUUID();
+    }
+  } catch {
+    // Fall back below.
+  }
+  return `attempt_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+};
+
+const getContextKey = (
+  state: AppState,
+  source: AppState["activeSource"],
+  verse: Verse,
+  reference: string
+) => {
+  const pathId = state.pathProgress.selectedPathId || state.customPathProgress.selectedPathId || "";
+  const pathDay = source === "path"
+    ? state.pathProgress.selectedPathId
+      ? state.pathProgress.currentDay
+      : state.customPathProgress.selectedPathId
+        ? state.customPathProgress.currentDay
+        : ""
+    : "";
+  return JSON.stringify({
+    source,
+    verseId: verse.id,
+    reference,
+    pathId: source === "path" ? pathId : "",
+    pathDay,
+    dailyDate: source === "daily" ? (state.lastVotdDate || getLocalDateString()) : "",
+    customId: source === "custom" ? verse.id : "",
+    savedId: source === "saved" ? verse.id : ""
+  });
+};
+
+const buildMemorizeAttemptSnapshot = (state: AppState, verse: Verse): ActiveAttemptSnapshot => {
+  const source = state.activeSource || "saved";
+  const reference = `${verse.book} ${verse.chapter}:${verse.verse}`;
+  const languageOrder = getExpectedLanguageOrder(state.memorizeMode, state.primaryLanguage);
+  return {
+    schemaVersion: ACTIVE_ATTEMPT_SCHEMA_VERSION,
+    attemptId: createAttemptId(),
+    verseId: verse.id,
+    reference,
+    translations: { ...state.selectedTranslations },
+    memorizeMode: state.memorizeMode,
+    verse,
+    source,
+    pathId: state.pathProgress.selectedPathId || state.customPathProgress.selectedPathId,
+    pathDay: source === "path"
+      ? state.pathProgress.selectedPathId
+        ? state.pathProgress.currentDay
+        : state.customPathProgress.currentDay
+      : null,
+    dayReference: source === "path" ? reference : null,
+    uiLanguage: state.primaryLanguage,
+    languageOrder,
+    currentPassIndex: 0,
+    completedLanguages: languageOrder.reduce<Partial<Record<MemorizeLanguage, boolean>>>((acc, lang) => {
+      acc[lang] = false;
+      return acc;
+    }, {}),
+    cardsReady: false,
+    textComplete: false,
+    contextKey: getContextKey(state, source, verse, reference),
+    verseContentKey: getVerseContentKey(verse, state.selectedTranslations),
+  };
+};
+
+const isValidMemorizeAttempt = (
+  attempt: ActiveAttemptSnapshot | null | undefined,
+  verseId?: string
+): attempt is ActiveAttemptSnapshot => {
+  if (!attempt || attempt.schemaVersion !== ACTIVE_ATTEMPT_SCHEMA_VERSION) return false;
+  if (!attempt.attemptId || typeof attempt.attemptId !== "string") return false;
+  if (verseId && attempt.verseId !== verseId) return false;
+  if (!attempt.verse || attempt.verseId !== attempt.verse.id) return false;
+  if (attempt.uiLanguage !== "es" && attempt.uiLanguage !== "en") return false;
+  if (!attempt.translations?.es || !attempt.translations?.en) return false;
+  if (!attempt.contextKey || !attempt.verseContentKey) return false;
+
+  const expectedOrder = getExpectedLanguageOrder(attempt.memorizeMode, attempt.uiLanguage);
+  if (!sameLanguageOrder(attempt.languageOrder, expectedOrder)) return false;
+  if (attempt.verseContentKey !== getAttemptVerseContentKey(attempt)) return false;
+
+  const passIndex = attempt.currentPassIndex ?? 0;
+  return Number.isInteger(passIndex) && passIndex >= 0 && passIndex < expectedOrder.length;
+};
+
+const isValidTypingState = (
+  raw: any,
+  attemptId: string | null,
+  order: MemorizeLanguage[]
+): raw is MemorizeTypingStateV2 => {
+  if (!attemptId || !raw || typeof raw !== "object") return false;
+  if (raw.schemaVersion !== MEMORIZE_TYPING_STATE_SCHEMA_VERSION) return false;
+  if (raw.attemptId !== attemptId) return false;
+  if (!Number.isInteger(raw.currentStep) || raw.currentStep < 1 || raw.currentStep > 5) return false;
+  if (!Number.isInteger(raw.currentPassIndex) || raw.currentPassIndex < 0 || raw.currentPassIndex >= order.length) return false;
+  return true;
+};
+
 export default function Memorize({ state, setState, onComplete, onGoToFlashcards, onAbandon, tourStepId }: MemorizeProps) {
   const today = getLocalDateString();
   const votd = getVerseByDate(today);
@@ -39,7 +228,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
   // Helper to resolve the correct verse
   const getResolvedVerse = (): Verse => {
     // 0. Use the locked active attempt snapshot if present
-    if (state.activeAttempt?.verse) {
+    if (isValidMemorizeAttempt(state.activeAttempt) && state.activeAttempt.verse) {
       return state.activeAttempt.verse;
     }
 
@@ -86,6 +275,23 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
   };
 
   const verse = getResolvedVerse();
+  const activeAttempt = isValidMemorizeAttempt(state.activeAttempt, verse.id) ? state.activeAttempt : null;
+  const attemptLanguageOrder = activeAttempt?.languageOrder && activeAttempt.languageOrder.length > 0
+    ? activeAttempt.languageOrder
+    : getExpectedLanguageOrder(state.memorizeMode, state.primaryLanguage);
+  const attemptId = activeAttempt?.attemptId || null;
+  const typingStateKey = attemptId ? `memorize_typing_state_v${MEMORIZE_TYPING_STATE_SCHEMA_VERSION}_${attemptId}` : null;
+
+  const savedTypingState = useMemo(() => {
+    if (!typingStateKey) return null;
+    try {
+      const stored = localStorage.getItem(typingStateKey);
+      const parsed = stored ? JSON.parse(stored) : null;
+      return isValidTypingState(parsed, attemptId, attemptLanguageOrder) ? parsed : null;
+    } catch {
+      return null;
+    }
+  }, [typingStateKey, attemptId, attemptLanguageOrder]);
 
   // Load missing verse text automatically on the fly
   useEffect(() => {
@@ -124,14 +330,14 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
   ]);
 
   const globalVerseStage = state.progress.verseStages[verse.id] || 1;
-  const [stage, setStage] = useState(() => Math.min(5, globalVerseStage));
+  const [stage, setStage] = useState(() => Math.min(5, savedTypingState?.currentStep || globalVerseStage));
   const [isRevealed, setIsRevealed] = useState(false);
   const [isAlmostDone, setIsAlmostDone] = useState(() => {
     try {
       const failed = localStorage.getItem(`memorize_failed_${verse.id}`) === "true";
-      return globalVerseStage === 6 || failed;
+      return (globalVerseStage === 6 && activeAttempt?.cardsReady === true) || failed;
     } catch {
-      return globalVerseStage === 6;
+      return globalVerseStage === 6 && activeAttempt?.cardsReady === true;
     }
   });
   const [showAbandonConfirm, setShowAbandonConfirm] = useState(false);
@@ -139,37 +345,30 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
   const [coachType, setCoachType] = useState<'encouragement' | 'suggestion' | 'tip'>('encouragement');
   const activePair = getCurrentTranslationPair(state);
 
-  const attemptsKeyEs = `memorize_attempts_${verse.id}_es_${activePair?.es || 'RVR1960'}`;
-  const attemptsKeyEn = `memorize_attempts_${verse.id}_en_${activePair?.en || 'KJV'}`;
+  const attemptsKeyEs = attemptId ? `memorize_attempts_v${MEMORIZE_TYPING_STATE_SCHEMA_VERSION}_${attemptId}_es_${activePair?.es || 'RVR1960'}` : null;
+  const attemptsKeyEn = attemptId ? `memorize_attempts_v${MEMORIZE_TYPING_STATE_SCHEMA_VERSION}_${attemptId}_en_${activePair?.en || 'KJV'}` : null;
 
   const [attemptsEs, setAttemptsEs] = useState(() => {
+    if (!attemptsKeyEs) return 0;
     const stored = localStorage.getItem(attemptsKeyEs);
     return stored ? parseInt(stored) : 0;
   });
   const [attemptsEn, setAttemptsEn] = useState(() => {
+    if (!attemptsKeyEn) return 0;
     const stored = localStorage.getItem(attemptsKeyEn);
     return stored ? parseInt(stored) : 0;
   });
 
   // Persist attempts to localStorage
   useEffect(() => {
+    if (!attemptsKeyEs) return;
     localStorage.setItem(attemptsKeyEs, attemptsEs.toString());
   }, [attemptsEs, attemptsKeyEs]);
 
   useEffect(() => {
+    if (!attemptsKeyEn) return;
     localStorage.setItem(attemptsKeyEn, attemptsEn.toString());
   }, [attemptsEn, attemptsKeyEn]);
-
-  const typingStateKey = `memorize_typing_state_${verse.id}_${state.memorizeMode}_${activePair?.es || 'RVR1960'}_${activePair?.en || 'KJV'}`;
-
-  const savedTypingState = useMemo(() => {
-    try {
-      const stored = localStorage.getItem(typingStateKey);
-      return stored ? JSON.parse(stored) : null;
-    } catch {
-      return null;
-    }
-  }, [typingStateKey]);
 
   const [userInputEs, setUserInputEs] = useState<string[]>(() => savedTypingState?.userInputEs || []);
   const [userInputEn, setUserInputEn] = useState<string[]>(() => savedTypingState?.userInputEn || []);
@@ -198,24 +397,64 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
       return false;
     }
   });
+  const languageOrderKey = attemptLanguageOrder.join("|");
+  const initialCurrentPassIndex = clampPassIndex(
+    savedTypingState?.currentPassIndex ?? activeAttempt?.currentPassIndex ?? 0,
+    attemptLanguageOrder
+  );
+  const shouldResumeHalfwayTransition =
+    state.memorizeMode === "both" &&
+    !!activeAttempt &&
+    initialCurrentPassIndex < attemptLanguageOrder.length - 1 &&
+    activeAttempt.completedLanguages?.[attemptLanguageOrder[initialCurrentPassIndex]] === true &&
+    activeAttempt.cardsReady !== true;
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [showHalfwayTransition, setShowHalfwayTransition] = useState(() =>
+    !!savedTypingState?.showHalfwayTransition || shouldResumeHalfwayTransition
+  );
+  const [currentPassIndex, setCurrentPassIndexState] = useState(() => initialCurrentPassIndex);
+  const activeLanguage = attemptLanguageOrder[currentPassIndex] || attemptLanguageOrder[0] || "es";
+  const bilingualPass = currentPassIndex + 1;
+  const setCurrentPassIndex = (idx: number) => {
+    setCurrentPassIndexState(clampPassIndex(idx, attemptLanguageOrder));
+  };
+  const setBilingualPass = (pass: number) => {
+    setCurrentPassIndex(pass - 1);
+  };
+  const setActiveLanguage = (lang: MemorizeLanguage) => {
+    const nextIndex = attemptLanguageOrder.indexOf(lang);
+    setCurrentPassIndex(nextIndex === -1 ? 0 : nextIndex);
+  };
 
-  const [activeLanguage, setActiveLanguage] = useState<'es' | 'en'>(() => {
-    if (savedTypingState?.activeLanguage) return savedTypingState.activeLanguage;
-    if (state.memorizeMode === 'en') return 'en';
-    if (state.memorizeMode === 'es') return 'es';
-    return state.primaryLanguage === 'en' ? 'en' : 'es';
-  });
+  useEffect(() => {
+    setCurrentPassIndexState(prev => clampPassIndex(prev, attemptLanguageOrder));
+  }, [attemptId, languageOrderKey]);
 
-  const [bilingualPass, setBilingualPass] = useState(() => savedTypingState?.bilingualPass || 1);
+  useEffect(() => {
+    if (!attemptId) return;
+    setState(s => {
+      if (!s.activeAttempt || s.activeAttempt.attemptId !== attemptId) return s;
+      if (s.activeAttempt.currentPassIndex === currentPassIndex) return s;
+      return {
+        ...s,
+        activeAttempt: {
+          ...s.activeAttempt,
+          currentPassIndex,
+        },
+      };
+    });
+  }, [attemptId, currentPassIndex, setState]);
 
   const celebratedHalfwayRef = useRef<string>("");
   const celebratedAlmostDoneRef = useRef<string>("");
 
   // Refs and helper to always hold the latest state values for non-reactive access in debounced save
   const stateRef = useRef({
-    bilingualPass,
-    activeLanguage,
+    schemaVersion: MEMORIZE_TYPING_STATE_SCHEMA_VERSION,
+    attemptId: attemptId || "",
+    currentPassIndex,
+    currentStep: stage,
+    showHalfwayTransition,
     userInputEs,
     userInputEn,
     cursorIndexEs,
@@ -240,8 +479,11 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
 
   // Keep stateRef up to date on every render
   stateRef.current = {
-    bilingualPass,
-    activeLanguage,
+    schemaVersion: MEMORIZE_TYPING_STATE_SCHEMA_VERSION,
+    attemptId: attemptId || "",
+    currentPassIndex,
+    currentStep: stage,
+    showHalfwayTransition,
     userInputEs,
     userInputEn,
     cursorIndexEs,
@@ -265,6 +507,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
   };
 
   const saveStateImmediately = () => {
+    if (!typingStateKey || !attemptId) return;
     try {
       localStorage.setItem(typingStateKey, JSON.stringify(stateRef.current));
     } catch (e) {
@@ -280,6 +523,10 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
     return () => clearTimeout(timer);
   }, [
     typingStateKey,
+    attemptId,
+    currentPassIndex,
+    stage,
+    showHalfwayTransition,
     userInputEs,
     userInputEn,
     cursorIndexEs,
@@ -301,15 +548,16 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
     saveStateImmediately();
   }, [
     stage,
-    activeLanguage,
+    currentPassIndex,
     typingStateKey,
+    attemptId,
     isCorrectEs,
     isCorrectEn,
     didFailFlowEs,
     didFailFlowEn,
     hasSubmittedEs,
     hasSubmittedEn,
-    bilingualPass,
+    showHalfwayTransition,
   ]);
 
   useEffect(() => {
@@ -351,6 +599,30 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
   const canUseClue =
     canShowClue &&
     activeClueCount < 1;
+
+  const updateAttemptCompletion = (
+    lang: MemorizeLanguage,
+    options?: { cardsReady?: boolean; passIndex?: number }
+  ) => {
+    if (!attemptId) return;
+    setState(s => {
+      if (!s.activeAttempt || s.activeAttempt.attemptId !== attemptId) return s;
+      const completedLanguages = {
+        ...(s.activeAttempt.completedLanguages || {}),
+        [lang]: true,
+      };
+      return {
+        ...s,
+        activeAttempt: {
+          ...s.activeAttempt,
+          completedLanguages,
+          currentPassIndex: options?.passIndex ?? currentPassIndex,
+          cardsReady: options?.cardsReady ? true : s.activeAttempt.cardsReady,
+          textComplete: options?.cardsReady ? true : s.activeAttempt.textComplete,
+        },
+      };
+    });
+  };
   
   const [inputValue, setInputValue] = useState(" ");
   
@@ -385,8 +657,6 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
-
-  const [showHalfwayTransition, setShowHalfwayTransition] = useState(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
   
@@ -604,94 +874,85 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
     selectedTranslationsEs: state.selectedTranslations.es,
     selectedTranslationsEn: state.selectedTranslations.en,
     memorizeMode: state.memorizeMode,
-    verseId: verse.id
+    verseId: verse.id,
+    attemptId,
   });
 
   // Reset stage when verse, translations, or display mode changes
   useEffect(() => {
-    const configChanged = 
-      lastConfigRef.current.selectedTranslationsEs !== state.selectedTranslations.es ||
-      lastConfigRef.current.selectedTranslationsEn !== state.selectedTranslations.en ||
-      lastConfigRef.current.memorizeMode !== state.memorizeMode ||
-      lastConfigRef.current.verseId !== verse.id;
+    const prevConfig = lastConfigRef.current;
+    const contentConfigChanged =
+      prevConfig.selectedTranslationsEs !== state.selectedTranslations.es ||
+      prevConfig.selectedTranslationsEn !== state.selectedTranslations.en ||
+      prevConfig.memorizeMode !== state.memorizeMode ||
+      prevConfig.verseId !== verse.id;
+    const attemptChanged = prevConfig.attemptId !== attemptId;
 
-    if (configChanged) {
+    if (contentConfigChanged || attemptChanged) {
       const dbStage = state.progress.verseStages[verse.id] || 1;
-      setStage(Math.min(5, dbStage));
+      const nextStage = activeAttempt
+        ? Math.min(5, savedTypingState?.currentStep || dbStage)
+        : 1;
+      setStage(nextStage);
       setIsRevealed(false);
       setDidFailFlowEs(false);
       setDidFailFlowEn(false);
-      setBilingualPass(1);
-      setShowHalfwayTransition(false);
-      setIsAlmostDone(dbStage === 6);
+      if (activeAttempt) {
+        setCurrentPassIndex(
+          clampPassIndex(
+            savedTypingState?.currentPassIndex ?? activeAttempt.currentPassIndex ?? 0,
+            attemptLanguageOrder
+          )
+        );
+        setShowHalfwayTransition(!!savedTypingState?.showHalfwayTransition || shouldResumeHalfwayTransition);
+      } else {
+        setCurrentPassIndex(0);
+        setShowHalfwayTransition(false);
+      }
+      setIsAlmostDone(dbStage === 6 && activeAttempt?.cardsReady === true);
       
       // Preserve attempts if it's the same verse and translations
-      if (lastConfigRef.current.verseId !== verse.id || 
-          lastConfigRef.current.selectedTranslationsEs !== state.selectedTranslations.es ||
-          lastConfigRef.current.selectedTranslationsEn !== state.selectedTranslations.en) {
+      if (prevConfig.verseId !== verse.id ||
+          prevConfig.selectedTranslationsEs !== state.selectedTranslations.es ||
+          prevConfig.selectedTranslationsEn !== state.selectedTranslations.en ||
+          attemptChanged) {
         setAttemptsEs(0);
         setAttemptsEn(0);
       }
       
-      setUserInputEs([]);
-      setUserInputEn([]);
-      setSubmittedWrongCharsEs({});
-      setSubmittedWrongCharsEn({});
-      setClueCountEs(0);
-      setClueCountEn(0);
-      setIsWrongEs(false);
-      setIsWrongEn(false);
-      setHasSubmittedEs(false);
-      setHasSubmittedEn(false);
-      setIncorrectIndicesEs([]);
-      setIncorrectIndicesEn([]);
-      setIsCorrectEs(false);
-      setIsCorrectEn(false);
+      setUserInputEs(savedTypingState?.userInputEs || []);
+      setUserInputEn(savedTypingState?.userInputEn || []);
+      setSubmittedWrongCharsEs(savedTypingState?.submittedWrongCharsEs || {});
+      setSubmittedWrongCharsEn(savedTypingState?.submittedWrongCharsEn || {});
+      setClueCountEs(savedTypingState?.clueCountEs || 0);
+      setClueCountEn(savedTypingState?.clueCountEn || 0);
+      setIsWrongEs(savedTypingState?.isWrongEs || false);
+      setIsWrongEn(savedTypingState?.isWrongEn || false);
+      setHasSubmittedEs(savedTypingState?.hasSubmittedEs || false);
+      setHasSubmittedEn(savedTypingState?.hasSubmittedEn || false);
+      setIncorrectIndicesEs(savedTypingState?.incorrectIndicesEs || []);
+      setIncorrectIndicesEn(savedTypingState?.incorrectIndicesEn || []);
+      setIsCorrectEs(savedTypingState?.isCorrectEs || false);
+      setIsCorrectEn(savedTypingState?.isCorrectEn || false);
       setFeedback(null);
-      setRevealedIndicesEs([]);
-      setRevealedIndicesEn([]);
-      setCursorIndexEs(0);
-      setCursorIndexEn(0);
-      
-      // Determine initial language for the session
-      const initialLang = state.memorizeMode === 'en' ? 'en' : (state.memorizeMode === 'es' ? 'es' : state.primaryLanguage);
-      setActiveLanguage(initialLang);
+      setRevealedIndicesEs(savedTypingState?.revealedIndicesEs || []);
+      setRevealedIndicesEn(savedTypingState?.revealedIndicesEn || []);
+      setCursorIndexEs(savedTypingState?.cursorIndexEs || 0);
+      setCursorIndexEn(savedTypingState?.cursorIndexEn || 0);
       
       lastConfigRef.current = {
         selectedTranslationsEs: state.selectedTranslations.es,
         selectedTranslationsEn: state.selectedTranslations.en,
         memorizeMode: state.memorizeMode,
-        verseId: verse.id
+        verseId: verse.id,
+        attemptId,
       };
-
-      // Update global state to ensure consistency, preserving existing completed states
-      setState(s => {
-        const currentStage = s.progress.verseStages[verse.id] || 1;
-        if (currentStage === 6 || currentStage === 7) {
-          return s;
-        }
-        return {
-          ...s,
-          progress: {
-            ...s.progress,
-            verseStages: {
-              ...s.progress.verseStages,
-              [verse.id]: 1
-            }
-          }
-        };
-      });
     }
-  }, [verse.id, state.selectedTranslations.es, state.selectedTranslations.en, state.memorizeMode, setState]);
+  }, [verse.id, attemptId, state.selectedTranslations.es, state.selectedTranslations.en, state.memorizeMode, setState]);
 
-  // Restore the active-attempt snapshot if it was lost (e.g. after a language
-  // switch) while a genuinely in-progress challenge remains. The App
-  // navigation/settings guard relies solely on activeAttempt, so a missing
-  // snapshot would let the user bypass the "challenge in progress" warning even
-  // though local stage state is still advancing. We only restore for verses that
-  // have advanced past step 1 (stage >= 2) and are not completed (stage 7),
-  // mirroring the snapshot shape used when a challenge is first started. This
-  // only adds activeAttempt; it never downgrades stage or touches citation state.
+  // Legacy/orphan transient stage state is not enough to reconstruct a safe
+  // bilingual attempt. Preserve completed stage 7 records, but do not recreate an
+  // active attempt without its v2 identity, language order, and completion state.
   useEffect(() => {
     if (state.activeAttempt) return;
     const dbStage = state.progress.verseStages[verse.id];
@@ -700,22 +961,17 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
       if (s.activeAttempt) return s;
       const liveStage = s.progress.verseStages[verse.id];
       if (liveStage === undefined || liveStage < 2 || liveStage > 6) return s;
-      const reference = `${verse.book} ${verse.chapter}:${verse.verse}`;
+      const nextStages = { ...s.progress.verseStages };
+      delete nextStages[verse.id];
       return {
         ...s,
-        activeAttempt: {
-          verseId: verse.id,
-          reference,
-          translations: { ...s.selectedTranslations },
-          memorizeMode: s.memorizeMode,
-          verse,
-          source: s.activeSource || "saved",
-          pathId: s.pathProgress.selectedPathId || s.customPathProgress.selectedPathId,
-          pathDay: s.activeSource === "path" ? (s.pathProgress.selectedPathId ? s.pathProgress.currentDay : s.customPathProgress.currentDay) : null,
+        progress: {
+          ...s.progress,
+          verseStages: nextStages,
         },
       };
     });
-  }, [verse.id, state.activeAttempt, state.progress.verseStages, state.memorizeMode, setState]);
+  }, [verse.id, state.activeAttempt, state.progress.verseStages, setState]);
 
   // Sync state with tour steps
   useEffect(() => {
@@ -937,16 +1193,20 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
       }));
     } else {
       // Logic for moving past Stage 5
-      if (state.memorizeMode === 'both' && bilingualPass === 1) {
+      if (state.memorizeMode === 'both' && currentPassIndex < attemptLanguageOrder.length - 1) {
+        updateAttemptCompletion(activeLanguage, { cardsReady: false, passIndex: currentPassIndex });
         // Clear attempts for the language JUST finished
-        if (activeLanguage === 'es') localStorage.removeItem(attemptsKeyEs);
-        else localStorage.removeItem(attemptsKeyEn);
+        if (activeLanguage === 'es') {
+          if (attemptsKeyEs) localStorage.removeItem(attemptsKeyEs);
+        } else if (attemptsKeyEn) {
+          localStorage.removeItem(attemptsKeyEn);
+        }
         setShowHalfwayTransition(true);
       } else {
         // Clear attempts and typing state on level exit
-        localStorage.removeItem(attemptsKeyEs);
-        localStorage.removeItem(attemptsKeyEn);
-        localStorage.removeItem(typingStateKey);
+        if (attemptsKeyEs) localStorage.removeItem(attemptsKeyEs);
+        if (attemptsKeyEn) localStorage.removeItem(attemptsKeyEn);
+        if (typingStateKey) localStorage.removeItem(typingStateKey);
         
         // Success Persistence Fix: Save verse when successfully completed
         const effectiveFailed = forceFailed !== undefined ? forceFailed : isAnyPartFailed;
@@ -956,17 +1216,35 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
           } catch (e) {
             console.error(e);
           }
-          setState(s => ({
-            ...s,
-            savedVerses: s.savedVerses.includes(verse.id) ? s.savedVerses : [...s.savedVerses, verse.id],
-            progress: {
-              ...s.progress,
-              verseStages: {
-                ...s.progress.verseStages,
-                [verse.id]: 6
+          setState(s => {
+            const completedLanguages = s.activeAttempt && s.activeAttempt.attemptId === attemptId
+              ? {
+                  ...(s.activeAttempt.completedLanguages || {}),
+                  [activeLanguage]: true,
+                }
+              : { [activeLanguage]: true };
+            const allRequiredComplete = attemptLanguageOrder.every(lang => completedLanguages[lang] === true);
+            return {
+              ...s,
+              activeAttempt: s.activeAttempt && s.activeAttempt.attemptId === attemptId
+                ? {
+                    ...s.activeAttempt,
+                    completedLanguages,
+                    currentPassIndex,
+                    cardsReady: allRequiredComplete,
+                    textComplete: allRequiredComplete,
+                  }
+                : s.activeAttempt,
+              savedVerses: allRequiredComplete && !s.savedVerses.includes(verse.id) ? [...s.savedVerses, verse.id] : s.savedVerses,
+              progress: {
+                ...s.progress,
+                verseStages: {
+                  ...s.progress.verseStages,
+                  [verse.id]: allRequiredComplete ? 6 : (s.progress.verseStages[verse.id] || 1)
+                }
               }
-            }
-          }));
+            };
+          });
         } else {
           try {
             localStorage.setItem(`memorize_failed_${verse.id}`, "true");
@@ -980,15 +1258,14 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
   };
 
   const handleHalfwayContinue = () => {
-    setBilingualPass(2);
+    const nextIndex = clampPassIndex(currentPassIndex + 1, attemptLanguageOrder);
+    setCurrentPassIndex(nextIndex);
     setStage(1);
     setShowHalfwayTransition(false);
     setDidFailFlowEs(false);
     setDidFailFlowEn(false);
     
-    // Switch to the OTHER language
-    const nextLang = activeLanguage === 'es' ? 'en' : 'es';
-    setActiveLanguage(nextLang);
+    const nextLang = attemptLanguageOrder[nextIndex] || activeLanguage;
     setIsRevealed(false);
     
     // Only reset state for the coming language.
@@ -1076,7 +1353,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
       
       if (enPassed && !esPassed) {
         // English completed successfully, Spanish failed or incomplete. Only retry Spanish!
-        localStorage.removeItem(attemptsKeyEs);
+        if (attemptsKeyEs) localStorage.removeItem(attemptsKeyEs);
         setSessionFailed(false);
         try {
           localStorage.setItem(`memorize_failed_${verse.id}`, "false");
@@ -1086,7 +1363,6 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
         setIsRevealed(false);
         setIsAlmostDone(false);
         setShowHalfwayTransition(false);
-        setBilingualPass(2);
         setActiveLanguage('es');
         
         setDidFailFlowEs(false);
@@ -1103,6 +1379,19 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
         
         setState(s => ({
           ...s,
+          activeAttempt: s.activeAttempt && s.activeAttempt.attemptId === attemptId
+            ? {
+                ...s.activeAttempt,
+                completedLanguages: {
+                  ...(s.activeAttempt.completedLanguages || {}),
+                  en: true,
+                  es: false,
+                },
+                currentPassIndex: attemptLanguageOrder.indexOf("es") === -1 ? 0 : attemptLanguageOrder.indexOf("es"),
+                cardsReady: false,
+                textComplete: false,
+              }
+            : s.activeAttempt,
           progress: {
             ...s.progress,
             verseStages: {
@@ -1114,7 +1403,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
         return;
       } else if (esPassed && !enPassed) {
         // Spanish completed successfully, English failed or incomplete. Only retry English!
-        localStorage.removeItem(attemptsKeyEn);
+        if (attemptsKeyEn) localStorage.removeItem(attemptsKeyEn);
         setSessionFailed(false);
         try {
           localStorage.setItem(`memorize_failed_${verse.id}`, "false");
@@ -1124,7 +1413,6 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
         setIsRevealed(false);
         setIsAlmostDone(false);
         setShowHalfwayTransition(false);
-        setBilingualPass(2);
         setActiveLanguage('en');
         
         setDidFailFlowEn(false);
@@ -1141,6 +1429,19 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
         
         setState(s => ({
           ...s,
+          activeAttempt: s.activeAttempt && s.activeAttempt.attemptId === attemptId
+            ? {
+                ...s.activeAttempt,
+                completedLanguages: {
+                  ...(s.activeAttempt.completedLanguages || {}),
+                  es: true,
+                  en: false,
+                },
+                currentPassIndex: attemptLanguageOrder.indexOf("en") === -1 ? 0 : attemptLanguageOrder.indexOf("en"),
+                cardsReady: false,
+                textComplete: false,
+              }
+            : s.activeAttempt,
           progress: {
             ...s.progress,
             verseStages: {
@@ -1154,9 +1455,9 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
     }
 
     // Clear attempts on intentional reset
-    localStorage.removeItem(attemptsKeyEs);
-    localStorage.removeItem(attemptsKeyEn);
-    localStorage.removeItem(typingStateKey);
+    if (attemptsKeyEs) localStorage.removeItem(attemptsKeyEs);
+    if (attemptsKeyEn) localStorage.removeItem(attemptsKeyEn);
+    if (typingStateKey) localStorage.removeItem(typingStateKey);
     localStorage.removeItem(`memorize_failed_${verse.id}`);
     setSessionFailed(false);
     
@@ -1192,6 +1493,18 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
     setRevealedIndicesEn([]);
     setState(s => ({
       ...s,
+      activeAttempt: s.activeAttempt && s.activeAttempt.attemptId === attemptId
+        ? {
+            ...s.activeAttempt,
+            currentPassIndex: 0,
+            completedLanguages: attemptLanguageOrder.reduce<Partial<Record<MemorizeLanguage, boolean>>>((acc, lang) => {
+              acc[lang] = false;
+              return acc;
+            }, {}),
+            cardsReady: false,
+            textComplete: false,
+          }
+        : s.activeAttempt,
       progress: {
         ...s.progress,
         verseStages: {
@@ -1690,8 +2003,8 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
               // Explicitly reset the memory progress for a clean repeat attempt
               localStorage.removeItem(`memorize_failed_${verse.id}`);
               try {
-                localStorage.removeItem(attemptsKeyEs);
-                localStorage.removeItem(attemptsKeyEn);
+                if (attemptsKeyEs) localStorage.removeItem(attemptsKeyEs);
+                if (attemptsKeyEn) localStorage.removeItem(attemptsKeyEn);
               } catch(e){}
               
               setAttemptsEs(0);
@@ -1705,17 +2018,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
               setShowHalfwayTransition(false);
               
               setState(s => {
-                const reference = `${verse.book} ${verse.chapter}:${verse.verse}`;
-                const snapshot = {
-                  verseId: verse.id,
-                  reference,
-                  translations: { ...s.selectedTranslations },
-                  memorizeMode: s.memorizeMode,
-                  verse: verse,
-                  source: s.activeSource || "saved",
-                  pathId: s.pathProgress.selectedPathId || s.customPathProgress.selectedPathId,
-                  pathDay: s.activeSource === "path" ? (s.pathProgress.selectedPathId ? s.pathProgress.currentDay : s.customPathProgress.currentDay) : null,
-                };
+                const snapshot = buildMemorizeAttemptSnapshot(s, verse);
                 return {
                   ...s,
                   activeAttempt: snapshot,
