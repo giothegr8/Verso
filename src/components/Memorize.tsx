@@ -624,8 +624,6 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
     });
   };
   
-  const [inputValue, setInputValue] = useState(" ");
-  
   const [cardHeight, setCardHeight] = useState<number | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
 
@@ -659,6 +657,8 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
   }, []);
 
   const inputRef = useRef<HTMLInputElement>(null);
+  const mainActionRef = useRef<HTMLButtonElement>(null);
+  const isInputComposingRef = useRef(false);
   
   const esDetail = TRANSLATION_DETAILS[activePair?.es || "RVR1960"] || TRANSLATION_DETAILS["RVR1960"];
   const enDetail = TRANSLATION_DETAILS[activePair?.en || "KJV"] || TRANSLATION_DETAILS["KJV"];
@@ -996,7 +996,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
 
   // Sync input selection with cursorIndex
   useEffect(() => {
-    if (stage === 5 && !isRevealed && !isAlmostDone && inputRef.current) {
+    if (stage === 5 && !isRevealed && !isAlmostDone && !isInputComposingRef.current && inputRef.current) {
       // For the stream-based input, we always want the cursor at the end (position 1 because value is " ")
       inputRef.current.setSelectionRange(1, 1);
     }
@@ -1021,7 +1021,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
     
     if (canEdit) {
       const focusInput = () => {
-        if (inputRef.current) {
+        if (inputRef.current && !isInputComposingRef.current) {
           inputRef.current.focus();
           // Keep selection at the end for detection
           inputRef.current.setSelectionRange(1, 1);
@@ -1036,6 +1036,19 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
       return () => window.removeEventListener('focus', focusInput);
     }
   }, [stage, isRevealed, isAlmostDone, isCorrect, didFailFlow, activeLanguage, clueCountEs, clueCountEn]);
+
+  // Non-typing steps use the focused arrow button's native Enter activation.
+  useEffect(() => {
+    if (stage < 1 || stage >= 5 || isAlmostDone || showHalfwayTransition) return;
+    const timer = window.setTimeout(() => {
+      try {
+        mainActionRef.current?.focus({ preventScroll: true });
+      } catch (e) {
+        console.warn("Main action focus failed", e);
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [stage, isAlmostDone, showHalfwayTransition]);
 
   useEffect(() => {
     if (isAlmostDone && isOverallSuccess) {
@@ -1178,7 +1191,6 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
       if (newStage === 5) {
         if (esText) setUserInputEs(new Array(getCleanLetters(esText).length).fill(""));
         if (enText) setUserInputEn(new Array(getCleanLetters(enText).length).fill(""));
-        setInputValue(" ");
       }
 
       setState(s => ({
@@ -1662,6 +1674,88 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
         inputRef.current?.focus();
       }, 0);
     }
+  };
+
+  const getTypedTextFromInputValue = (value: string) => {
+    return value.startsWith(" ") ? value.slice(1) : value;
+  };
+
+  const resetStreamInput = (input?: HTMLInputElement | null) => {
+    if (input) {
+      input.value = " ";
+      try {
+        input.setSelectionRange(1, 1);
+      } catch {}
+    }
+  };
+
+  const insertTypedText = (textToInsert: string) => {
+    if (!textToInsert) return;
+
+    const cursor = activeLanguage === 'es' ? cursorIndexEs : cursorIndexEn;
+    const setCursor = activeLanguage === 'es' ? setCursorIndexEs : setCursorIndexEn;
+    const targetCleanLen = activeLanguage === 'es' ? esTextCleanLen : enTextCleanLen;
+    const setter = activeLanguage === 'es' ? setUserInputEs : setUserInputEn;
+    const userInput = activeLanguage === 'es' ? userInputEs : userInputEn;
+    const touchedIndices: number[] = [];
+    let nextCursor = cursor;
+    const nextInput = [...userInput];
+
+    if (hasSubmitted) {
+      if (activeLanguage === 'es') {
+        setHasSubmittedEs(false);
+        setIsWrongEs(false);
+      } else {
+        setHasSubmittedEn(false);
+        setIsWrongEn(false);
+      }
+    }
+
+    for (const char of Array.from(textToInsert)) {
+      if (char.trim() === "") {
+        const nextWordStart = findNextEditableWordStart(nextCursor, activeLanguage);
+        if (nextWordStart !== -1) {
+          nextCursor = nextWordStart;
+        }
+        continue;
+      }
+
+      if (nextCursor < targetCleanLen && isEditable(nextCursor, activeLanguage)) {
+        nextInput[nextCursor] = char;
+        touchedIndices.push(nextCursor);
+
+        let next = nextCursor + 1;
+        while (next < targetCleanLen && !isEditable(next, activeLanguage)) {
+          next++;
+        }
+        nextCursor = Math.min(next, targetCleanLen);
+      }
+    }
+
+    if (touchedIndices.length > 0) {
+      if (activeLanguage === 'es') {
+        setSubmittedWrongCharsEs(prev => {
+          const next = { ...prev };
+          touchedIndices.forEach(idx => {
+            delete next[idx];
+          });
+          return next;
+        });
+        setIncorrectIndicesEs(prev => prev.filter(idx => !touchedIndices.includes(idx)));
+      } else {
+        setSubmittedWrongCharsEn(prev => {
+          const next = { ...prev };
+          touchedIndices.forEach(idx => {
+            delete next[idx];
+          });
+          return next;
+        });
+        setIncorrectIndicesEn(prev => prev.filter(idx => !touchedIndices.includes(idx)));
+      }
+      setter(nextInput);
+    }
+
+    setCursor(nextCursor);
   };
 
   const normalizeText = (text: string | null | undefined) => {
@@ -2511,8 +2605,14 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                 autoCorrect="off"
                 autoCapitalize="off"
                 spellCheck="false"
-                value={inputValue}
+                defaultValue=" "
                 onKeyDown={(e) => {
+                  const isComposingKey = e.nativeEvent.isComposing || isInputComposingRef.current || e.key === 'Dead' || e.key === 'Process';
+                  if (isComposingKey) return;
+
+                  const hasTextInputModifier = e.altKey || e.ctrlKey || e.metaKey || e.getModifierState('AltGraph');
+                  if (hasTextInputModifier) return;
+
                   const cursor = activeLanguage === 'es' ? cursorIndexEs : cursorIndexEn;
                   const setCursor = activeLanguage === 'es' ? setCursorIndexEs : setCursorIndexEn;
                   const text = activeLanguage === 'es' ? esText : enText;
@@ -2742,71 +2842,35 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                     handleCheck();
                   }
                 }}
-                onChange={(e) => {
-                  const val = e.target.value;
+                onCompositionStart={() => {
+                  isInputComposingRef.current = true;
+                }}
+                onCompositionEnd={(e) => {
+                  isInputComposingRef.current = false;
+                  const input = e.currentTarget;
+                  window.setTimeout(() => {
+                    const composedText = getTypedTextFromInputValue(input.value);
+                    if (composedText) {
+                      insertTypedText(composedText);
+                    }
+                    resetStreamInput(input);
+                  }, 0);
+                }}
+                onInput={(e) => {
+                  const val = e.currentTarget.value;
+                  const nativeInputEvent = e.nativeEvent as InputEvent;
+                  if (isInputComposingRef.current || nativeInputEvent.isComposing) return;
+
                   const cursor = activeLanguage === 'es' ? cursorIndexEs : cursorIndexEn;
                   const setCursor = activeLanguage === 'es' ? setCursorIndexEs : setCursorIndexEn;
-                  const text = activeLanguage === 'es' ? esText : enText;
-                  const targetCleanLen = activeLanguage === 'es' ? esTextCleanLen : enTextCleanLen;
                   const setter = activeLanguage === 'es' ? setUserInputEs : setUserInputEn;
                   const userInput = activeLanguage === 'es' ? userInputEs : userInputEn;
-                  
-                  // Reset "submitted" state if user starts interaction
-                  if (hasSubmitted) {
-                    if (activeLanguage === 'es') {
-                      setHasSubmittedEs(false);
-                      setIsWrongEs(false);
-                    } else {
-                      setHasSubmittedEn(false);
-                      setIsWrongEn(false);
-                    }
-                  }
 
                   // Detect addition
-                  if (val.length > 1) {
-                    const char = val.charAt(val.length - 1);
-                    
-                    if (char.trim() === "") {
-                      const nextWordStart = findNextEditableWordStart(cursor, activeLanguage);
-                      if (nextWordStart !== -1) {
-                        setCursor(nextWordStart);
-                      }
-                      setInputValue(" ");
-                      return;
-                    }
-                    
-                    const cleanLen = targetCleanLen;
-                    if (cursor < cleanLen && isEditable(cursor, activeLanguage)) {
-                      // Update state
-                      setter(prev => {
-                        const nextArr = [...prev];
-                        nextArr[cursor] = char;
-                        return nextArr;
-                      });
-
-                      // Reset error state for ONLY this slot
-                      if (activeLanguage === 'es') {
-                        setSubmittedWrongCharsEs(prev => {
-                          const next = { ...prev };
-                          delete next[cursor];
-                          return next;
-                        });
-                        setIncorrectIndicesEs(prev => prev.filter(idx => idx !== cursor));
-                      } else {
-                        setSubmittedWrongCharsEn(prev => {
-                          const next = { ...prev };
-                          delete next[cursor];
-                          return next;
-                        });
-                        setIncorrectIndicesEn(prev => prev.filter(idx => idx !== cursor));
-                      }
-
-                      // Advance cursor to next editable
-                      let next = cursor + 1;
-                      while (next < cleanLen && !isEditable(next, activeLanguage)) {
-                        next++;
-                      }
-                      setCursor(Math.min(next, cleanLen));
+                  if (val.length > 0) {
+                    const typedText = getTypedTextFromInputValue(val);
+                    if (typedText) {
+                      insertTypedText(typedText);
                     }
                   } else if (val.length === 0) {
                     // Mobile Backspace detection fallback
@@ -2863,7 +2927,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                   }
 
                   // Always reset input value to " " to be ready for next char/deletion
-                  setInputValue(" ");
+                  resetStreamInput(e.currentTarget);
                 }}
                 className="absolute opacity-0 inset-0 w-full h-full cursor-default caret-transparent text-transparent outline-none border-none select-none bg-transparent shadow-none"
                 autoFocus
@@ -3044,6 +3108,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
 
             {/* Main Action (Next/Check) */}
             <motion.button
+              ref={mainActionRef}
               key="main-action"
               onClick={() => {
                 const currentAttempts = activeLanguage === 'es' ? attemptsEs : attemptsEn;
