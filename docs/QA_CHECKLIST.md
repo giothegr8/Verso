@@ -46,9 +46,17 @@ git diff --stat
 - Implemented: staged memorization flow.
 - Verify each stage order.
 - Verify Spanish-only, English-only, and bilingual modes.
+- Verify bilingual order follows UI language: English UI starts English then
+  Spanish then Cards; Spanish UI starts Spanish then English then Cards.
+- Verify Cards unlocks only after both required bilingual language passes are
+  complete.
+- Verify Path/Home and Saved/Home attempt state do not collide.
+- Verify mode, translation, UI-language, and context changes invalidate
+  incompatible transient attempts.
 - Verify typing, attempts, failure, completion, and restart behavior.
 - Verify rapid typing and rapid backspace.
-- Verify Cards/Memorize caret consistency after future repair.
+- Open issue: fresh Step 1 Enter-key continuity does not respond to Enter until
+  the visible arrow is clicked.
 - Verify hold-to-peek behavior on the final stage.
 - Verify Back/Next controls remain stable.
 - Verify active-attempt guard appears only after the attempt has started.
@@ -58,31 +66,34 @@ git diff --stat
 ## Cards
 
 - Implemented: citation challenge, clues, attempts, review, and completion.
-- Launch blocker: bilingual cross-language keyboard navigation is unresolved.
-  Do not mark this item as passing.
+- Implemented: repaired shared-input keyboard/cursor/caret model.
 - Verify same-language ArrowLeft and ArrowRight movement.
 - Verify same-language ArrowUp and ArrowDown movement between book and number
   rows.
-- Verify bilingual Cards can be completed with mouse/touch input.
+- Verify bilingual cross-language keyboard navigation.
+- Verify bilingual Cards can be completed with keyboard, mouse, and touch input.
 - Verify clues do not mutate unrelated characters.
 - Verify incorrect, check-first, exhausted, correct, and completed feedback.
 - Verify no answer is submitted by arrow navigation.
 - Verify no clue is consumed by arrow navigation.
 - Verify no attempt is decremented by arrow navigation.
+- Open issue: completion/control overlap still exists.
 - Verify long bilingual references such as `1 Tesalonicenses / 1 Thessalonians
-  5:16` do not clip after any future layout repair.
+  5:16` do not clip after future responsive/control repair.
 - Verify five restarts do not cause an editable slot to disappear.
 - Verify keyboard navigation and visible focus.
 - Verify long Spanish book names.
 
-Required future keyboard tests after a real repair:
+Required keyboard regression tests:
 
-- final Spanish slot plus ArrowRight moves to first English slot.
-- first English slot plus ArrowLeft moves to final Spanish slot.
-- Spanish plus ArrowDown enters English at a predictable corresponding slot.
-- English plus ArrowUp enters Spanish at a predictable corresponding slot.
-- first Spanish slot plus ArrowLeft remains clamped.
-- final English slot plus ArrowRight remains clamped.
+- final first-language slot plus ArrowRight moves to first second-language slot.
+- first second-language slot plus ArrowLeft moves to final first-language slot.
+- first language plus ArrowDown enters second language at a predictable
+  corresponding slot.
+- second language plus ArrowUp enters first language at a predictable
+  corresponding slot.
+- first first-language slot plus ArrowLeft remains clamped.
+- final second-language slot plus ArrowRight remains clamped.
 - crossing languages does not add, remove, clear, move, or duplicate
   characters.
 - crossing languages does not submit, validate, complete, consume clues, or
@@ -95,7 +106,7 @@ Required future keyboard tests after a real repair:
 - Verify saved verses remain separate from active daily/path source.
 - Verify review opens the correct verse and translation context.
 - Verify correct translation-specific Saved behavior.
-- Verify Saved bilingual typography polish after future repair.
+- Open issue: Saved/Harvest needs audit.
 - Verify share output uses the saved/review source correctly.
 - Verify empty state is clear.
 
@@ -114,6 +125,7 @@ Required future keyboard tests after a real repair:
 ## Paths
 
 - Implemented and launch-scoped with premium gating.
+- Open issue: Paths need functional audit.
 - Verify non-premium users see the paywall gate.
 - Verify premium users can access preset Paths.
 - Verify current day, completed day, completion today, reset, and review states.
@@ -141,6 +153,7 @@ Required future keyboard tests after a real repair:
 ## Onboarding And Auth
 
 - Implemented with Supabase auth scaffolding and local fallback behavior.
+- Open issue: Onboarding and Product Tour need audit.
 - Verify onboarding preference flow.
 - Verify signup/signin when Supabase is configured.
 - Verify local preview behavior when Supabase is not configured.
@@ -189,7 +202,9 @@ Required future keyboard tests after a real repair:
 
 ## Bilingual Mode
 
-- Verify Spanish appears before English.
+- Verify bilingual order follows the current surface rules and does not rely on
+  stale Spanish-first assumptions.
+- Verify Memorize order is UI-language-derived in bilingual mode.
 - Verify translation labels and text stay aligned.
 - Verify Home, Memorize, Cards, Saved, and Paths all respect the selected mode.
 - Verify switching modes during/around active attempts does not corrupt state.

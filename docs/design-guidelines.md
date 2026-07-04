@@ -39,8 +39,9 @@ Paths are showing different content by accident.
 
 ### Bilingual Without Crowding
 
-Spanish appears before English in bilingual mode. Bilingual content needs real
-space, not compressed styling.
+Bilingual content needs real space, not compressed styling. Where practice
+order matters, the order follows UI language: English UI starts English then
+Spanish; Spanish UI starts Spanish then English.
 
 ### Sacred Text Gets Breathing Room
 
@@ -82,11 +83,16 @@ Future visual work should preserve this direction:
 - dark charcoal/ink base with ivory text.
 - teal owns primary action and live motion.
 - violet owns identity and active navigation.
-- gold is earned for completion, harvest, streaks, bloom, and milestones.
+- gold is earned for harvest, streaks, long-term review, repeated
+  strengthening, retention, and milestones.
 - intentional growth metaphor: sprout -> flower -> fruit.
 - flower mark is a possible logo direction.
 - fruit xN can carry repetition count.
 - support calm dawn and cinematic nighttime rituals.
+- garden/harvest language belongs in progress, review, reminders, milestones,
+  Path completion, and emotional storytelling.
+- do not force garden language onto every mechanical button or mode.
+- plain functional names may remain preferable for practice mechanics.
 
 Future deliverables:
 
@@ -167,20 +173,16 @@ Responsive requirements:
 
 ## Cards Design Constraints
 
-Status: implemented with launch blocker.
+Status: implemented, with responsive/control work still open.
 
 Cards has special risk because it combines hidden text inputs, rendered citation
 slots, visible caret styling, clues, attempts, feedback, flip control, and
 bilingual layout.
 
-Launch blocker:
+Completed:
 
-Bilingual Cards cross-language keyboard navigation remains unresolved. Previous
-experimental Left/Right and Up/Down approaches were reverted because they
-caused sticky focus, swallowed first-character input, row skipping, or caret
-flicker. The repository is currently clean at e578706. Another implementation
-must begin with an architectural diagnosis of the hidden-input, focus,
-cursor-ref, cursor-state, and visible-caret model.
+- Cards keyboard navigation and the shared keyboard/cursor/caret model were
+  repaired in `530b9fe`.
 
 Design requirements for future Cards repairs:
 
@@ -188,10 +190,10 @@ Design requirements for future Cards repairs:
 - keyboard navigation must not mutate characters
 - keyboard navigation must not submit, validate, complete, consume clues, or
   change attempts
-- bilingual long references must not clip feedback, attempts, or bottom action
+- bilingual long references must not clip feedback, attempts, completion, or
+  bottom action
 - short references should not gain excessive empty space
 - mobile width must remain supported
-- Cards/Memorize caret consistency remains planned work
 
 Known stress case:
 
@@ -199,9 +201,13 @@ Known stress case:
 
 Other planned visual/product polish:
 
+- Memorize Enter-key continuity.
+- Cards completion/control overlap.
 - Home long-reference/button collision.
 - Share composition polish.
-- Saved bilingual typography polish.
+- Saved/Harvest audit.
+- Paths functional audit.
+- Onboarding and Product Tour audit.
 - Full Path/Series completion celebration with reduced-motion support.
 
 ## Motion
@@ -308,5 +314,5 @@ Use `docs/QA_CHECKLIST.md`. Design QA must include:
 - long bilingual Cards references
 - light and dark themes
 
-Do not mark Cards cross-language keyboard navigation as passing until the launch
-blocker is fixed and verified.
+Do not mark remaining Checkpoint 2 design QA as complete until the open
+functional audits, responsive/control repairs, and full regression pass.

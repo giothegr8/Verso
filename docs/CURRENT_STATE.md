@@ -7,9 +7,13 @@ checkpoint below.
 
 - Folder: `/Users/giovannirincon/Documents/Verso`
 - Branch: `fix/p0-cards-crash-reference-language`
-- HEAD: `e578706`
-- Commit subject: `Add bilingual localized references`
+- HEAD: `435cb55`
+- `origin/fix/p0-cards-crash-reference-language`: `435cb55`
+- Commit subject: `Repair bilingual Memorize attempt persistence`
 - Expected working tree: clean
+- Local `main`: `479e351`
+- `origin/main`: `479e351`
+- Open PR: none
 
 Branch status:
 
@@ -18,20 +22,50 @@ Branch status:
 - This branch has not been merged into `main`.
 - `main` remains untouched by this documentation package.
 - Do not describe this branch as merged.
-- Do not describe `e578706` as a main-branch release.
+- Do not describe `435cb55` as a main-branch release.
 - Preserve this branch as the active recoverable checkpoint.
 - The future merge decision is a separate explicit checkpoint after remaining
   app-completion work and regression QA.
 
 ## Product Direction
 
-Implemented direction: bilingual Bible verse memorization, one verse at a time,
-with Spanish, English, and bilingual practice.
+Implemented direction: focused Scripture memorization, one verse at a time,
+with Spanish, English, and bilingual practice. Verso V1 should not expand into
+a generic Bible app.
 
 Launch direction: Cloudflare-hosted progressive web app.
 
 Later phase: Capacitor and App Store distribution. Do not propose a Swift
 rewrite.
+
+Locked V1 direction:
+
+- Current Memorize remains the Fill/Recall foundation.
+- Cards remains citation/reference mastery.
+- Saved should evolve into Harvest, the long-term review and retention system.
+- Paths should become tailored journeys that feed Practice and Harvest.
+- Match and Build are promising future practice steps, but not immediate
+  implementation scope.
+- No speech-recitation feature is in scope.
+- No teen-only repositioning.
+- Gen Z and young adults may be a marketing lens, especially bilingual users,
+  but the product remains cross-generational.
+- No paid AI dependency.
+- Avoid new recurring APIs unless unavoidable.
+- Fruit/harvest language should represent long-term review, repeated
+  strengthening, and retention, not first-time completion.
+- Do not force garden language onto every mechanical button or mode.
+- Plain functional names may remain preferable for practice mechanics.
+- Garden/harvest language belongs in progress, review, reminders, milestones,
+  Path completion, and emotional storytelling.
+
+Conceptual future practice ladder, not immediate scope:
+
+- Match
+- Build
+- Fill
+- Recall
+- Citation
 
 ## App Architecture
 
@@ -103,7 +137,9 @@ Planned:
 
 - Cloudflare-hosted PWA launch.
 - Later Capacitor/App Store phase using RevenueCat plus Apple in-app purchases.
-- Possible future audio Bible support.
+- Possible future audio Bible exploration only after licensing, product fit,
+  streaming/cache, accessibility, and mobile playback review. Speech recitation
+  is not in V1 scope.
 
 Future consideration:
 
@@ -155,31 +191,48 @@ Verified from code and `.env.example`:
 
 No secret values belong in the repository.
 
+## Completed Checkpoint Work
+
+- `530b9fe`: repaired Cards keyboard navigation and the shared
+  keyboard/cursor/caret model.
+- `435cb55`: repaired bilingual Memorize attempt persistence. Bilingual
+  Memorize now uses attempt-scoped persistence and UI-language-derived order.
+  English UI plus bilingual starts English, then Spanish, then Cards. Spanish
+  UI plus bilingual starts Spanish, then English, then Cards. Cards unlocks
+  only after both required language passes complete. Path/Home and Saved/Home
+  attempt state do not collide. Mode, translation, UI-language, and context
+  changes invalidate incompatible transient attempts.
+
 ## Known Bugs And Risks
 
-Launch blocker:
+Open Checkpoint 2 issues:
 
-Bilingual Cards cross-language keyboard navigation remains unresolved. Previous
-experimental Left/Right and Up/Down approaches were reverted because they
-caused sticky focus, swallowed first-character input, row skipping, or caret
-flicker. The repository is currently clean at e578706. Another implementation
-must begin with an architectural diagnosis of the hidden-input, focus,
-cursor-ref, cursor-state, and visible-caret model.
+- Memorize Enter-key continuity is pre-existing and independent: fresh Step 1
+  does not respond to Enter until the visible arrow is clicked.
+- Cards completion/control overlap still exists.
+- Home long bilingual reference/button collision still exists.
+- Paths need functional audit.
+- Saved/Harvest needs audit.
+- Onboarding and Product Tour need audit.
 
 Known Cards layout risk:
 
 - Long bilingual references can strain the fixed card height and overlapping
   bottom action layout.
-- Responsive height/spacing work is separate from the keyboard-navigation
-  blocker.
+- Responsive height/spacing work remains separate from the completed keyboard
+  repair.
 
 Unresolved/planned app-completion work:
 
-- Cards responsive layout for long bilingual references.
+- Memorize Enter-key continuity.
+- Cards responsive/control collision.
 - Home long-reference/button collision.
+- Paths functional audit.
+- Saved/Harvest audit.
+- Onboarding and Product Tour audit.
+- Design foundation / cinematic reskin.
+- Full Checkpoint 2 regression.
 - Share composition polish.
-- Saved bilingual typography polish.
-- Cards/Memorize caret consistency.
 - Custom Path search preview before insertion.
 - Explicit Add to Path confirmation.
 - Cancel/search-again flow without mutating the path.

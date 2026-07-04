@@ -57,27 +57,31 @@ Purpose:
 
 Required behavior:
 
-- Spanish appears before English in bilingual mode.
+- Bilingual order follows UI language: English UI starts English then Spanish
+  then Cards; Spanish UI starts Spanish then English then Cards.
 - stage and typing state remain stable across expected navigation/reload cases.
+- Path/Home and Saved/Home attempt state do not collide.
+- Cards unlocks only after both required bilingual language passes complete.
 - completion cannot duplicate progress.
 
 ### Cards
 
-Status: implemented with launch blocker.
+Status: implemented.
 
 Purpose:
 
 - citation recall challenge for the active/review verse
 - clues, attempts, feedback, flip/review, and completion
 
-Launch blocker:
+Completed:
 
-Bilingual Cards cross-language keyboard navigation remains unresolved. Previous
-experimental Left/Right and Up/Down approaches were reverted because they
-caused sticky focus, swallowed first-character input, row skipping, or caret
-flicker. The repository is currently clean at e578706. Another implementation
-must begin with an architectural diagnosis of the hidden-input, focus,
-cursor-ref, cursor-state, and visible-caret model.
+- Cards keyboard navigation and the shared keyboard/cursor/caret model were
+  repaired in `530b9fe`.
+
+Open issue:
+
+- Cards completion/control overlap still exists and needs responsive/control
+  repair.
 
 ### Paths
 
@@ -120,6 +124,8 @@ Rule:
 
 - Saved must remain distinct from the active daily/path source, even when a
   saved verse is reviewed.
+- Saved should evolve toward Harvest, the long-term review and retention
+  system, after a functional audit.
 
 ### Settings
 
@@ -198,12 +204,11 @@ No admin/content manager interface is implemented in the repository.
   current global settings.
 - Share composition polish remains planned work.
 - Saved verses remain separate from daily/path source.
-- Saved bilingual typography polish remains planned work.
-- Spanish appears before English in bilingual mode.
-- Cards keyboard behavior must be diagnosed architecturally before the launch
-  blocker is repaired.
-- Cards/Memorize caret consistency remains planned work.
+- Bilingual Memorize order is UI-language-derived.
+- Cards completion/control overlap remains planned work.
+- Memorize Enter-key continuity remains planned work.
 - Home long-reference/button collision remains planned work.
+- Paths, Saved/Harvest, Onboarding, and Product Tour need functional audit.
 
 ## Primary Journeys
 

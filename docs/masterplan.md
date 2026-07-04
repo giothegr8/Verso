@@ -10,6 +10,8 @@ Verso helps people memorize Scripture one verse at a time in Spanish, English,
 or both. It should feel warm, premium, calm, spiritually respectful, and simple
 enough for a family or child to understand without feeling childish.
 
+Verso V1 is a focused Scripture memorization product, not a generic Bible app.
+
 ## Product Boundaries
 
 Implemented core:
@@ -20,6 +22,8 @@ Implemented core:
 - saved verse review
 - preset and custom Paths
 - shareable verse cards
+- Memorize as the Fill/Recall foundation
+- Cards as citation/reference mastery
 
 Launch scope:
 
@@ -27,8 +31,8 @@ Launch scope:
 - Paths included as a premium feature
 - current paywall/pricing values preserved from app/code and approved price
   sheet
-- legal, payment, API.Bible, and Cards navigation blockers resolved before
-  public monetized launch
+- remaining app-completion, legal, payment, API.Bible, and production QA
+  blockers resolved before public monetized launch
 - current work prepared on the unmerged
   `fix/p0-cards-crash-reference-language` branch, with `main` untouched until a
   later explicit merge checkpoint
@@ -37,8 +41,10 @@ Future consideration:
 
 - Capacitor/App Store release after the PWA is proven
 - RevenueCat plus Apple in-app purchases for native iOS
-- audio Bible support if licensing and product fit are confirmed
 - reduced launch translation list based on rights and user value
+- Saved evolving into Harvest, the long-term review and retention system
+- Paths evolving into tailored journeys that feed Practice and Harvest
+- Match and Build as promising future practice steps
 
 Non-goals for launch:
 
@@ -47,6 +53,10 @@ Non-goals for launch:
 - dense study tools
 - heavy achievement system
 - Swift rewrite
+- speech recitation
+- teen-only repositioning
+- paid AI dependency
+- new recurring APIs unless unavoidable
 
 ## Target Users
 
@@ -56,6 +66,8 @@ Implemented target:
 - bilingual Spanish/English users
 - learners who benefit from clear, repeated practice
 - users who value a calm, polished, spiritually respectful interface
+- Gen Z and young adults as a possible marketing lens, especially bilingual
+  users, while the product remains cross-generational
 
 ## Core Product Pillars
 
@@ -66,8 +78,10 @@ Saved must keep the active verse and selected translations trustworthy.
 
 ### Bilingual By Design
 
-Spanish and English are first-class modes. Spanish appears before English when
-both languages are shown.
+Spanish and English are first-class modes. Where practice order matters,
+bilingual order follows UI language: English UI starts English then Spanish;
+Spanish UI starts Spanish then English. Static bilingual displays should keep
+translation labels and text aligned with the active surface rules.
 
 ### Trust Through Accuracy
 
@@ -92,6 +106,8 @@ Future brand/design work should preserve this durable direction:
 - avoid muddy brown, sepia, and dull olive-gold.
 - intentional growth metaphor: sprout -> flower -> fruit.
 - flower mark as a possible logo direction.
+- fruit/harvest language represents long-term review, repeated strengthening,
+  and retention, not first-time completion.
 - fruit xN repetition-count concept.
 - calm dawn and cinematic nighttime ritual.
 - editorial serif plus readable humanist sans direction.
@@ -99,6 +115,10 @@ Future brand/design work should preserve this durable direction:
 - design-system tokens before broad reskinning.
 - one surface at a time.
 - do not combine visual reskin work with API or product-logic changes.
+- do not force garden language onto every mechanical button or mode.
+- plain functional names may remain preferable for practice mechanics.
+- garden/harvest language belongs in progress, review, reminders, milestones,
+  Path completion, and emotional storytelling.
 
 ### Launch Discipline
 
@@ -133,7 +153,6 @@ Partially implemented:
 
 Launch blockers:
 
-- bilingual Cards cross-language keyboard navigation
 - production Stripe/RevenueCat integration
 - disabling or production-gating test-premium bypass
 - API.Bible commercial-use and translation-rights confirmation
@@ -142,23 +161,35 @@ Launch blockers:
 
 Planned app-completion work:
 
-- Cards responsive layout for long bilingual references.
+- Memorize Enter-key continuity.
+- Cards responsive/control collision.
 - Home long-reference/button collision.
+- Paths functional audit.
+- Saved/Harvest audit.
+- Onboarding and Product Tour audit.
+- Design foundation / cinematic reskin.
+- Full Checkpoint 2 regression.
 - Share composition polish.
-- Saved bilingual typography polish.
-- Cards/Memorize caret consistency.
 - Custom Path preview and Add to Path confirmation.
 - Full Path/Series completion celebration.
 - Colombian Spanish audit and localization source of truth.
 
-## Cards Launch Blocker
+## Completed Checkpoint Work
 
-Bilingual Cards cross-language keyboard navigation remains unresolved. Previous
-experimental Left/Right and Up/Down approaches were reverted because they
-caused sticky focus, swallowed first-character input, row skipping, or caret
-flicker. The repository is currently clean at e578706. Another implementation
-must begin with an architectural diagnosis of the hidden-input, focus,
-cursor-ref, cursor-state, and visible-caret model.
+- `530b9fe`: repaired Cards keyboard navigation and the shared
+  keyboard/cursor/caret model.
+- `435cb55`: repaired bilingual Memorize attempt persistence. Bilingual
+  Memorize now uses attempt-scoped persistence and UI-language-derived order.
+
+## Future Practice Ladder
+
+Conceptual ladder, not immediate implementation scope:
+
+- Match.
+- Build.
+- Fill.
+- Recall.
+- Citation.
 
 ## Translation Strategy
 
@@ -187,7 +218,7 @@ approval without repository proof.
 - premium-gated Paths
 - Stripe/RevenueCat web entitlement path
 - legal and Bible licensing complete
-- Cards blocker resolved
+- remaining Checkpoint 2 work complete
 
 ### V1 After Launch
 
@@ -199,7 +230,7 @@ approval without repository proof.
 - brand package, icon, wordmark, coded tokens, motion system, and screenshot
   direction
 - flower/fruit completion visual system refinement
-- audio Bible exploration if licensing and product fit are confirmed
+- Harvest exploration for long-term review and retention
 
 ### Later Mobile Phase
 
@@ -210,7 +241,6 @@ approval without repository proof.
 
 ### Future Considerations
 
-- audio Bible support
 - family/group practice
 - expanded path library
 - additional translations after rights confirmation

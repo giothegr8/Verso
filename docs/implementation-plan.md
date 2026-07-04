@@ -1,6 +1,6 @@
 # Verso Implementation Plan
 
-This plan starts from the verified checkpoint at HEAD `e578706`. It replaces
+This plan starts from the verified checkpoint at HEAD `435cb55`. It replaces
 the older prebuild phase plan with the current launch sequence.
 
 Branch status:
@@ -44,9 +44,12 @@ Partially implemented:
 - PWA readiness
 - commercial Bible licensing
 
-Launch blocker:
+Completed on this branch:
 
-- bilingual Cards cross-language keyboard navigation
+- `530b9fe`: repaired Cards keyboard navigation and the shared
+  keyboard/cursor/caret model.
+- `435cb55`: repaired bilingual Memorize attempt persistence with
+  attempt-scoped state and UI-language-derived bilingual order.
 
 ## Authoritative Sequence
 
@@ -66,16 +69,19 @@ Goals:
 
 ### Checkpoint 2: App Completion
 
-Status: planned.
+Status: in progress.
 
 Scope:
 
-- Cards keyboard/focus architecture.
-- Cards long bilingual responsive layout.
+- Memorize Enter-key continuity.
+- Cards responsive/control collision.
 - Home long-reference/button collision.
+- Paths functional audit.
+- Saved/Harvest audit.
+- Onboarding and Product Tour audit.
+- Design foundation / cinematic reskin.
+- Full Checkpoint 2 regression.
 - Share composition polish.
-- Saved bilingual typography polish.
-- Cards/Memorize caret consistency.
 - Custom Path preview before insertion.
 - Path duplicate-verse policy.
 - full Path/Series completion celebration.
@@ -121,34 +127,27 @@ Scope:
 
 ## Detailed Implementation Sequence
 
-### 1. Cards Keyboard Architecture
+### 1. Memorize Enter-Key Continuity
 
-Status: launch blocker.
+Status: open.
 
-Goal: repair bilingual cross-language keyboard navigation without sticky focus,
-first-character loss, row skipping, or caret flicker.
-
-Required first step:
-
-- Diagnose hidden inputs, focus timing, active language, cursor refs, cursor
-  state, rendered slot order, browser selection range, and visible caret.
-
-Do not begin with another boundary-only patch.
+Goal: repair the pre-existing fresh Step 1 issue where Enter does not continue
+until the visible arrow is clicked.
 
 Acceptance:
 
-- final Spanish slot plus ArrowRight reaches first English slot.
-- first English slot plus ArrowLeft reaches final Spanish slot.
-- planned vertical behavior is implemented only after the architecture is
-  proven.
-- character strings, attempts, clues, submission, validation, and completion are
-  unchanged by navigation.
+- fresh Step 1 responds to Enter when the expected next action is available.
+- visible arrow behavior remains unchanged.
+- typing, attempt persistence, bilingual order, and active-attempt guard remain
+  stable.
+- no Path/Home or Saved/Home attempt state collision is reintroduced.
 
-### 2. Cards Responsive Layout
+### 2. Cards Responsive And Control Collision
 
-Status: planned after keyboard blocker.
+Status: open.
 
-Goal: support short and long bilingual references without clipping or overlap.
+Goal: support short and long bilingual references without clipping or control
+overlap.
 
 Known stress case:
 
@@ -157,32 +156,97 @@ Known stress case:
 Acceptance:
 
 - card grows or redistributes space.
-- attempts and feedback remain inside the card.
+- attempts, feedback, completion, and controls remain inside the card.
 - bottom action does not overlap content.
 - short references do not gain excessive empty space.
 
-### 2B. Remaining App UX Completion
+### 3. Home Long-Reference/Button Collision
 
-Status: planned.
+Status: open.
+
+Goal: prevent long bilingual references from colliding with Home controls.
+
+Acceptance:
+
+- long references wrap or reflow without overlapping buttons.
+- path/custom path context remains readable.
+- mobile bottom navigation does not cover primary actions.
+
+### 4. Paths Functional Audit
+
+Status: open.
 
 Scope:
 
-- Home long-reference/button collision.
-- Share composition polish.
-- Saved bilingual typography polish.
-- Cards/Memorize caret consistency.
-- Custom Path search preview before insertion.
-- Preview shows localized reference, selected translation, and full verse.
-- User explicitly selects Add to Path.
-- Cancel/search-again returns without mutating the path.
-- Duplicate-verse policy is decided.
-- Translation selector/favorites behavior follows confirmed translation
-  availability.
-- Full Path/Series completion celebration is larger than daily completion,
-  supports reduced motion, shows meaningful completion data, and never blocks
-  progress if animation fails.
+- preset path progress.
+- custom path create/edit/reorder/delete/reopen.
+- active path verse flow into Memorize and Cards.
+- path review/share.
+- duplicate-verse policy.
+- search preview before insertion.
+- explicit Add to Path confirmation.
+- cancel/search-again without mutating the path.
 
-### 3. Payment And Entitlements
+### 5. Saved/Harvest Audit
+
+Status: open.
+
+Goal: preserve existing Saved behavior while preparing the direction toward
+Harvest, the long-term review and retention system.
+
+Scope:
+
+- saved verse add/remove/review/share.
+- saved/review snapshots remain distinct from active daily/path state.
+- future Harvest language belongs in review, reminders, milestones, retention,
+  and emotional storytelling.
+- do not rename mechanical controls prematurely.
+
+### 6. Onboarding And Product Tour Audit
+
+Status: open.
+
+Scope:
+
+- onboarding preference flow.
+- product tour completion/reopen behavior.
+- app language, memorization mode, and translation preferences remain separate.
+- no teen-only repositioning.
+
+### 7. Design Foundation / Cinematic Reskin
+
+Status: planned after functional audits.
+
+Scope:
+
+- preserve Verso as a focused Scripture memorization product, not a generic
+  Bible app.
+- no paid AI dependency.
+- no speech-recitation feature.
+- avoid new recurring APIs unless unavoidable.
+- use garden/harvest language for progress, review, reminders, milestones, Path
+  completion, and emotional storytelling rather than every mechanic.
+
+### 8. Full Checkpoint 2 Regression
+
+Status: required before PR/merge.
+
+Acceptance:
+
+- run the relevant checklist in `docs/QA_CHECKLIST.md`.
+- do not open a PR or merge until the owner explicitly authorizes it.
+
+### 9. Future Practice Ladder
+
+Status: conceptual only, not immediate implementation scope.
+
+- Match.
+- Build.
+- Fill.
+- Recall.
+- Citation.
+
+### 10. Payment And Entitlements
 
 Status: partially implemented.
 
@@ -200,7 +264,7 @@ Required:
 - remove, disable, or production-gate test-premium bypass.
 - confirm web refund policy with owner/legal.
 
-### 4. Cloudflare PWA Launch Path
+### 11. Cloudflare PWA Launch Path
 
 Status: partially implemented.
 
@@ -212,7 +276,7 @@ Required:
 - verify PWA manifest and icon assets.
 - run production deployment smoke test.
 
-### 5. API.Bible And Translation Rights
+### 12. API.Bible And Translation Rights
 
 Status: launch blocker for monetization.
 
@@ -232,7 +296,7 @@ Required:
 - keep translation label, Bible ID, source, and content aligned.
 - prevent failed fetches from replacing valid visible or saved snapshots.
 
-### 5B. Colombian Spanish And Localization Governance
+### 13. Colombian Spanish And Localization Governance
 
 Status: planned launch work.
 
@@ -251,7 +315,7 @@ Required:
 - automated hard-coded-string scan.
 - final mobile-width visual QA.
 
-### 6. Legal Readiness
+### 14. Legal Readiness
 
 Status: launch blocker.
 
@@ -267,7 +331,7 @@ Required owner/legal decisions:
 
 Do not invent legal identity, address, jurisdiction, or refund promises.
 
-### 7. Production QA
+### 15. Production QA
 
 Status: required before launch.
 
@@ -298,7 +362,7 @@ Minimum categories:
 Future consideration:
 
 - production reminders
-- audio Bible support
+- future audio Bible exploration only after licensing and product-fit review
 - expanded path library
 - Capacitor/App Store release
 - RevenueCat plus Apple in-app purchases

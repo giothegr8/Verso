@@ -21,21 +21,28 @@ Before making changes, verify the local checkout:
 pwd
 git branch --show-current
 git rev-parse --short HEAD
+git rev-parse --short origin/fix/p0-cards-crash-reference-language
 git status --short --untracked-files=all
+git rev-parse --short main
+git rev-parse --short origin/main
 ```
 
 Expected baseline for the current handoff:
 
 - Folder: `/Users/giovannirincon/Documents/Verso`
 - Branch: `fix/p0-cards-crash-reference-language`
-- HEAD: `e578706`
+- HEAD: `435cb55`
+- `origin/fix/p0-cards-crash-reference-language`: `435cb55`
 - Working tree: clean
+- Local `main`: `479e351`
+- `origin/main`: `479e351`
+- No PR is open
 
 Branch status:
 
 - This branch has not been merged into `main`.
 - Do not describe the branch as merged.
-- Do not describe `e578706` as a main-branch release.
+- Do not describe `435cb55` as a main-branch release.
 - Preserve the current branch as the active recoverable checkpoint.
 - The future merge decision is a separate explicit checkpoint after remaining
   app-completion work and regression QA.
@@ -107,17 +114,21 @@ Request owner approval before:
 - destructive Git operations
 - changing production, deployment, or legal behavior
 
-## Cards Architecture Warning
+## Completed Checkpoint Work
 
-Bilingual Cards cross-language keyboard navigation remains unresolved. Previous
-experimental Left/Right and Up/Down approaches were reverted because they
-caused sticky focus, swallowed first-character input, row skipping, or caret
-flicker. The repository is currently clean at e578706. Another implementation
-must begin with an architectural diagnosis of the hidden-input, focus,
-cursor-ref, cursor-state, and visible-caret model.
+- `530b9fe`: repaired Cards keyboard navigation and the shared
+  keyboard/cursor/caret model.
+- `435cb55`: repaired bilingual Memorize attempt persistence. Bilingual
+  Memorize uses attempt-scoped persistence and UI-language-derived order:
+  English UI starts English then Spanish then Cards; Spanish UI starts Spanish
+  then English then Cards.
 
-Likely file: `src/components/Flashcards.tsx`.
+## Remaining Cards And Memorize Warnings
 
-Do not attempt another boundary-key patch until the hidden input, active
-language, cursor refs, cursor state, rendered slot order, browser selection,
-focus timing, and visible caret model have been traced end to end.
+- Memorize Enter-key continuity is still open: fresh Step 1 does not respond to
+  Enter until the visible arrow is clicked.
+- Cards responsive/control collision is still open, including completion and
+  bottom-control overlap.
+- Home long bilingual reference/button collision is still open.
+- Future Cards, focus, cursor, persistence, and visible-caret changes still
+  require diagnosis before patching.

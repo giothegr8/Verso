@@ -13,8 +13,8 @@ Verified checkpoint:
 
 - Folder: `/Users/giovannirincon/Documents/Verso`
 - Branch: `fix/p0-cards-crash-reference-language`
-- HEAD: `e578706`
-- Commit: `Add bilingual localized references`
+- HEAD: `435cb55`
+- Commit: `Repair bilingual Memorize attempt persistence`
 
 The repository at this checkpoint is expected to be clean before starting any
 new task.
@@ -25,19 +25,21 @@ Branch status:
   `fix/p0-cards-crash-reference-language`.
 - This branch has not been merged into `main`.
 - `main` remains untouched by this documentation package.
-- Do not describe `e578706` as a main-branch release.
+- Do not describe `435cb55` as a main-branch release.
 - The future merge decision is a separate explicit checkpoint after remaining
   app-completion work and regression QA.
 - Preserve this branch as the active recoverable checkpoint.
 
-Important launch blocker:
+Completed checkpoint work:
 
-Bilingual Cards cross-language keyboard navigation remains unresolved. Previous
-experimental Left/Right and Up/Down approaches were reverted because they
-caused sticky focus, swallowed first-character input, row skipping, or caret
-flicker. The repository is currently clean at e578706. Another implementation
-must begin with an architectural diagnosis of the hidden-input, focus,
-cursor-ref, cursor-state, and visible-caret model.
+- `530b9fe`: repaired Cards keyboard navigation and the shared
+  keyboard/cursor/caret model.
+- `435cb55`: repaired bilingual Memorize attempt persistence with
+  attempt-scoped state and UI-language-derived bilingual order.
+
+Checkpoint 2 remains in progress. The next app-completion work starts with
+Memorize Enter-key continuity, Cards responsive/control collision, and Home
+long-reference/button collision.
 
 ## Architecture
 
@@ -131,7 +133,8 @@ Implemented:
 - Home tab with active verse, translation display, search/another verse flow,
   sharing entry points, and path-aware context.
 - Memorize tab with staged verse practice, bilingual support, active-attempt
-  protection, and completion tracking.
+  protection, attempt-scoped persistence, UI-language-derived bilingual order,
+  and completion tracking.
 - Cards tab for citation recall, clues, attempts, review, and completion.
 - Saved tab for saved verses, review, and sharing.
 - Paths tab for preset and custom memorization paths. Paths are part of launch

@@ -15,7 +15,7 @@ Current branch status:
   `fix/p0-cards-crash-reference-language`.
 - This branch has not been merged into `main`.
 - `main` remains untouched.
-- `e578706` is the committed baseline on this branch, not a main-branch
+- `435cb55` is the committed baseline on this branch, not a main-branch
   release.
 - The future merge decision is a separate explicit checkpoint after remaining
   app-completion work and regression QA.
@@ -28,10 +28,11 @@ Later phase:
 
 Must be complete before public monetized launch:
 
-- App-completion checkpoint, including Cards keyboard/focus architecture, Cards
-  long bilingual responsive layout, Home long-reference/button collision, Share
-  composition, Saved typography, caret consistency, and remaining approved
-  visual/product gaps.
+- App-completion checkpoint, including Memorize Enter-key continuity, Cards
+  responsive/control collision, Home long-reference/button collision, Paths
+  functional audit, Saved/Harvest audit, Onboarding and Product Tour audit,
+  design foundation / cinematic reskin, full regression QA, and remaining
+  approved visual/product gaps.
 - Cloudflare deployment configured and smoke-tested.
 - Production environment variables configured.
 - Supabase production project configured.
@@ -41,7 +42,25 @@ Must be complete before public monetized launch:
 - Legal identity, contacts, domain, jurisdiction, effective date, and web refund
   policy confirmed.
 - Production QA completed.
-- Bilingual Cards cross-language keyboard navigation fixed and verified.
+
+Completed on this branch:
+
+- `530b9fe`: repaired Cards keyboard navigation and the shared
+  keyboard/cursor/caret model.
+- `435cb55`: repaired bilingual Memorize attempt persistence with
+  attempt-scoped state and UI-language-derived bilingual order.
+
+Remaining Checkpoint 2 order:
+
+1. Memorize Enter-key continuity.
+2. Cards responsive/control collision.
+3. Home long-reference/button collision.
+4. Paths functional audit.
+5. Saved/Harvest audit.
+6. Onboarding and Product Tour audit.
+7. Design foundation / cinematic reskin.
+8. Full Checkpoint 2 regression.
+9. PR/merge only after explicit owner authorization.
 
 ## Cloudflare And PWA Readiness
 
@@ -267,8 +286,8 @@ Run the checks in `docs/QA_CHECKLIST.md`, including:
 - responsive/mobile/PWA
 - production deployment smoke test
 
-Do not launch while bilingual Cards cross-language keyboard navigation remains
-unresolved.
+Do not launch until remaining Checkpoint 2 issues, production infrastructure,
+legal/payment/API.Bible blockers, and full regression QA are complete.
 
 ## Rollback And Checkpoint Procedure
 
@@ -326,8 +345,8 @@ Record as future deliverables, without creating additional files in this patch:
 - App Store and TestFlight runbook.
 - coded design-system specification.
 
-## Future Audio Bible Consideration
+## Out-Of-Scope Speech And Audio
 
-Audio Bible support is a possible future feature motivated by the target user.
-It is not part of initial launch scope. Any future audio work must include
-licensing, streaming/cache rules, accessibility, and mobile playback QA.
+No speech-recitation feature is in scope for Verso V1. Any future audio Bible
+exploration would require licensing, streaming/cache rules, accessibility, and
+mobile playback QA before being scoped.
