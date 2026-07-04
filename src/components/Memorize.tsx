@@ -658,6 +658,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
 
   const inputRef = useRef<HTMLInputElement>(null);
   const mainActionRef = useRef<HTMLButtonElement>(null);
+  const halfwayContinueRef = useRef<HTMLButtonElement>(null);
   const isInputComposingRef = useRef(false);
   
   const esDetail = TRANSLATION_DETAILS[activePair?.es || "RVR1960"] || TRANSLATION_DETAILS["RVR1960"];
@@ -1049,6 +1050,20 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
     }, 0);
     return () => window.clearTimeout(timer);
   }, [stage, isAlmostDone, showHalfwayTransition]);
+
+  // Successful bilingual handoff uses the focused continue button's native Enter activation.
+  useEffect(() => {
+    const currentPassFailed = activeLanguage === 'es' ? didFailFlowEs : didFailFlowEn;
+    if (!showHalfwayTransition || currentPassFailed) return;
+    const timer = window.setTimeout(() => {
+      try {
+        halfwayContinueRef.current?.focus({ preventScroll: true });
+      } catch (e) {
+        console.warn("Halfway continue focus failed", e);
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [showHalfwayTransition, activeLanguage, didFailFlowEs, didFailFlowEn]);
 
   useEffect(() => {
     if (isAlmostDone && isOverallSuccess) {
@@ -2434,6 +2449,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
         <div className="w-full max-w-[280px] px-6 space-y-4">
           {!currentPassFailed ? (
             <button 
+              ref={halfwayContinueRef}
               onClick={handleHalfwayContinue}
               className="w-full bg-playful-purple text-white rounded-[24px] py-5 font-bold shadow-xl shadow-playful-purple/20 hover:scale-[1.02] active:scale-95 transition-all lowercase"
             >
