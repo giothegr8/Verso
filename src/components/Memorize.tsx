@@ -659,6 +659,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
   const inputRef = useRef<HTMLInputElement>(null);
   const mainActionRef = useRef<HTMLButtonElement>(null);
   const halfwayContinueRef = useRef<HTMLButtonElement>(null);
+  const challengeCitationRef = useRef<HTMLButtonElement>(null);
   const isInputComposingRef = useRef(false);
   
   const esDetail = TRANSLATION_DETAILS[activePair?.es || "RVR1960"] || TRANSLATION_DETAILS["RVR1960"];
@@ -1064,6 +1065,19 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
     }, 0);
     return () => window.clearTimeout(timer);
   }, [showHalfwayTransition, activeLanguage, didFailFlowEs, didFailFlowEn]);
+
+  // Final bilingual completion handoff uses the focused citation button's native Enter activation.
+  useEffect(() => {
+    if (!isAlmostDone || state.memorizeMode !== 'both' || isAnyPartFailed) return;
+    const timer = window.setTimeout(() => {
+      try {
+        challengeCitationRef.current?.focus({ preventScroll: true });
+      } catch (e) {
+        console.warn("Challenge citation focus failed", e);
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [isAlmostDone, state.memorizeMode, isAnyPartFailed]);
 
   useEffect(() => {
     if (isAlmostDone && isOverallSuccess) {
@@ -2290,6 +2304,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
             {!isAnyPartFailed ? (
               <>
                 <motion.button 
+                  ref={challengeCitationRef}
                   initial={{ y: 20, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
                   transition={{ delay: 0.5 }}
