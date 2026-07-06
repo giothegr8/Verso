@@ -1438,7 +1438,7 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
         ) : (
           <>
             {/* Card Container - Restored to wider width with balanced height */}
-            <div className={`relative w-full ${state.memorizeMode === 'both' ? 'h-[720px] sm:h-[740px] lg:h-[780px]' : 'h-[660px] sm:h-[720px] lg:h-[780px]'} perspective-1000 mb-10 mx-auto`}>
+            <div className={`relative w-full ${state.memorizeMode === 'both' ? 'h-[780px] sm:h-[740px] lg:h-[780px]' : 'h-[700px] sm:h-[720px] lg:h-[780px]'} perspective-1000 mb-10 mx-auto`}>
           <motion.div
             className="w-full h-full preserve-3d"
             animate={{ rotateY: isFlipped ? 180 : 0 }}
@@ -1455,9 +1455,9 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
           >
             <div className="shimmer-border w-full h-full rounded-[40px]">
               <div className="w-full h-full card flex flex-col bg-white dark:bg-charcoal shadow-2xl overflow-hidden rounded-[40px] border-none ring-1 ring-earth/5 dark:ring-white/5">
-                <div className="flex-1 flex flex-col p-6 sm:p-10 justify-between h-full">
+                <div className="flex-1 min-h-0 flex flex-col p-6 sm:p-10 justify-between h-full">
                   {/* Top Section */}
-                  <div className="space-y-6 pt-2">
+                  <div className="shrink-0 space-y-5 sm:space-y-6 pt-2 pb-8 sm:pb-0">
                     {/* Top Icon/Badge - Using correct Layers icon */}
                     <div className="flex justify-center">
                       <div className="w-12 h-12 sm:w-14 sm:h-14 bg-earth/5 dark:bg-white/5 rounded-2xl flex items-center justify-center text-earth-light/60 dark:text-ivory/50">
@@ -1466,7 +1466,7 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
                     </div>
 
                     {/* Translation Labels - Refined Palette */}
-                    <div className="flex justify-center gap-4">
+                    <div className="flex flex-wrap justify-center gap-x-4 gap-y-2">
                       {(state.memorizeMode === 'es' || state.memorizeMode === 'both') && (
                         <span className="text-xs font-black uppercase tracking-widest text-teal bg-teal/5 dark:bg-teal/10 px-4 py-1.5 rounded-full border border-teal/20">
                           {activePair.es}
@@ -1481,7 +1481,7 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
                   </div>
 
                   {/* Middle Section - Reference Placeholder Area */}
-                  <div className="flex-1 flex flex-col justify-center items-center space-y-10 sm:space-y-16">
+                  <div className="flex-1 min-h-0 flex flex-col justify-start sm:justify-center items-center space-y-6 sm:space-y-16 py-3">
                     <input
                       ref={sharedInputRef}
                       type="text"
@@ -1613,7 +1613,7 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
                   </div>
 
                   {/* Bottom Section - Integrated Controls */}
-                  <div className="flex flex-col items-center gap-4 pb-14 pt-4 mt-auto">
+                  <div className="shrink-0 flex flex-col items-center gap-4 pb-16 pt-4 mt-auto">
                     {/* Compact Clue Button and Attempts */}
                     <div className="flex flex-col items-center gap-6 w-full">
                       {attemptsLeft > 0 && !isCorrect && state.memorizeMode !== 'both' && (
@@ -1655,8 +1655,8 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
                         )}
                       </div>
 
-                      <div className="opacity-40">
-                        <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.3em] text-earth-light dark:text-lavender-muted">
+                      <div className="opacity-40 w-full max-w-full overflow-visible px-2">
+                        <p className="text-center text-[10px] sm:text-[11px] font-black uppercase tracking-[0.2em] sm:tracking-[0.3em] leading-none whitespace-nowrap text-earth-light dark:text-lavender-muted">
                           {state.primaryLanguage === 'es' ? `Intentos: ${attemptsLeft}` : `Attempts: ${attemptsLeft}`}
                         </p>
                       </div>
@@ -1779,7 +1779,7 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
       </div>
 
       {/* External Action Area - Centered same as card */}
-      <div className="w-full max-w-4xl mx-auto flex flex-col items-center gap-6 mt-12 mb-20 px-6">
+      <div className="w-full max-w-4xl mx-auto flex flex-col items-center gap-6 mt-14 sm:mt-12 mb-20 px-6">
         <AnimatePresence mode="wait">
           {(isCorrect || (attemptsLeft === 0 && !isCorrect)) ? (
             <motion.div
