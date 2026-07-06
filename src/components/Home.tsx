@@ -965,9 +965,9 @@ export default function Home({ state, setState, onChangeTranslation, onStartMemo
                   )}
                 </div>
 
-                <div className="flex flex-col sm:flex-row justify-between items-center sm:items-end gap-6 sm:gap-0 pt-6 border-t border-earth/5 dark:border-white/5">
-                  <div className="space-y-1 text-center sm:text-left">
-                    <h3 className="text-xl sm:text-2xl font-serif font-black text-earth dark:text-ivory tracking-tight">
+                <div className="relative z-10 flex flex-col sm:flex-row justify-between items-stretch sm:items-end gap-6 sm:gap-6 pt-6 border-t border-earth/5 dark:border-white/5">
+                  <div className="min-w-0 w-full sm:flex-1 space-y-1 text-center sm:text-left">
+                    <h3 className="max-w-full text-xl sm:text-2xl font-serif font-black text-earth dark:text-ivory tracking-tight leading-tight break-words">
                       {formatLocalizedReference(currentVerse.book, currentVerse.chapter, currentVerse.verse, referenceLangs)}
                     </h3>
                     <p className="text-[10px] font-black uppercase tracking-widest text-earth-light/60 dark:text-lavender-muted/60">
@@ -979,7 +979,7 @@ export default function Home({ state, setState, onChangeTranslation, onStartMemo
                     </p>
                   </div>
                     {isCurrentVerseCompleted ? (
-                      <div className="flex flex-col sm:flex-row items-center gap-3">
+                      <div className="shrink-0 flex flex-col sm:flex-row items-center gap-3">
                         <span className="text-sm font-semibold text-teal dark:text-teal-400 font-serif">
                           {state.activeSource === 'path'
                             ? (isEs ? "Día completado." : "Day completed.")
@@ -999,7 +999,7 @@ export default function Home({ state, setState, onChangeTranslation, onStartMemo
                           }
                         }}
                         disabled={!esText && !enText}
-                        className={`relative overflow-hidden group flex items-center gap-2.5 py-3.5 px-10 bg-teal/10 hover:bg-teal/20 text-teal dark:text-teal-400 rounded-full font-bold border border-teal/20 transition-all shadow-sm active:scale-95 ${(!esText && !enText) ? 'opacity-50 grayscale cursor-not-allowed' : ''}`}
+                        className={`relative overflow-hidden group shrink-0 w-full sm:w-auto justify-center flex items-center gap-2.5 py-3.5 px-10 bg-teal/10 hover:bg-teal/20 text-teal dark:text-teal-400 rounded-full font-bold border border-teal/20 transition-all shadow-sm active:scale-95 ${(!esText && !enText) ? 'opacity-50 grayscale cursor-not-allowed' : ''}`}
                       >
                         <BookOpen size={16} className="text-teal" />
                         <span className="text-sm sm:text-base tracking-tight lowercase">
@@ -1178,9 +1178,9 @@ export default function Home({ state, setState, onChangeTranslation, onStartMemo
                   )}
                 </div>
 
-                <div className="flex flex-col sm:flex-row justify-between items-center sm:items-end gap-6 sm:gap-0 pt-6 border-t border-earth/5 dark:border-white/5">
-                  <div className="space-y-1 text-center sm:text-left">
-                    <h3 className="text-xl sm:text-2xl font-serif font-black text-earth dark:text-ivory tracking-tight">
+                <div className="relative z-10 flex flex-col sm:flex-row justify-between items-stretch sm:items-end gap-6 sm:gap-6 pt-6 border-t border-earth/5 dark:border-white/5">
+                  <div className="min-w-0 w-full sm:flex-1 space-y-1 text-center sm:text-left">
+                    <h3 className="max-w-full text-xl sm:text-2xl font-serif font-black text-earth dark:text-ivory tracking-tight leading-tight break-words">
                       {formatLocalizedReference(currentVerse.book, currentVerse.chapter, currentVerse.verse, referenceLangs)}
                     </h3>
                     <p className="text-[10px] font-black uppercase tracking-widest text-earth-light/60 dark:text-lavender-muted/60">
@@ -1192,7 +1192,7 @@ export default function Home({ state, setState, onChangeTranslation, onStartMemo
                     </p>
                   </div>
                     {isCurrentVerseCompleted ? (
-                      <div className="flex flex-col sm:flex-row items-center gap-3">
+                      <div className="shrink-0 flex flex-col sm:flex-row items-center gap-3">
                         <span className="text-sm font-semibold text-teal dark:text-teal-400 font-serif">
                           {state.activeSource === 'path'
                             ? (isEs ? "Día completado de la serie." : "Series day completed.")
@@ -1212,7 +1212,7 @@ export default function Home({ state, setState, onChangeTranslation, onStartMemo
                           }
                         }}
                         disabled={!esText && !enText}
-                        className={`relative overflow-hidden group flex items-center gap-2.5 py-3.5 px-10 bg-teal/10 hover:bg-teal/20 text-teal dark:text-teal-400 rounded-full font-bold border border-teal/20 transition-all shadow-sm active:scale-95 ${(!esText && !enText) ? 'opacity-50 grayscale cursor-not-allowed' : ''}`}
+                        className={`relative overflow-hidden group shrink-0 w-full sm:w-auto justify-center flex items-center gap-2.5 py-3.5 px-10 bg-teal/10 hover:bg-teal/20 text-teal dark:text-teal-400 rounded-full font-bold border border-teal/20 transition-all shadow-sm active:scale-95 ${(!esText && !enText) ? 'opacity-50 grayscale cursor-not-allowed' : ''}`}
                       >
                         <BookOpen size={16} className="text-teal" />
                         <span className="text-sm sm:text-base tracking-tight lowercase">
