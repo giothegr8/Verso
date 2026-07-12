@@ -1,50 +1,114 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700;1,900&family=JetBrains+Mono:wght@400;500;700&family=Great+Vibes&display=swap');
+/* ============================================================
+   Verso — global stylesheet (Phase 1: cinematic dark foundation)
+   Import order is load-bearing:
+     fonts.css  ->  tokens.css  ->  dark-theme.css  ->  tailwindcss
+     ->  Tailwind theme mappings  ->  application layers
+   Dark-only for V1. Do not import light-theme.css.
+   ============================================================ */
+@import "./styles/fonts.css";
+@import "./styles/tokens.css";
+@import "./styles/dark-theme.css";
 @import "tailwindcss";
 
-/* Enable class-based dark mode in Tailwind 4 */
+/* Enable class-based dark mode in Tailwind 4 (V1 forces .dark on <html>) */
 @variant dark (&:where(.dark, .dark *));
 
+/* ============================================================
+   PHASE 1 TEMPORARY LEGACY ALIASES - REMOVE DURING PHASE 8
+   These names are still consumed by unmodified page components
+   (Home, Memorize, Flashcards, Saved, Settings, Paths, etc.).
+   They are retired page-by-page in their authorized phases and
+   deleted wholesale in Phase 8. New Phase 1 code must NOT use them;
+   use the locked Verso tokens/utilities defined further below.
+   The two font aliases are repointed to the self-hosted Verso
+   families so untouched pages render Hanken/Fraunces (no CDN),
+   without any structural change.
+   ============================================================ */
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-serif: "Playfair Display", serif;
+  --font-sans: "Hanken Grotesk", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; /* was Inter */
+  --font-serif: "Fraunces", Georgia, "Times New Roman", serif; /* was Playfair Display */
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
   --font-script: "Great Vibes", cursive;
 
-  /* Refined Color System - Sharper & More Joyful */
-  --color-parchment: #FDFBF7; /* Warmer Ivory for Light Mode */
-  --color-ivory: #FFFFFF; /* Pure White for Cards in Light Mode */
-  
-  --color-espresso: #0A0A0A; /* Deep Black for Dark Mode */
-  --color-charcoal: #141414; /* Sharper Charcoal for Cards in Dark Mode */
-  
-  --color-earth: #121212; /* Deeper Charcoal for Light Mode Text */
-  --color-earth-light: #6B6B6B; /* Muted Warm Gray for Light Mode */
-  
-  --color-playful-purple: #6D28D9; /* Richer Playful Purple */
-  --color-sky-blue: #0284C7; /* Stronger Sky Blue */
-  --color-golden: #D97706; /* Richer Golden Yellow */
-  --color-teal: #0D9488; /* Deeper Teal */
-  --color-coral: #E11D48; /* Stronger Coral */
-  
+  /* Legacy color aliases (retired in Phase 8) */
+  --color-parchment: #FDFBF7;
+  --color-ivory: #FFFFFF;
+  --color-espresso: #0A0A0A;
+  --color-charcoal: #141414;
+  --color-earth: #121212;
+  --color-earth-light: #6B6B6B;
+  --color-playful-purple: #6D28D9;
+  --color-sky-blue: #0284C7;
+  --color-golden: #D97706;
+  --color-teal: #0D9488;
+  --color-coral: #E11D48;
   --color-lavender: var(--color-playful-purple);
-  --color-lavender-muted: #94A3B8; /* Slate gray for muted states */
-  
-  --color-plum: #A78BFA; /* Brighter Purple for Dark Mode */
-  --color-plum-deep: #4C1D95; /* Stronger Deep Royal Purple */
-  --color-indigo-rich: #1E1B4B; /* Deepest Indigo */
-
+  --color-lavender-muted: #94A3B8;
+  --color-plum: #A78BFA;
+  --color-plum-deep: #4C1D95;
+  --color-indigo-rich: #1E1B4B;
   --color-gold: var(--color-golden);
   --color-mint: #98FF98;
   --color-sky: var(--color-sky-blue);
 
-  /* Safe Area Variables */
+  /* Safe-area + legacy nav height (kept for untouched pages) */
   --safe-area-top: env(safe-area-inset-top, 0px);
   --safe-area-bottom: env(safe-area-inset-bottom, 0px);
   --safe-area-left: env(safe-area-inset-left, 0px);
   --safe-area-right: env(safe-area-inset-right, 0px);
-
-  /* Tab Nav Height */
   --nav-height: 84px;
+}
+
+/* ============================================================
+   Verso locked-token → Tailwind utilities (Phase 1 canonical)
+   Distinct names so they never collide with, or self-reference,
+   the raw tokens in tokens.css / dark-theme.css. `inline` keeps
+   the raw CSS custom properties as the single runtime source of
+   truth. New Phase 1 code uses these (or the raw tokens directly).
+   ============================================================ */
+@theme inline {
+  /* palette */
+  --color-midnight: var(--midnight);
+  --color-deep-slate: var(--deep-slate);
+  --color-slate-2: var(--slate-2);
+  --color-cool-white: var(--cool-white);
+  --color-cold-grey: var(--cold-grey);
+  --color-faint: var(--faint);
+  --color-royal: var(--royal);
+  --color-royal-soft: var(--royal-soft);
+  --color-ember: var(--gold);
+  --color-ember-soft: var(--gold-soft);
+  --color-life: var(--green);
+  --color-crimson: var(--crimson);
+  --color-dusk: var(--dusk);
+
+  /* semantic surfaces + ink */
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-text: var(--text);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-tertiary: var(--text-tertiary);
+  --color-interactive: var(--interactive);
+  --color-interactive-text: var(--interactive-text);
+  --color-earned: var(--earned);
+
+  /* families */
+  --font-fraunces: var(--font-display);
+  --font-hanken: var(--font-ui);
+
+  /* radii (non-colliding names -> rounded-card / -row / -modal / -pill) */
+  --radius-card: var(--r-md);
+  --radius-row: 14px;
+  --radius-modal: var(--r-xl);
+  --radius-pill: var(--r-pill);
+
+  /* shadows + glows (non-colliding names) */
+  --shadow-verso-card: var(--shadow-card);
+  --shadow-verso-modal: var(--shadow-modal);
+  --shadow-glow-royal: var(--glow-royal-rim);
+  --shadow-glow-gold: var(--glow-gold-rim);
+  --shadow-focus-ring: var(--focus-ring);
 }
 
 @utility h-screen-dynamic {
@@ -55,39 +119,99 @@
   min-height: 100dvh;
 }
 
+/* Reserve the safe bottom-nav height as scroll clearance (mobile/tablet). */
+@utility pb-nav-safe {
+  padding-bottom: var(--nav-h-safe);
+}
+
 @layer base {
   html, body {
     @apply h-full w-full m-0 p-0 overflow-x-hidden;
     overscroll-behavior-y: none;
   }
 
+  html {
+    color-scheme: dark;
+  }
+
   body {
-    @apply font-sans antialiased bg-parchment text-earth transition-colors duration-500;
+    @apply antialiased;
+    font-family: var(--font-ui);
+    font-size: var(--fs-body);
+    line-height: var(--lh-body);
+    background-color: var(--midnight);
+    color: var(--cool-white);
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    /* Never synthesize Hanken italic/bold — real weights exist in the
+       variable file; Fraunces owns the only approved italic. */
+    font-synthesis: none;
     scroll-behavior: smooth;
   }
 
-  /* Ensure theme colors apply correctly to the root */
+  /* Root + forced-dark surfaces resolve to Midnight (not legacy espresso). */
   :root {
-    background-color: var(--color-parchment);
-    color: var(--color-earth);
+    background-color: var(--midnight);
+    color: var(--cool-white);
   }
-
   :root.dark {
-    background-color: var(--color-espresso);
-    color: var(--color-ivory);
+    background-color: var(--midnight);
+    color: var(--cool-white);
   }
-
-  /* Manual overrides to ensure class-based dark mode works even if Tailwind variant is finicky */
   .dark body {
-    @apply bg-espresso text-ivory;
+    background-color: var(--midnight);
+    color: var(--cool-white);
   }
 
+  /* Display family for headings (legacy font-serif is repointed to Fraunces). */
   h1, h2, h3, h4, h5, h6 {
-    @apply font-serif;
+    font-family: var(--font-display);
+    font-optical-sizing: auto;
   }
+
+  /* ---- Accessibility foundation ----
+     The keyboard focus ring is defined UNLAYERED (below), not here: a
+     @layer base rule loses the cascade to the component box-shadows in
+     @layer components, which — box-shadow being single-valued — would hide
+     the ring on any control that carries its own glow. See the unlayered
+     ":focus-visible" block after the reduced-motion foundation. */
+}
+
+/* ============================================================
+   Reduced-motion foundation: strip decorative movement everywhere.
+   JS never gates navigation/focus/input on animation in the shell.
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ============================================================
+   Persistent keyboard focus ring (Phase 1 correction).
+   UNLAYERED on purpose: unlayered rules outrank every @layer, so this
+   always wins over component box-shadows and can never be replaced by a
+   hover/active/earned glow. It composes the locked ring with each
+   control's own glow via --v-glow, so focus + active states show at the
+   same time. `transition: none` makes the ring appear instantly and
+   never fade — it is not animated. Only interactive elements are targeted.
+   ============================================================ */
+:where(a, button, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid transparent; /* visible ring in forced-colors mode */
+  outline-offset: 0;
+  box-shadow: var(--focus-ring), var(--v-glow, 0 0 0 rgba(0, 0, 0, 0));
+  transition: none;
+}
+/* Shared Input: the ring hugs the glass pill when its inner field is
+   keyboard-focused (the field element itself is excluded above). */
+.vfield:has(:focus-visible) {
+  border-color: var(--rim-royal);
+  box-shadow: var(--focus-ring);
+  transition: none;
 }
 
 @layer components {
@@ -95,140 +219,553 @@
     @apply w-full max-w-2xl mx-auto px-6;
   }
 
-  /* Universal Card System - Sharper & More Intentional */
+  /* ========================================================
+     Verso Phase 1 — application shell foundation
+     ======================================================== */
+
+  /* Screen frame: Midnight surface, dvh height with vh fallback,
+     desktop rail offset at >=1280. One body scroll owner. */
+  .verso-shell {
+    min-height: 100vh;
+    min-height: 100dvh;
+    background-color: var(--midnight);
+    color: var(--cool-white);
+    font-family: var(--font-ui);
+  }
+  @media (min-width: 1280px) {
+    .verso-shell { padding-left: 210px; }
+  }
+
+  /* Content measure: centered, capped at 1180px, responsive gutters. */
+  .verso-frame {
+    width: 100%;
+    max-width: var(--content-max);
+    margin-inline: auto;
+    padding-inline: var(--gutter-mobile);
+  }
+  @media (min-width: 768px)  { .verso-frame { padding-inline: var(--gutter-tablet); } }
+  @media (min-width: 1280px) { .verso-frame { padding-inline: var(--gutter-desktop); } }
+
+  /* Sticky header surface. */
+  .verso-header {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    padding-top: env(safe-area-inset-top);
+    background-color: color-mix(in srgb, var(--midnight) 88%, transparent);
+    border-bottom: 1px solid var(--line);
+    -webkit-backdrop-filter: blur(18px);
+    backdrop-filter: blur(18px);
+  }
+  /* Desktop (>=1280) the left rail owns brand + destinations + Settings, so the
+     top header is removed from layout entirely (no border, no height, no blank
+     row, no duplicate Settings/branding). display:none, not visibility. */
+  @media (min-width: 1280px) {
+    .verso-header { display: none; }
+  }
+
+  /* Main scroll region clears the floating dock below desktop:
+     --nav-h-safe (64px + safe inset) covers the dock height + safe area, and
+     +36px covers the 12px float gap plus 24px of visual breathing space.
+     One scroll owner; no page-specific padding, no stacked nav heights. */
+  .verso-main { padding-bottom: calc(var(--nav-h-safe) + 36px); }
+  @media (min-width: 1280px) { .verso-main { padding-bottom: 0; } }
+
+  /* ---- Floating navigation dock ----
+     One static dark-glass dock for every viewport below 1280px (mobile and
+     tablet are structurally identical). It does NOT resize/hide/animate on
+     scroll in Phase 1 — it is a fixed-size floating dock. ---- */
+  .verso-bottomnav {
+    position: fixed;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: calc(12px + env(safe-area-inset-bottom));
+    z-index: 45;
+    box-sizing: border-box;
+    display: flex;
+    justify-content: space-between;
+    gap: 4px;
+    width: calc(100% - 24px);
+    max-width: 520px;
+    height: 64px;
+    padding: 8px;
+    border-radius: 24px;
+    background: rgba(12, 16, 22, 0.92);
+    border: 1px solid rgba(150, 180, 210, 0.11);
+    -webkit-backdrop-filter: blur(18px);
+    backdrop-filter: blur(18px);
+    box-shadow: 0 14px 38px rgba(0, 0, 0, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.035);
+  }
+
+  .verso-tab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 44px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--faint);
+    font-family: var(--font-ui);
+    font-size: 9.3px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    line-height: 1;
+    white-space: nowrap;
+    transition: color var(--dur-fast) var(--ease);
+  }
+  .verso-tab__icon {
+    width: 21px;
+    height: 21px;
+    display: inline-flex;
+  }
+  /* The active treatment is a compact 30x30 halo AROUND THE ICON ONLY — never
+     a full-tab pill — so every item is the same width regardless of label
+     length (Home … Memorize) and nothing bulky appears below 1280px. The halo
+     box is reserved (transparent) on every tab so selecting never shifts
+     layout. No --v-glow here: the keyboard focus ring stays a separate
+     indicator on the whole item. */
+  .verso-tab__halo {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    width: 30px;
+    height: 30px;
+    border-radius: 9px;
+    border: 1px solid transparent;
+  }
+  .verso-tab.is-active { color: var(--royal-soft); }
+  .verso-tab.is-active .verso-tab__halo {
+    background: rgba(91, 120, 255, 0.10);
+    border: 1px solid rgba(91, 120, 255, 0.55);
+    box-shadow: inset 0 0 12px rgba(91, 120, 255, 0.14), 0 0 14px -4px rgba(70, 100, 255, 0.35);
+  }
+  .verso-tab.is-active .verso-tab__icon {
+    color: var(--royal);
+    filter: drop-shadow(0 0 5px rgba(91, 120, 255, 0.45));
+  }
+
+  /* ---- Desktop rail (>=1280) ---- */
+  .verso-rail { display: none; }
+  @media (min-width: 1280px) {
+    .verso-bottomnav { display: none; }
+    .verso-rail {
+      display: flex;
+      flex-direction: column;
+      position: fixed;
+      left: 0; top: 0;
+      z-index: 45;
+      box-sizing: border-box;
+      width: 210px;
+      height: 100vh;
+      height: 100dvh;
+      padding: 24px 16px;
+      gap: 6px;
+      background: var(--deep-slate);
+      border-right: 1px solid var(--line);
+    }
+  }
+  .verso-rail__brand {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    margin-bottom: 22px;
+    padding: 0 6px;
+  }
+  .verso-rail__item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 44px;
+    padding: 11px 14px;
+    border-radius: 999px;
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--cold-grey);
+    font-family: var(--font-ui);
+    font-size: 0.9rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    cursor: pointer;
+    text-align: left;
+    transition: color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+  }
+  .verso-rail__item .verso-rail__icon { width: 21px; height: 21px; flex: 0 0 auto; }
+  @media (hover: hover) {
+    .verso-rail__item:hover { color: var(--cool-white); background: var(--glass-fill); }
+    .verso-tab:hover { color: var(--cool-white); }
+  }
+  /* Active rail item: same royal dark-glass language as the active tabs. */
+  .verso-rail__item.is-active {
+    background: rgba(91, 120, 255, 0.10);
+    color: var(--royal-soft);
+    --v-glow: inset 0 0 0 1px var(--rim-royal), inset 0 0 14px rgba(91, 120, 255, 0.14), 0 0 18px -4px rgba(70, 100, 255, 0.35);
+    box-shadow: var(--v-glow);
+  }
+  .verso-rail__item.is-active .verso-rail__icon {
+    color: var(--royal);
+    filter: drop-shadow(0 0 6px rgba(91, 120, 255, 0.5));
+  }
+
+  /* ========================================================
+     Verso Phase 1 — shared dark-glass UI primitives
+     (mirrors components/components.html, values from tokens/)
+     ======================================================== */
+
+  .vbrand-icon {
+    display: inline-block;
+    background-color: currentColor;
+    -webkit-mask-repeat: no-repeat;   mask-repeat: no-repeat;
+    -webkit-mask-position: center;    mask-position: center;
+    -webkit-mask-size: contain;       mask-size: contain;
+    flex: 0 0 auto;
+  }
+
+  .vbtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5em;
+    font-family: var(--font-ui);
+    font-size: 15px;           /* button label */
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    line-height: 1;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    padding: 0.9em 1.6em;
+    min-height: 44px;
+    white-space: nowrap;
+    cursor: pointer;
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    transition: background var(--dur-base) var(--ease), border-color var(--dur-base) var(--ease), box-shadow var(--dur-base) var(--ease), transform var(--dur-fast) var(--ease);
+  }
+  .vbtn:active { transform: translateY(1px); }
+
+  .vbtn--primary {
+    background: var(--glass-fill);
+    color: var(--royal-soft);
+    border-color: var(--rim-royal);
+    --v-glow: var(--glow-royal-inner), var(--glow-royal-rim);
+    box-shadow: var(--v-glow);
+  }
+  .vbtn--secondary {
+    background: var(--glass-fill);
+    color: var(--cool-white);
+    border-color: var(--line);
+  }
+  .vbtn--outline {
+    background: transparent;
+    color: var(--cool-white);
+    border-color: var(--rim-royal);
+  }
+  .vbtn--earned {
+    background: var(--glass-fill);
+    color: var(--gold);
+    border-color: var(--rim-gold);
+    --v-glow: var(--glow-gold-inner), var(--glow-gold-rim);
+    box-shadow: var(--v-glow);
+  }
+  .vbtn--destructive {
+    background: var(--glass-fill);
+    color: #F0A6A0;
+    border-color: rgba(209, 78, 92, 0.55);
+    --v-glow: inset 0 0 14px rgba(209, 78, 92, 0.12), 0 0 18px -4px rgba(209, 78, 92, 0.30);
+    box-shadow: var(--v-glow);
+  }
+  .vbtn--text {
+    background: none;
+    border-color: transparent;
+    color: var(--royal-soft);
+    padding: 0.6em 0.6em;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  @media (hover: hover) {
+    .vbtn--primary:hover { background: var(--glass-fill-hover); border-color: rgba(91, 120, 255, 0.80); }
+    .vbtn--secondary:hover { background: var(--glass-fill-hover); border-color: var(--rim-royal); }
+    .vbtn--outline:hover { background: var(--glass-fill); }
+    .vbtn--earned:hover { border-color: rgba(232, 179, 75, 0.85); }
+    .vbtn--text:hover { color: #B7C4FF; }
+  }
+  .vbtn:disabled, .vbtn[aria-disabled="true"] {
+    color: var(--control-text-disabled);
+    border-color: var(--line);
+    box-shadow: none;
+    background: var(--control-fill-disabled);
+    cursor: not-allowed;
+  }
+  .vbtn--text:disabled, .vbtn--text[aria-disabled="true"] { background: none; }
+  .vbtn.is-loading { position: relative; color: transparent; }
+  .vbtn.is-loading .vbtn__spinner {
+    position: absolute;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    border: 2px solid rgba(143, 162, 255, 0.35);
+    border-top-color: var(--royal-soft);
+    animation: vspin 0.7s linear infinite;
+  }
+
+  .vicon-btn {
+    width: 44px; height: 44px;
+    min-height: 44px;
+    padding: 0;
+    border-radius: 999px;
+    display: inline-grid;
+    place-items: center;
+    background: var(--glass-fill);
+    border: 1px solid var(--line);
+    color: var(--cool-white);
+    cursor: pointer;
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+  }
+  @media (hover: hover) {
+    .vicon-btn:hover { border-color: var(--rim-royal); background: var(--glass-fill-hover); color: var(--royal-soft); }
+  }
+  .vicon-btn:disabled, .vicon-btn[aria-disabled="true"] {
+    color: var(--control-text-disabled);
+    cursor: not-allowed;
+    background: var(--control-fill-disabled);
+  }
+
+  .vfield {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    min-height: 52px;
+    padding: 4px 6px 4px 18px;
+    background: var(--glass-fill);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+  }
+  .vfield input, .vfield__value {
+    flex: 1;
+    min-width: 0;
+    background: none;
+    border: none;
+    outline: none;
+    color: var(--cool-white);
+    font-family: var(--font-ui);
+    font-size: var(--fs-body);
+    padding: 12px 0;
+    caret-color: var(--royal);
+  }
+  .vfield input::placeholder { color: var(--faint); }
+  .vfield__icon { display: inline-flex; flex: 0 0 auto; color: var(--faint); }
+  .vfield.is-active { border-color: var(--rim-royal); box-shadow: var(--focus-ring); }
+  .vfield.is-error { border-color: rgba(209, 78, 92, 0.60); box-shadow: 0 0 0 3px rgba(209, 78, 92, 0.18); }
+  .vfield.is-success { border-color: var(--rim-gold); }
+  .vfield.is-disabled { opacity: var(--op-disabled); cursor: not-allowed; }
+
+  .vchip {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-family: var(--font-ui);
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    padding: 8px 14px;
+    min-height: 36px;
+    border-radius: 999px;
+    background: var(--glass-fill);
+    border: 1px solid var(--line);
+    color: var(--cold-grey);
+    cursor: default;
+  }
+  button.vchip { cursor: pointer; }
+  .vchip--selected {
+    background: rgba(91, 120, 255, 0.10);
+    border-color: var(--rim-royal);
+    color: var(--royal-soft);
+  }
+  .vchip--earned {
+    background: var(--glass-fill);
+    border-color: var(--rim-gold);
+    color: var(--gold);
+  }
+  .vchip--disabled { opacity: var(--op-disabled); cursor: not-allowed; }
+
+  .vbadge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-ui);
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: var(--glass-fill);
+    border: 1px solid var(--line);
+    color: var(--cold-grey);
+  }
+  .vbadge__dot {
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--royal);
+    box-shadow: 0 0 8px var(--royal);
+    flex: 0 0 auto;
+  }
+  .vbadge__dot--muted { background: var(--faint); box-shadow: none; }
+
+  .vmsg {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 12px 16px;
+    border-radius: 12px;
+    font-family: var(--font-ui);
+    font-size: 0.92rem;
+    font-weight: 500;
+    border: 1px solid;
+  }
+  .vmsg__icon { flex: 0 0 auto; display: inline-flex; }
+  .vmsg--success { color: var(--green);  border-color: rgba(76, 199, 154, 0.40);  background: rgba(76, 199, 154, 0.06); }
+  .vmsg--warning { color: var(--gold);   border-color: var(--rim-gold);           background: rgba(232, 179, 75, 0.06); }
+  .vmsg--error   { color: #F0A6A0;       border-color: rgba(209, 78, 92, 0.40);   background: rgba(209, 78, 92, 0.06); }
+  .vmsg--info    { color: var(--royal-soft); border-color: var(--rim-royal);      background: rgba(91, 120, 255, 0.06); }
+
+  /* Modal surface (reusable visual only; not migrated onto any page in Phase 1) */
+  .vmodal-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: flex;
+    background: rgba(8, 11, 16, 0.60);
+    -webkit-backdrop-filter: blur(3px);
+    backdrop-filter: blur(3px);
+    align-items: flex-end;
+    justify-content: center;
+  }
+  .vmodal-panel {
+    width: 100%;
+    max-height: 88vh;
+    overflow-y: auto;
+    background: var(--deep-slate);
+    border: 1px solid var(--line);
+    border-top-left-radius: 24px;
+    border-top-right-radius: 24px;
+    box-shadow: var(--shadow-modal);
+    padding: 26px 22px calc(28px + env(safe-area-inset-bottom));
+  }
+  @media (min-width: 768px) {
+    .vmodal-scrim { align-items: center; }
+    .vmodal-panel {
+      width: auto;
+      max-width: 360px;
+      max-height: min(88vh, 640px);
+      border-radius: 24px;
+      padding: 28px;
+    }
+  }
+
+  .vstepdots { display: flex; gap: 8px; align-items: center; }
+  .vstepdots__dot {
+    width: 26px; height: 5px;
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.10);
+    flex: 0 0 auto;
+  }
+  .vstepdots__dot--current { background: var(--royal); box-shadow: 0 0 8px rgba(91, 120, 255, 0.50); }
+  .vstepdots__dot--done    { background: var(--gold);  box-shadow: 0 0 8px rgba(232, 179, 75, 0.50); }
+
+  /* ---- Legacy component classes (retired in Phase 8; pages depend on these) ---- */
   .card {
     @apply rounded-[32px] p-8 transition-all duration-300 bg-white border border-earth/10 shadow-md shadow-earth/5;
   }
-
   .dark .card {
     @apply bg-charcoal border border-white/10 shadow-lg shadow-black/40;
   }
-
-  /* Buttons - Crisp & Bold */
   .btn-primary {
     @apply h-12 px-6 rounded-xl bg-playful-purple text-white font-bold text-sm tracking-tight flex items-center justify-center gap-2 hover:brightness-110 active:scale-95 transition-all shadow-md shadow-playful-purple/20;
   }
-
   .btn-secondary {
     @apply h-12 px-6 rounded-xl bg-earth/5 dark:bg-white/10 text-earth dark:text-ivory font-bold text-sm flex items-center justify-center gap-2 hover:bg-earth/10 dark:hover:bg-white/20 active:scale-95 transition-all border border-earth/5 dark:border-white/5;
   }
-
   .btn-icon {
     @apply w-10 h-10 rounded-xl bg-white dark:bg-charcoal border border-earth/15 dark:border-white/15 flex items-center justify-center text-earth dark:text-ivory hover:bg-earth/5 dark:hover:bg-white/5 active:scale-90 transition-all shadow-sm;
   }
-
-  /* Inputs */
   .input-field {
     @apply w-full h-14 rounded-2xl bg-white dark:bg-charcoal border-2 border-earth/15 dark:border-white/15 focus:border-playful-purple dark:focus:border-plum outline-none transition-all font-medium px-4 text-earth dark:text-ivory;
   }
 }
 
+/* ============================================================
+   Reduced-transparency foundation: swap blurred glass for opaque
+   Deep Slate so contrast never drops when the OS disables blur.
+   (dark-theme.css already swaps the --control-fill tokens.)
+   ============================================================ */
+@media (prefers-reduced-transparency: reduce) {
+  .verso-header, .verso-bottomnav,
+  .vbtn, .vicon-btn, .vfield, .vmodal-scrim {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+  .verso-header { background-color: var(--deep-slate) !important; }
+  .verso-bottomnav { background: var(--deep-slate) !important; }
+  .vbtn:not(.vbtn--text):not(:disabled) { background: #10151D; }
+  .vicon-btn { background: #10151D; }
+  .vfield { background: #10151D; }
+  .vmodal-scrim { background: rgba(8, 11, 16, 0.85) !important; }
+}
+
 @layer utilities {
-  .perspective-1000 {
-    perspective: 1000px;
-  }
-  .preserve-3d {
-    transform-style: preserve-3d;
-  }
-  .backface-hidden {
-    backface-visibility: hidden;
-  }
-  .rotate-y-180 {
-    transform: rotateY(180deg);
-  }
+  .perspective-1000 { perspective: 1000px; }
+  .preserve-3d { transform-style: preserve-3d; }
+  .backface-hidden { backface-visibility: hidden; }
+  .rotate-y-180 { transform: rotateY(180deg); }
 }
 
 /* Custom scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
-}
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { @apply bg-transparent; }
+::-webkit-scrollbar-thumb { @apply bg-white/20 rounded-full; }
 
-::-webkit-scrollbar-track {
-  @apply bg-transparent;
-}
+/* ---- Keyframes (used by shell + retained for legacy pages) ---- */
+@keyframes vspin { to { transform: rotate(360deg); } }
 
-::-webkit-scrollbar-thumb {
-  @apply bg-earth/10 dark:bg-white/20 rounded-full;
-}
+@keyframes cursor-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+.animate-cursor-blink { animation: cursor-blink 1s step-end infinite; }
 
-@keyframes cursor-blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0; }
-}
+@keyframes float { 0% { transform: translateY(0px); } 50% { transform: translateY(-10px); } 100% { transform: translateY(0px); } }
+.animate-float { animation: float 3s ease-in-out infinite; }
 
-.animate-cursor-blink {
-  animation: cursor-blink 1s step-end infinite;
-}
+@keyframes sparkle { 0% { transform: scale(0); opacity: 0; } 50% { transform: scale(1.2); opacity: 1; } 100% { transform: scale(1); opacity: 0; } }
+.sparkle { position: absolute; animation: sparkle 0.8s ease-out forwards; }
 
-@keyframes float {
-  0% { transform: translateY(0px); }
-  50% { transform: translateY(-10px); }
-  100% { transform: translateY(0px); }
-}
+@keyframes pulse-soft { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.05); opacity: 0.9; } }
+.animate-pulse-soft { animation: pulse-soft 2s ease-in-out infinite; }
 
-.animate-float {
-  animation: float 3s ease-in-out infinite;
-}
+@keyframes bounce-subtle { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+.animate-bounce-subtle { animation: bounce-subtle 2s ease-in-out infinite; }
 
-@keyframes sparkle {
-  0% { transform: scale(0); opacity: 0; }
-  50% { transform: scale(1.2); opacity: 1; }
-  100% { transform: scale(1); opacity: 0; }
-}
-
-.sparkle {
-  position: absolute;
-  animation: sparkle 0.8s ease-out forwards;
-}
-
-@keyframes pulse-soft {
-  0%, 100% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.05); opacity: 0.9; }
-}
-
-.animate-pulse-soft {
-  animation: pulse-soft 2s ease-in-out infinite;
-}
-
-@keyframes bounce-subtle {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-5px); }
-}
-
-.animate-bounce-subtle {
-  animation: bounce-subtle 2s ease-in-out infinite;
-}
-
-@keyframes shimmer-border {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
-
-.shimmer-border {
-  position: relative;
-  z-index: 0;
-}
-
+@keyframes shimmer-border { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+.shimmer-border { position: relative; z-index: 0; }
 .shimmer-border::before {
   content: '';
   position: absolute;
   inset: -2px;
-  background: linear-gradient(
-    45deg,
-    #6D28D9, /* playful-purple */
-    #0284C7, /* sky-blue */
-    #0D9488, /* teal */
-    #D97706, /* golden */
-    #6D28D9
-  );
+  background: linear-gradient(45deg, #6D28D9, #0284C7, #0D9488, #D97706, #6D28D9);
   background-size: 200% 200%;
   z-index: -1;
   border-radius: inherit;
   animation: shimmer-border 8s linear infinite;
   opacity: 0.4;
 }
-
-.dark .shimmer-border::before {
-  opacity: 0.6;
-}
+.dark .shimmer-border::before { opacity: 0.6; }

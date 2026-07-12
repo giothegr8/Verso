@@ -1,0 +1,40 @@
+/* ============================================================
+   Verso — Self-hosted variable fonts (Phase 1)
+   Fraunces  → Scripture, display, titles, numerals, earned moments,
+               and the single approved italic emphasis.
+   Hanken Grotesk → body, UI, controls, navigation, labels, feedback.
+   Two families only. No third family. No remote runtime URL.
+   Hanken Grotesk italic is intentionally absent: the approved design
+   system specifies Hanken upright only and assigns italic emphasis to
+   Fraunces. New Phase 1 text must not rely on synthesized Hanken italic.
+   ============================================================ */
+
+/* Fraunces — upright (variable: opsz 9..144, wght 100..900) */
+@font-face {
+  font-family: "Fraunces";
+  src: url("/fonts/fraunces-variable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-stretch: 100%;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Fraunces — italic (single approved emphasis; variable) */
+@font-face {
+  font-family: "Fraunces";
+  src: url("/fonts/fraunces-variable-italic.woff2") format("woff2");
+  font-weight: 100 900;
+  font-stretch: 100%;
+  font-style: italic;
+  font-display: swap;
+}
+
+/* Hanken Grotesk — upright only (variable: wght 100..900) */
+@font-face {
+  font-family: "Hanken Grotesk";
+  src: url("/fonts/hanken-grotesk-variable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-stretch: 100%;
+  font-style: normal;
+  font-display: swap;
+}

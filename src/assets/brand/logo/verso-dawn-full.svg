@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="220" height="72" viewBox="0 0 220 72" fill="none" role="img" aria-label="Verso">
+  
+  <g transform="translate(4,4)">
+    <line x1="32" y1="17" x2="32" y2="10" stroke="#E8B34B" stroke-width="2" stroke-linecap="round" stroke-opacity="0.8"></line>
+    <line x1="22" y1="20" x2="17.5" y2="14.5" stroke="#E8B34B" stroke-width="2" stroke-linecap="round" stroke-opacity="0.55"></line>
+    <line x1="42" y1="20" x2="46.5" y2="14.5" stroke="#E8B34B" stroke-width="2" stroke-linecap="round" stroke-opacity="0.55"></line>
+    <path d="M20 35 A12 12 0 0 1 44 35" stroke="#E8B34B" stroke-width="3" stroke-linecap="round"></path>
+    <circle cx="32" cy="33" r="3" fill="#E8B34B"></circle>
+    <path d="M32 43 C27 40 22 40 18 41.5" stroke="#5B78FF" stroke-width="2" stroke-linecap="round"></path>
+    <path d="M32 43 C37 40 42 40 46 41.5" stroke="#5B78FF" stroke-width="2" stroke-linecap="round"></path>
+    <line x1="32" y1="43" x2="32" y2="46" stroke="#5B78FF" stroke-width="2" stroke-linecap="round"></line>
+  </g>
+  
+  <text x="74" y="47" font-family="Fraunces, Georgia, serif" font-size="40" font-weight="500" letter-spacing="0.5" fill="#E7ECF2">Verso</text>
+</svg>

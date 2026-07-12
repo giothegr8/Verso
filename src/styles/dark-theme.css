@@ -1,0 +1,62 @@
+/* ============================================================
+   Verso — DARK THEME (the shipping theme)
+   Maps raw tokens (tokens.css) to semantic UI roles.
+   Import order:  tokens.css  ->  dark-theme.css
+   ============================================================ */
+:root,
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* surfaces */
+  --bg:              var(--midnight);
+  --surface:         var(--deep-slate);
+  --surface-raised:  var(--slate-2);
+  --surface-glass:   var(--glass-fill);
+
+  /* text */
+  --text:            var(--cool-white);
+  --text-secondary:  var(--cold-grey);
+  --text-tertiary:   var(--faint);
+  --text-on-gold:    #201603;
+  --text-on-royal:   #F3F5FF;
+
+  /* interactive (royal = everyday) */
+  --interactive:            var(--royal);
+  --interactive-text:       var(--royal-soft);
+  --interactive-rim:        var(--rim-royal);
+  --interactive-glow:       var(--glow-royal-rim);
+  --interactive-glow-inner: var(--glow-royal-inner);
+
+  /* earned (gold = rare) */
+  --earned:            var(--gold);
+  --earned-rim:        var(--rim-gold);
+  --earned-glow:       var(--glow-gold-rim);
+  --earned-glow-inner: var(--glow-gold-inner);
+
+  /* borders / dividers */
+  --divider: var(--line);
+
+  /* control states */
+  --control-fill:          var(--glass-fill);
+  --control-fill-hover:    var(--glass-fill-hover);
+  --control-fill-pressed:  var(--glass-fill-pressed);
+  --control-fill-disabled: rgba(255,255,255,0.02);
+  --control-text-disabled: rgba(231,236,242,0.38);
+  --focus:                 var(--focus-ring);
+
+  /* feedback */
+  --success: var(--success);
+  --warning: var(--warning);
+  --error:   var(--error);
+}
+
+/* Reduced-transparency fallback: swap glass for opaque slate
+   so text contrast never drops below AA when the OS disables blur. */
+@media (prefers-reduced-transparency: reduce) {
+  :root, [data-theme="dark"] {
+    --control-fill:         #10151D;
+    --control-fill-hover:   #141A23;
+    --control-fill-pressed: #182029;
+    --surface-glass:        #10151D;
+  }
+}

@@ -1,0 +1,111 @@
+/* ============================================================
+   Verso Design Tokens — CSS custom properties
+   v1.0.0 · locked 2026-07-11
+   Dark-first. These are the raw values; dark-theme.css maps them
+   to semantic UI roles. Do not hardcode hexes in components.
+   ============================================================ */
+:root {
+  /* ---- base surfaces & ink ---- */
+  --midnight:    #080B10;
+  --deep-slate:  #0F141B;
+  --slate-2:     #151B24;
+  --cool-white:  #E7ECF2;
+  --cold-grey:   #8B95A3;
+  --faint:       #5A6472;
+
+  /* ---- accents ---- */
+  --royal:       #5B78FF;
+  --royal-soft:  #8FA2FF;
+  --gold:        #E8B34B;   /* EARNED ONLY */
+  --gold-soft:   #F0C46E;
+  --green:       #4CC79A;   /* life / cultivation leaves + stems */
+  --crimson:     #D14E5C;   /* fruit / harvest only */
+  --dusk:        #6FB0C9;   /* distant atmosphere ONLY, never a fill */
+
+  /* ---- semantic ---- */
+  --success:     #4CC79A;
+  --warning:     #E8B34B;
+  --error:       #D14E5C;
+  --info:        #5B78FF;
+
+  /* ---- glass ---- */
+  --glass-fill:         rgba(255,255,255,0.04);
+  --glass-fill-hover:   rgba(255,255,255,0.06);
+  --glass-fill-pressed: rgba(255,255,255,0.09);
+  --glass-blur:         10px;
+  --glass-blur-strong:  18px;
+
+  /* ---- lines & rims ---- */
+  --line:        rgba(150,180,210,0.11);
+  --rim-royal:   rgba(91,120,255,0.55);
+  --rim-gold:    rgba(232,179,75,0.55);
+
+  /* ---- glows ---- */
+  --glow-royal-rim:   0 0 18px -4px rgba(70,100,255,0.35);
+  --glow-royal-inner: inset 0 0 14px rgba(91,120,255,0.14);
+  --glow-gold-rim:    0 0 18px -4px rgba(232,179,75,0.30);
+  --glow-gold-inner:  inset 0 0 14px rgba(232,179,75,0.12);
+  --focus-ring:       0 0 0 3px rgba(143,162,255,0.45);
+
+  /* ---- opacity ---- */
+  --op-disabled: 0.38;
+  --op-divider:  0.11;
+  --op-scrim:    0.72;
+
+  /* ---- radii ---- */
+  --r-xs: 8px; --r-sm: 12px; --r-md: 16px; --r-lg: 20px; --r-xl: 26px; --r-pill: 999px;
+
+  /* ---- borders ---- */
+  --bw-hairline: 1px; --bw-regular: 1.5px; --bw-heavy: 2px;
+
+  /* ---- spacing (4px base) ---- */
+  --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-5: 20px; --s-6: 24px;
+  --s-7: 32px; --s-8: 40px; --s-9: 56px; --s-10: 72px; --s-11: 96px; --s-12: 128px;
+
+  /* ---- shadows ---- */
+  --shadow-card:  0 24px 50px -30px rgba(0,0,0,0.70);
+  --shadow-phone: 0 34px 70px -34px rgba(0,0,0,0.85);
+  --shadow-modal: 0 40px 90px -30px rgba(0,0,0,0.85);
+
+  /* ---- type ---- */
+  --font-display: "Fraunces", Georgia, "Times New Roman", serif;
+  --font-ui: "Hanken Grotesk", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --fw-light: 300; --fw-regular: 400; --fw-medium: 500; --fw-semibold: 600;
+
+  --fs-display: clamp(2.9rem, 8.5vw, 5.4rem);
+  --fs-h1:      clamp(2.1rem, 5.5vw, 3.6rem);
+  --fs-h2:      clamp(1.7rem, 4vw, 2.4rem);
+  --fs-title:   1.55rem;
+  --fs-verse:   clamp(1.25rem, 3vw, 1.9rem);
+  --fs-numeral: clamp(2.4rem, 7vw, 4rem);
+  --fs-body-lg: 1.12rem;
+  --fs-body:    1rem;
+  --fs-body-sm: 0.92rem;
+  --fs-label:   0.8rem;
+  --fs-eyebrow: 0.72rem;
+  --fs-caption: 0.74rem;
+  --fs-nav:     0.58rem;
+
+  --lh-tight: 1.02; --lh-verse: 1.32; --lh-snug: 1.2; --lh-body: 1.6;
+  --tr-display: -0.01em; --tr-body: 0.005em; --tr-eyebrow: 0.24em; --tr-nav: 0.12em;
+
+  /* ---- layout ---- */
+  --nav-h: 64px;
+  --nav-h-safe: calc(64px + env(safe-area-inset-bottom));
+  --safe-top: env(safe-area-inset-top);
+  --safe-bottom: env(safe-area-inset-bottom);
+  --hit-min: 44px;
+  --gutter-mobile: 20px; --gutter-tablet: 40px; --gutter-desktop: 64px;
+  --content-max: 1180px;
+
+  /* ---- motion ---- */
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-fast: 120ms; --dur-base: 240ms; --dur-slow: 400ms; --dur-cine: 900ms;
+}
+
+/* ---- breakpoints (reference; use in media queries) ----
+   SE      320px
+   mobile  390px
+   tablet  768px
+   desktop 1280px
+------------------------------------------------------------ */

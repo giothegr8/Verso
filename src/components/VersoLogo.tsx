@@ -1,6 +1,12 @@
+/// <reference types="vite/client" />
 import React from "react";
-import { motion } from "motion/react";
-import { BookOpen, Sprout } from "lucide-react";
+
+// The Dawn mark — canonical handoff assets (copied verbatim, never redrawn).
+// Colored symbol preserves the gold sunrise + royal book; the small-nav variant
+// carries heavier strokes for legibility at 24–32px; monochrome drives white mode.
+import symbolMark from "../assets/brand/logo/verso-dawn-symbol.svg";
+import smallNavMark from "../assets/brand/logo/verso-dawn-small-nav.svg";
+import monochromeMark from "../assets/brand/logo/verso-dawn-monochrome.svg";
 
 interface VersoLogoProps {
   size?: "sm" | "md" | "lg" | "xl";
@@ -9,51 +15,83 @@ interface VersoLogoProps {
   mode?: "standard" | "white";
 }
 
-export default function VersoLogo({ 
-  size = "md", 
-  showText = true, 
-  variant = "app",
-  mode = "standard"
-}: VersoLogoProps) {
-  const sizes = {
-    sm: { icon: 16, container: "w-8 h-8", text: "text-xl", plant: 8 },
-    md: { icon: 24, container: "w-12 h-12", text: "text-3xl", plant: 12 },
-    lg: { icon: 32, container: "w-16 h-16", text: "text-4xl", plant: 16 },
-    xl: { icon: 48, container: "w-24 h-24", text: "text-5xl", plant: 24 }
-  };
+// Below 32px the fine rays disappear, so sm/md use the small-nav variant
+// (per logo-usage.md); lg/xl use the full symbol.
+const SIZES: Record<
+  NonNullable<VersoLogoProps["size"]>,
+  { mark: number; text: string; smallNav: boolean }
+> = {
+  sm: { mark: 22, text: "1.35rem", smallNav: true },
+  // md renders the full-detail Dawn symbol at exactly 32px (the main app header):
+  // the sunrise rays must stay visible, so it never uses the ray-less small-nav mark.
+  md: { mark: 32, text: "1.75rem", smallNav: false },
+  lg: { mark: 34, text: "2.25rem", smallNav: false },
+  xl: { mark: 52, text: "3rem", smallNav: false },
+};
 
-  const current = sizes[size];
+export default function VersoLogo({
+  size = "md",
+  showText = true,
+  variant = "app",
+  mode = "standard",
+}: VersoLogoProps) {
+  const s = SIZES[size];
   const isOnboarding = variant === "onboarding";
   const isWhite = mode === "white";
+  const coloredSrc = s.smallNav ? smallNavMark : symbolMark;
+  // When the wordmark is visible the mark is decorative; otherwise it names the app.
+  const markDecorative = showText;
+
+  const mark = isWhite ? (
+    <span
+      className="vbrand-icon"
+      role={markDecorative ? undefined : "img"}
+      aria-hidden={markDecorative || undefined}
+      aria-label={markDecorative ? undefined : "Verso"}
+      style={{
+        width: s.mark,
+        height: s.mark,
+        color: "#FFFFFF",
+        WebkitMaskImage: `url("${monochromeMark}")`,
+        maskImage: `url("${monochromeMark}")`,
+      }}
+    />
+  ) : (
+    <img
+      src={coloredSrc}
+      alt={markDecorative ? "" : "Verso"}
+      aria-hidden={markDecorative || undefined}
+      width={s.mark}
+      height={s.mark}
+      draggable={false}
+      style={{
+        display: "block",
+        filter:
+          "drop-shadow(0 0 10px rgba(232,179,75,0.35)) drop-shadow(0 0 7px rgba(76,199,154,0.22))",
+      }}
+    />
+  );
 
   return (
-    <div className={`flex ${isOnboarding ? 'flex-col gap-4' : 'flex-row gap-3'} items-center`}>
-      <div className={`
-        relative ${current.container} rounded-[30%] flex items-center justify-center transition-all duration-500
-        ${isWhite ? 'bg-white/10 text-white' : 'bg-earth/[0.03] dark:bg-white/[0.07] border border-earth/5 dark:border-white/10 shadow-sm dark:shadow-[0_8px_30px_rgba(0,0,0,0.2)]'}
-      `}>
-        <BookOpen 
-          size={current.icon} 
-          className={isWhite ? 'text-white' : 'text-playful-purple dark:text-playful-purple'} 
-          strokeWidth={isWhite ? 1.5 : (isOnboarding ? 1.5 : 2)} 
-        />
-        {isOnboarding && (
-          <motion.div 
-            className="absolute -top-1 -right-1 bg-white dark:bg-charcoal rounded-full p-1 shadow-md"
-            animate={{ rotate: 360 }}
-            transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-          >
-            <Sprout size={current.plant} className="text-teal" />
-          </motion.div>
-        )}
-      </div>
+    <div
+      className={`flex ${
+        isOnboarding ? "flex-col gap-4" : "flex-row gap-3"
+      } items-center`}
+    >
+      {mark}
       {showText && (
-        <h1 className={`
-          ${current.text} font-serif font-black tracking-tighter leading-none transition-colors duration-500
-          ${isWhite ? 'text-white' : 'text-playful-purple'}
-        `}>
+        <span
+          style={{
+            fontFamily: "var(--font-display)",
+            fontWeight: 500,
+            fontSize: s.text,
+            letterSpacing: "0.01em",
+            lineHeight: 1,
+            color: isWhite ? "#FFFFFF" : "var(--cool-white)",
+          }}
+        >
           Verso
-        </h1>
+        </span>
       )}
     </div>
   );

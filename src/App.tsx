@@ -45,6 +45,8 @@ import ProductTour from "./components/ProductTour";
 import PathSelection from "./components/PathSelection";
 import CustomPathCreate from "./components/CustomPathCreate";
 import VersoLogo from "./components/VersoLogo";
+import { BrandIcon, IconButton } from "./components/ui";
+import type { BrandIconName } from "./components/ui";
 import { CustomPath, Path } from "./types";
 
 // Services
@@ -724,12 +726,14 @@ function AppInner() {
   }, [state.onboarded, !!state.activeAttempt]);
 
   useEffect(() => {
-    const isDark = 
-      state.theme === "dark" || 
-      (state.theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
-    
-    document.documentElement.classList.toggle("dark", isDark);
-    document.body.classList.toggle("dark", isDark);
+    // V1 ships dark-only. Force the dark theme regardless of the persisted
+    // `state.theme` preference (which is left untouched so no user data is lost
+    // and Settings is not modified). Light mode is not implemented in V1.
+    const root = document.documentElement;
+    root.classList.add("dark");
+    root.setAttribute("data-theme", "dark");
+    root.style.colorScheme = "dark";
+    document.body.classList.add("dark");
   }, [state.theme]);
 
   // Reset memorization stages only when the memorization configuration genuinely
@@ -1387,8 +1391,8 @@ function AppInner() {
   const renderContentInner = () => {
     if (authLoading) {
       return (
-        <div className="min-h-screen bg-parchment dark:bg-espresso flex items-center justify-center">
-          <Loader2 className="animate-spin text-teal" size={40} />
+        <div className="min-h-screen-dynamic bg-midnight text-cool-white flex items-center justify-center">
+          <Loader2 className="animate-spin text-royal-soft" size={40} />
         </div>
       );
     }
@@ -1425,34 +1429,81 @@ function AppInner() {
     }
 
     // Main App Layout
+    const isEs = state.primaryLanguage === 'es';
+    const navItems: {
+      id: string;
+      domId: string;
+      icon: BrandIconName;
+      label: string;
+      onClick: () => void;
+    }[] = [
+      { id: 'home', domId: 'nav-home', icon: 'ui-home', label: isEs ? 'Inicio' : 'Home', onClick: () => handleSetActiveTab('home') },
+      { id: 'memorize', domId: 'nav-memorize', icon: 'ui-memorize', label: isEs ? 'Memorizar' : 'Memorize', onClick: () => handleSetActiveTab('memorize') },
+      { id: 'flashcards', domId: 'nav-flashcards', icon: 'ui-cards', label: isEs ? 'Tarjetas' : 'Cards', onClick: () => handleSetActiveTab('flashcards') },
+      { id: 'paths', domId: 'nav-paths', icon: 'ui-paths', label: isEs ? 'Series' : 'Paths', onClick: () => { setSelectedPath(null); setEditingPath(null); handleSetActiveTab('paths'); } },
+      { id: 'saved', domId: 'nav-saved', icon: 'ui-saved', label: isEs ? 'Guardados' : 'Saved', onClick: () => handleSetActiveTab('saved') },
+    ];
+    const openSettings = () => {
+      if (activeAttemptInProgress) {
+        setPendingAttempt({ type: "navigate", destinationTab: "settings" });
+        return;
+      }
+      setShowSettings(true);
+    };
+    const settingsLabel = isEs ? 'Ajustes' : 'Settings';
+
     return (
-      <div className="flex flex-col min-h-screen-dynamic relative overflow-x-hidden bg-parchment dark:bg-espresso transition-colors duration-500">
-        <header className="sticky top-0 z-40 bg-parchment/90 dark:bg-espresso/90 backdrop-blur-xl border-b border-earth/10 dark:border-white/10 transition-colors duration-500">
-          <div className="content-column py-6 flex justify-between items-center">
-            <div className="flex items-center gap-3">
+      <div className="verso-shell flex flex-col relative overflow-x-hidden">
+        {/* Desktop left rail (>=1280): same five destinations, royal active state */}
+        <nav className="verso-rail" aria-label={isEs ? 'Navegación principal' : 'Primary'}>
+          <div className="verso-rail__brand">
+            <VersoLogo size="sm" showText={true} />
+          </div>
+          {navItems.map((item) => {
+            const active = activeTab === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={item.onClick}
+                className={`verso-rail__item${active ? ' is-active' : ''}`}
+                aria-current={active ? 'page' : undefined}
+              >
+                <BrandIcon name={item.icon} size={21} className="verso-rail__icon" />
+                <span>{item.label}</span>
+              </button>
+            );
+          })}
+          <div style={{ marginTop: 'auto' }}>
+            <button
+              type="button"
+              onClick={openSettings}
+              className="verso-rail__item"
+            >
+              <BrandIcon name="ui-settings" size={21} className="verso-rail__icon" />
+              <span>{settingsLabel}</span>
+            </button>
+          </div>
+        </nav>
+
+        <header className="verso-header">
+          <div className="verso-frame py-6 flex justify-between items-center">
+            <div className="flex items-center gap-3 xl:hidden">
               <VersoLogo size="md" showText={true} />
             </div>
-            <div className="flex items-center gap-4">
-              <button
+            <div className="flex items-center gap-4 ml-auto">
+              <IconButton
                 id="nav-settings"
-                onClick={() => {
-                  if (activeAttemptInProgress) {
-                    setPendingAttempt({ type: "navigate", destinationTab: "settings" });
-                    return;
-                  }
-                  setShowSettings(true);
-                }}
-                className="btn-icon bg-white dark:bg-charcoal border border-earth/10 dark:border-white/10 shadow-sm transition-colors duration-500"
-                aria-label="Settings"
-              >
-                <SettingsIcon size={20} />
-              </button>
+                label={settingsLabel}
+                onClick={openSettings}
+                icon={<BrandIcon name="ui-settings" size={20} />}
+              />
             </div>
           </div>
         </header>
 
-        <main className="flex-1 flex flex-col pt-4 sm:pt-6 pb-24 sm:pb-32">
-          <div className="content-column flex-1">
+        <main className="verso-main flex-1 flex flex-col pt-4 sm:pt-6">
+          <div className="verso-frame flex-1">
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeTab}
@@ -1468,18 +1519,22 @@ function AppInner() {
           </div>
         </main>
 
-        <div 
-          className="fixed bottom-0 left-0 right-0 z-40 px-6 pointer-events-none"
-          style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))" }}
-        >
-          <nav className="max-w-xl mx-auto bg-white dark:bg-charcoal border border-earth/10 dark:border-white/10 px-6 sm:px-10 py-3.5 flex justify-around items-center rounded-[32px] shadow-[0_15px_50px_rgba(0,0,0,0.15)] pointer-events-auto transition-colors duration-500">
-            <NavButton id="nav-home" active={activeTab === 'home'} activeColor="text-playful-purple" onClick={() => handleSetActiveTab('home')} icon={<HomeIcon size={22} />} label={state.primaryLanguage === 'es' ? 'Inicio' : 'Home'} />
-            <NavButton id="nav-memorize" active={activeTab === 'memorize'} activeColor="text-gold" onClick={() => handleSetActiveTab('memorize')} icon={<BookOpen size={22} />} label={state.primaryLanguage === 'es' ? 'Memorizar' : 'Memorize'} />
-            <NavButton id="nav-flashcards" active={activeTab === 'flashcards'} activeColor="text-coral" onClick={() => handleSetActiveTab('flashcards')} icon={<Layers size={22} />} label={state.primaryLanguage === 'es' ? 'Tarjetas' : 'Cards'} />
-            <NavButton id="nav-paths" active={activeTab === 'paths'} activeColor="text-sky-blue" onClick={() => { setSelectedPath(null); setEditingPath(null); handleSetActiveTab('paths'); }} icon={<Compass size={22} />} label={state.primaryLanguage === 'es' ? 'Series' : 'Paths'} />
-            <NavButton id="nav-saved" active={activeTab === 'saved'} activeColor="text-teal" onClick={() => handleSetActiveTab('saved')} icon={<Sprout size={22} />} label={state.primaryLanguage === 'es' ? 'Guardados' : 'Saved'} />
-          </nav>
-        </div>
+        {/* Mobile (<768) full-width bar / tablet (768–1279) centered pill */}
+        <nav className="verso-bottomnav" aria-label={isEs ? 'Navegación principal' : 'Primary'}>
+          {navItems.map((item) => {
+            const active = activeTab === item.id;
+            return (
+              <NavButton
+                key={item.id}
+                id={item.domId}
+                active={active}
+                onClick={item.onClick}
+                iconName={item.icon}
+                label={item.label}
+              />
+            );
+          })}
+        </nav>
 
         <AnimatePresence>
           {showSettings && (
@@ -1610,15 +1665,15 @@ function AppInner() {
 export default function App() {
   return (
     <ErrorBoundary fallback={
-      <div className="min-h-screen bg-parchment dark:bg-espresso flex flex-col items-center justify-center text-center p-8 space-y-6">
-        <div className="w-20 h-20 bg-lavender/10 rounded-3xl flex items-center justify-center">
-          <RotateCcw size={40} className="text-lavender" />
+      <div className="min-h-screen-dynamic bg-midnight text-cool-white flex flex-col items-center justify-center text-center p-8 space-y-6">
+        <div className="w-20 h-20 rounded-3xl flex items-center justify-center" style={{ background: "var(--glass-fill)", border: "1px solid var(--rim-royal)" }}>
+          <RotateCcw size={40} className="text-royal-soft" />
         </div>
         <div className="space-y-2">
-          <h2 className="text-2xl font-serif font-black text-earth dark:text-ivory">Error</h2>
-          <p className="text-earth-light dark:text-lavender-muted max-w-xs mx-auto">Please restart the app.</p>
+          <h2 className="text-2xl font-serif text-cool-white">Error</h2>
+          <p className="text-cold-grey max-w-xs mx-auto">Please restart the app.</p>
         </div>
-        <button onClick={() => { localStorage.clear(); window.location.reload(); }} className="btn-primary px-8">Reset App</button>
+        <button type="button" onClick={() => { localStorage.clear(); window.location.reload(); }} className="vbtn vbtn--primary">Reset App</button>
       </div>
     }>
       <AuthProvider>
@@ -1628,13 +1683,19 @@ export default function App() {
   );
 }
 
-function NavButton({ id, active, activeColor, onClick, icon, label }: { id: string, active: boolean, activeColor: string, onClick: () => void, icon: any, label: string }) {
+function NavButton({ id, active, onClick, iconName, label }: { id: string, active: boolean, onClick: () => void, iconName: BrandIconName, label: string }) {
   return (
-    <button id={id} onClick={onClick} className={`flex flex-col items-center gap-1 transition-colors ${active ? activeColor : 'text-earth/40 dark:text-parchment/40'}`}>
-      <motion.div animate={{ scale: active ? 1.1 : 1, y: active ? -3 : 0 }} whileHover={{ scale: active ? 1.15 : 1.05, y: active ? -4 : -2 }} whileTap={{ scale: 0.95, y: 0 }} transition={{ type: "spring", stiffness: 300, damping: 15 }}>
-        {icon}
-      </motion.div>
-      <span className={`text-[9px] font-black uppercase tracking-[0.1em] transition-all ${active ? 'opacity-100 scale-105' : 'opacity-40 scale-100'}`}>{label}</span>
+    <button
+      id={id}
+      type="button"
+      onClick={onClick}
+      className={`verso-tab${active ? ' is-active' : ''}`}
+      aria-current={active ? 'page' : undefined}
+    >
+      <span className="verso-tab__halo">
+        <BrandIcon name={iconName} size={21} className="verso-tab__icon" />
+      </span>
+      <span>{label}</span>
     </button>
   );
 }
