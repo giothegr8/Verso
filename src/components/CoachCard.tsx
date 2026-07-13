@@ -1,7 +1,7 @@
-import { useState, useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Sparkles, Brain, Clock, Star, RefreshCw, MessageCircle } from "lucide-react";
 import { AppState } from "../types";
+import { BrandIcon } from "./ui";
 
 interface CoachCardProps {
   state: AppState;
@@ -95,10 +95,10 @@ export default function CoachCard({ state, type, verseReference, verseText, stag
   const message = useMemo(() => {
     const isEs = state.primaryLanguage === 'es';
     const lang = isEs ? 'es' : 'en';
-    
+
     // Use a hash of the verse reference and stage to pick a consistent but "rotating" message
     const seed = (verseReference.length + stage + type.length) % 5;
-    
+
     if (status === 'completed' || type === 'reflection') {
       return REFLECTION_BANK[lang][seed % REFLECTION_BANK[lang].length];
     }
@@ -118,10 +118,6 @@ export default function CoachCard({ state, type, verseReference, verseText, stag
         return isEs ? "Sigue adelante con tu memorización." : "Keep going with your memorization.";
     }
   }, [type, verseReference, stage, status, state.primaryLanguage]);
-
-  const getIcon = () => {
-    return <Sparkles size={18} className="text-playful-purple" fill="currentColor" />;
-  };
 
   const getLabel = () => {
     if (state.primaryLanguage === 'es') {
@@ -151,18 +147,14 @@ export default function CoachCard({ state, type, verseReference, verseText, stag
           initial={{ opacity: 0, y: 10, scale: 0.95 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 10, scale: 0.95 }}
-          className="w-full bg-white/50 dark:bg-charcoal/50 backdrop-blur-sm border border-earth/5 dark:border-white/5 rounded-2xl p-4 flex items-start gap-4 shadow-sm"
+          className="w-full bg-deep-slate border border-(--line) rounded-[18px] p-[18px] md:p-6 flex items-center gap-3.5"
         >
-          <div className="mt-1 p-2 bg-white dark:bg-charcoal rounded-xl shadow-sm border border-earth/5 dark:border-white/5">
-            {getIcon()}
-          </div>
-          <div className="flex-1 space-y-1">
-            <div className="flex justify-between items-center">
-              <span className="text-[10px] font-black uppercase tracking-widest text-earth-light/60 dark:text-lavender-muted/60">
-                {getLabel()}
-              </span>
-            </div>
-            <p className="text-sm font-medium text-earth dark:text-ivory leading-snug">
+          <BrandIcon name="narrative-plant" size={34} className="shrink-0" />
+          <div className="flex-1 min-w-0 flex flex-col gap-1">
+            <h3 className="font-hanken text-[15px] font-semibold text-cool-white leading-snug">
+              {getLabel()}
+            </h3>
+            <p className="font-hanken text-base text-cold-grey leading-snug">
               {message}
             </p>
           </div>
