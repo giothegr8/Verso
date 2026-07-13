@@ -12,10 +12,10 @@ import {
 } from "../types";
 import { loadVerseAndMerge } from "../services/bibleService";
 import { MOCK_VERSES, getVerseByDate } from "../constants";
-import { CheckCircle2, RotateCcw, Eye, EyeOff, ArrowRight, ArrowLeft, Star, Trophy, Languages, Sparkles, AlertCircle, Bookmark, Layers, MessageCircle, BookOpen, Sprout, Loader2 } from "lucide-react";
+import { CheckCircle2, RotateCcw, Eye, EyeOff, ArrowRight, ArrowLeft, Trophy, Sparkles, AlertCircle, Bookmark, Layers, BookOpen, Loader2 } from "lucide-react";
 import React from "react";
 import confetti from "canvas-confetti";
-import { getCurrentTranslationPair, getValidatedVerse, getLocalizedBookName, getLocalDateString, getVerseLines, removeAccents, VERSE_LAYOUT } from "../utils/verseUtils";
+import { getCurrentTranslationPair, getValidatedVerse, getLocalizedBookName, getLocalDateString, removeAccents } from "../utils/verseUtils";
 
 interface MemorizeProps {
   state: AppState;
@@ -374,6 +374,20 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
   const [userInputEn, setUserInputEn] = useState<string[]>(() => savedTypingState?.userInputEn || []);
   const [cursorIndexEs, setCursorIndexEs] = useState(() => savedTypingState?.cursorIndexEs || 0);
   const [cursorIndexEn, setCursorIndexEn] = useState(() => savedTypingState?.cursorIndexEn || 0);
+  // Latest-value cursor refs for the synchronous event stream. Rapid keystrokes
+  // and arrow presses can fire before React re-renders, so render-scope closures
+  // go stale; every cursor write goes through the Live setters below so the ref
+  // always carries the newest position and no event can act on an older one.
+  const cursorIndexEsRef = useRef(savedTypingState?.cursorIndexEs || 0);
+  const cursorIndexEnRef = useRef(savedTypingState?.cursorIndexEn || 0);
+  const setCursorIndexEsLive = (v: number) => {
+    cursorIndexEsRef.current = v;
+    setCursorIndexEs(v);
+  };
+  const setCursorIndexEnLive = (v: number) => {
+    cursorIndexEnRef.current = v;
+    setCursorIndexEn(v);
+  };
   const [clueCountEs, setClueCountEs] = useState(() => savedTypingState?.clueCountEs || 0);
   const [clueCountEn, setClueCountEn] = useState(() => savedTypingState?.clueCountEn || 0);
   const [revealedIndicesEs, setRevealedIndicesEs] = useState<number[]>(() => savedTypingState?.revealedIndicesEs || []);
@@ -624,30 +638,6 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
     });
   };
   
-  const [cardHeight, setCardHeight] = useState<number | null>(null);
-  const cardRef = useRef<HTMLDivElement>(null);
-
-  // Measure card height on mount, stage change, or verse change to ensure stability
-  useEffect(() => {
-    setCardHeight(null);
-    if (cardRef.current && (stage === 1 || stage === 4)) {
-      // Small timeout to allow content to settle and fonts to render
-      const timer = setTimeout(() => {
-        const rect = cardRef.current?.getBoundingClientRect();
-        if (rect && rect.height > 0) {
-          // We take the max of what we've seen to ensure it never jumps down, only accommodates
-          setCardHeight(prev => Math.max(prev || 0, rect.height));
-        }
-      }, 150);
-      return () => clearTimeout(timer);
-    }
-  }, [verse.id, state.memorizeMode, stage, activeLanguage, state.selectedTranslations.es, state.selectedTranslations.en]);
-
-  useEffect(() => {
-    // Reset height if verse changes
-    setCardHeight(null);
-  }, [verse.id, state.memorizeMode]);
-
   const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
@@ -939,8 +929,8 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
       setFeedback(null);
       setRevealedIndicesEs(savedTypingState?.revealedIndicesEs || []);
       setRevealedIndicesEn(savedTypingState?.revealedIndicesEn || []);
-      setCursorIndexEs(savedTypingState?.cursorIndexEs || 0);
-      setCursorIndexEn(savedTypingState?.cursorIndexEn || 0);
+      setCursorIndexEsLive(savedTypingState?.cursorIndexEs || 0);
+      setCursorIndexEnLive(savedTypingState?.cursorIndexEn || 0);
       
       lastConfigRef.current = {
         selectedTranslationsEs: state.selectedTranslations.es,
@@ -955,8 +945,17 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
   // Legacy/orphan transient stage state is not enough to reconstruct a safe
   // bilingual attempt. Preserve completed stage 7 records, but do not recreate an
   // active attempt without its v2 identity, language order, and completion state.
+  // The cleanup is armed only after an attempt has been observed in this mounted
+  // instance: restored progress is never cleared during the mount/hydration
+  // cycle (a reload mid-attempt must always win), only on a genuine in-session
+  // transition to an attempt-less state.
+  const orphanCleanupArmedRef = useRef(false);
   useEffect(() => {
-    if (state.activeAttempt) return;
+    if (state.activeAttempt) {
+      orphanCleanupArmedRef.current = true;
+      return;
+    }
+    if (!orphanCleanupArmedRef.current) return;
     const dbStage = state.progress.verseStages[verse.id];
     if (dbStage === undefined || dbStage < 2 || dbStage > 6) return;
     setState(s => {
@@ -1089,16 +1088,16 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
             particleCount: 50,
             spread: 60,
             origin: { y: 0.6 },
-            colors: ['#0d9488', '#2dd4bf', '#a7f3d0'], // Teal/mint palette
+            colors: ['#E8B34B', '#F0C46E', '#8FA2FF'], // Ember gold + royal soft (earned)
             ticks: 200,
             gravity: 1.2
           });
         }
       } else {
-        // Water-based burst using blue/teal shades for single language mode complete
+        // Earned burst in the locked palette for single language mode complete
         const duration = 2 * 1000;
         const animationEnd = Date.now() + duration;
-        const colors = ['#0ea5e9', '#38bdf8', '#7dd3fc', '#e0f2fe'];
+        const colors = ['#E8B34B', '#F0C46E', '#8FA2FF', '#E7ECF2'];
 
         const frame = () => {
           const timeLeft = animationEnd - Date.now();
@@ -1138,7 +1137,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
           particleCount: 50,
           spread: 60,
           origin: { y: 0.6 },
-          colors: ['#0d9488', '#2dd4bf', '#a7f3d0'], // Teal/mint palette
+          colors: ['#E8B34B', '#F0C46E', '#8FA2FF'], // Ember gold + royal soft (earned)
           ticks: 200,
           gravity: 1.2
         });
@@ -1149,8 +1148,8 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
   if (verse && ((state.memorizeMode === 'es' && isEsLoading) || (state.memorizeMode === 'en' && isEnLoading) || (state.memorizeMode === 'both' && (isEsLoading || isEnLoading)))) {
     return (
       <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-4">
-        <Loader2 className="animate-spin text-teal-600 dark:text-teal-400" size={36} />
-        <p className="text-earth-light dark:text-lavender-muted text-sm font-medium">
+        <Loader2 className="animate-spin text-royal-soft" size={36} />
+        <p className="font-hanken text-cold-grey text-sm font-medium">
           {state.primaryLanguage === 'es' ? 'Cargando traducción...' : 'Loading translation...'}
         </p>
       </div>
@@ -1160,19 +1159,19 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
   if (!verse || (!esText && !enText)) {
     return (
       <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-4">
-        <div className="w-16 h-16 bg-coral/10 rounded-full flex items-center justify-center">
-          <AlertCircle size={32} className="text-coral" />
+        <div className="w-16 h-16 rounded-full bg-[rgba(209,78,92,0.08)] border border-[rgba(209,78,92,0.40)] flex items-center justify-center">
+          <AlertCircle size={32} className="text-[#F0A6A0]" />
         </div>
-        <h3 className="text-xl font-serif font-bold text-earth dark:text-ivory">
+        <h3 className="text-xl font-fraunces font-medium text-cool-white">
           {state.primaryLanguage === 'es' ? 'Versículo no disponible' : 'Verse unavailable'}
         </h3>
         <div className="space-y-2">
-          {esError && <p className="text-coral font-bold text-sm">{esError}</p>}
-          {enError && <p className="text-coral font-bold text-sm">{enError}</p>}
+          {esError && <p className="font-hanken text-[#F0A6A0] font-semibold text-sm">{esError}</p>}
+          {enError && <p className="font-hanken text-[#F0A6A0] font-semibold text-sm">{enError}</p>}
         </div>
-        <p className="text-earth-light dark:text-lavender-muted max-w-xs pt-4">
-          {state.primaryLanguage === 'es' 
-            ? 'Por favor selecciona una traducción diferente en los ajustes.' 
+        <p className="font-hanken text-cold-grey max-w-xs pt-4">
+          {state.primaryLanguage === 'es'
+            ? 'Por favor selecciona una traducción diferente en los ajustes.'
             : 'Please select a different translation in settings.'}
         </p>
       </div>
@@ -1200,7 +1199,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
         setIncorrectIndicesEs([]);
         setIsCorrectEs(false);
         setRevealedIndicesEs([]);
-        setCursorIndexEs(0);
+        setCursorIndexEsLive(0);
       } else {
         setDidFailFlowEn(false);
         setAttemptsEn(0);
@@ -1212,7 +1211,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
         setIncorrectIndicesEn([]);
         setIsCorrectEn(false);
         setRevealedIndicesEn([]);
-        setCursorIndexEn(0);
+        setCursorIndexEnLive(0);
       }
       setFeedback(null);
       
@@ -1321,7 +1320,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
       setIncorrectIndicesEs([]);
       setIsCorrectEs(false);
       setRevealedIndicesEs([]);
-      setCursorIndexEs(0);
+      setCursorIndexEsLive(0);
     } else {
       setAttemptsEn(0);
       setUserInputEn([]);
@@ -1332,7 +1331,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
       setIncorrectIndicesEn([]);
       setIsCorrectEn(false);
       setRevealedIndicesEn([]);
-      setCursorIndexEn(0);
+      setCursorIndexEnLive(0);
     }
     setFeedback(null);
   };
@@ -1354,7 +1353,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
       if (activeLanguage === 'es') {
         setUserInputEs([]);
         setSubmittedWrongCharsEs({});
-        setCursorIndexEs(0);
+        setCursorIndexEsLive(0);
         setClueCountEs(0);
         setIsWrongEs(false);
         setHasSubmittedEs(false);
@@ -1364,7 +1363,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
       } else {
         setUserInputEn([]);
         setSubmittedWrongCharsEn({});
-        setCursorIndexEn(0);
+        setCursorIndexEnLive(0);
         setClueCountEn(0);
         setIsWrongEn(false);
         setHasSubmittedEn(false);
@@ -1416,7 +1415,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
         setIncorrectIndicesEs([]);
         setFeedback(null);
         setRevealedIndicesEs([]);
-        setCursorIndexEs(0);
+        setCursorIndexEsLive(0);
         
         setState(s => ({
           ...s,
@@ -1466,7 +1465,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
         setIncorrectIndicesEn([]);
         setFeedback(null);
         setRevealedIndicesEn([]);
-        setCursorIndexEn(0);
+        setCursorIndexEnLive(0);
         
         setState(s => ({
           ...s,
@@ -1576,8 +1575,8 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
         while (firstEmpty < targetCleanSize && (revealed.includes(firstEmpty) || currentUserInput[firstEmpty])) {
           firstEmpty++;
         }
-        if (lang === 'es') setCursorIndexEs(Math.min(firstEmpty, targetCleanSize));
-        else setCursorIndexEn(Math.min(firstEmpty, targetCleanSize));
+        if (lang === 'es') setCursorIndexEsLive(Math.min(firstEmpty, targetCleanSize));
+        else setCursorIndexEnLive(Math.min(firstEmpty, targetCleanSize));
       }
       
       // Immediate focus for mobile
@@ -1636,7 +1635,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
         });
 
         if (l === activeLanguage) {
-          const setCursor = l === 'es' ? setCursorIndexEs : setCursorIndexEn;
+          const setCursor = l === 'es' ? setCursorIndexEsLive : setCursorIndexEnLive;
           const oldCursor = l === 'es' ? cursorIndexEs : cursorIndexEn;
 
           const tempRevealed = [...revealed, ...newRevealed];
@@ -1721,14 +1720,16 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
   const insertTypedText = (textToInsert: string) => {
     if (!textToInsert) return;
 
-    const cursor = activeLanguage === 'es' ? cursorIndexEs : cursorIndexEn;
-    const setCursor = activeLanguage === 'es' ? setCursorIndexEs : setCursorIndexEn;
+    const cursor = activeLanguage === 'es' ? cursorIndexEsRef.current : cursorIndexEnRef.current;
+    const setCursor = activeLanguage === 'es' ? setCursorIndexEsLive : setCursorIndexEnLive;
     const targetCleanLen = activeLanguage === 'es' ? esTextCleanLen : enTextCleanLen;
     const setter = activeLanguage === 'es' ? setUserInputEs : setUserInputEn;
-    const userInput = activeLanguage === 'es' ? userInputEs : userInputEn;
     const touchedIndices: number[] = [];
     let nextCursor = cursor;
-    const nextInput = [...userInput];
+    // Insertions are recorded by slot index and applied through a functional
+    // update below, so rapid successive events compose instead of a later
+    // event overwriting an earlier one through a stale array closure.
+    const insertions: Record<number, string> = {};
 
     if (hasSubmitted) {
       if (activeLanguage === 'es') {
@@ -1750,7 +1751,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
       }
 
       if (nextCursor < targetCleanLen && isEditable(nextCursor, activeLanguage)) {
-        nextInput[nextCursor] = char;
+        insertions[nextCursor] = char;
         touchedIndices.push(nextCursor);
 
         let next = nextCursor + 1;
@@ -1781,7 +1782,13 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
         });
         setIncorrectIndicesEn(prev => prev.filter(idx => !touchedIndices.includes(idx)));
       }
-      setter(nextInput);
+      setter(prev => {
+        const next = [...prev];
+        touchedIndices.forEach(idx => {
+          next[idx] = insertions[idx];
+        });
+        return next;
+      });
     }
 
     setCursor(nextCursor);
@@ -1854,7 +1861,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
         setIncorrectIndicesEs(currentIncorrectIndices);
         setSubmittedWrongCharsEs(wrongChars);
         if (firstIncorrectIdx !== -1) {
-          setCursorIndexEs(firstIncorrectIdx);
+          setCursorIndexEsLive(firstIncorrectIdx);
         }
         setTimeout(() => setIsWrongEs(false), 1500);
       } else {
@@ -1863,7 +1870,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
         setIncorrectIndicesEn(currentIncorrectIndices);
         setSubmittedWrongCharsEn(wrongChars);
         if (firstIncorrectIdx !== -1) {
-          setCursorIndexEn(firstIncorrectIdx);
+          setCursorIndexEnLive(firstIncorrectIdx);
         }
         setTimeout(() => setIsWrongEn(false), 1500);
       }
@@ -1914,15 +1921,19 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
   const renderVerseContent = (textContent: string | null | undefined, userInput: string[], lang: 'es' | 'en', isCurrentActive: boolean = true) => {
     if (!textContent) return null;
     
+    // Committed-HEAD word-flow: all words flow in one wrapping flex container,
+    // so each viewport finds its own natural balance. Masked characters keep
+    // their footprints (hidden glyphs stay in the layout), so Steps 1-5 share
+    // the identical word arrangement at any given width.
     const words = textContent.split(" ");
     const revealed = lang === 'es' ? revealedIndicesEs : revealedIndicesEn;
     const cleanTargetArr = getCleanLetters(textContent).split("");
     const isLangRevealed = isRevealed || (lang === 'es' ? didFailFlowEs : didFailFlowEn);
     let cleanLetterAccumulator = 0;
- 
+
     return (
-      <div className={`w-full font-serif select-none ${VERSE_LAYOUT.FONT_SIZE_CLASSES} ${VERSE_LAYOUT.FONT_WEIGHT} transition-opacity duration-500 ${!isCurrentActive ? 'opacity-60' : 'opacity-100'}`}>
-        <div className="flex flex-wrap justify-center content-start gap-y-4 sm:gap-y-6 gap-x-[0.5em] w-full max-w-4xl mx-auto px-4 sm:px-12">
+      <div className={`w-full font-serif select-none text-[#EFE6D8] text-[21px] min-[390px]:text-[23px] md:text-[27px] xl:text-[30px] leading-[1.45] font-normal [font-optical-sizing:auto] transition-opacity duration-500 ${!isCurrentActive ? 'opacity-60' : 'opacity-100'}`}>
+        <div className="flex flex-wrap justify-center content-start gap-y-2 md:gap-y-2.5 gap-x-[0.5em] w-full">
           {words.map((word, wordIdx) => {
             const wordStartIdx = cleanLetterAccumulator;
             const cleanWordLen = getCleanLetters(word).length;
@@ -1945,8 +1956,8 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                     const targetBaseIdx = isRightHalf ? wordStartIdx + cleanWordLen : wordStartIdx;
                     
                     const targetIdx = getNearestCursorIndex(targetBaseIdx, lang);
-                    if (lang === 'es') setCursorIndexEs(targetIdx);
-                    else setCursorIndexEn(targetIdx);
+                    if (lang === 'es') setCursorIndexEsLive(targetIdx);
+                    else setCursorIndexEnLive(targetIdx);
                     setTimeout(() => inputRef.current?.focus(), 0);
                   }
                 }}
@@ -1958,21 +1969,21 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                     lettersInWordCount++;
                   }
                   
-                  const baseSlotClasses = `relative inline-flex flex-col items-center justify-center min-w-[0.25em] ${VERSE_LAYOUT.CHAR_HEIGHT} transition-all duration-300`;
+                  const baseSlotClasses = `relative inline-flex flex-col items-center justify-center min-w-[0.25em]`;
                   
                   if (!isLetter) {
                     return (
                       <span 
                         key={charIdx} 
-                        className={`${baseSlotClasses} text-earth/40 dark:text-ivory/40 cursor-text`}
+                        className={`${baseSlotClasses} text-[#EFE6D8]/45 cursor-text`}
                         onClick={(e) => {
                           if (stage === 5 && !isLangRevealed) {
                             e.stopPropagation();
                             if (!isCurrentActive) setActiveLanguage(lang);
                             
                             const targetIdx = getNearestCursorIndex(currentLetterIndex, lang);
-                            if (lang === 'es') setCursorIndexEs(targetIdx);
-                            else setCursorIndexEn(targetIdx);
+                            if (lang === 'es') setCursorIndexEsLive(targetIdx);
+                            else setCursorIndexEnLive(targetIdx);
                             setTimeout(() => inputRef.current?.focus(), 0);
                           }
                         }}
@@ -1991,8 +2002,8 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
  
                     return (
                       <span key={charIdx} className={baseSlotClasses}>
-                        <span className={`transition-all duration-300 ${isHidden ? 'opacity-0' : 'opacity-100'}`}>{char}</span>
-                        {isHidden && <span className="absolute bottom-1 left-0 right-0 h-[2px] bg-earth/10 dark:bg-white/10 rounded-full" />}
+                        <span className={isHidden ? 'opacity-0' : 'opacity-100'}>{char}</span>
+                        {isHidden && <span className="absolute bottom-1 left-0 right-0 h-[2px] bg-white/10 rounded-full" />}
                       </span>
                     );
                   }
@@ -2034,31 +2045,25 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                           
                           const targetIdx = getNearestCursorIndex(rawCaretPosition, lang);
                           
-                          if (lang === 'es') setCursorIndexEs(targetIdx);
-                          else setCursorIndexEn(targetIdx);
+                          if (lang === 'es') setCursorIndexEsLive(targetIdx);
+                          else setCursorIndexEnLive(targetIdx);
                           setTimeout(() => inputRef.current?.focus(), 0);
                         }}
-                        className={`${baseSlotClasses} cursor-text transition-colors duration-200 ${
+                        className={`${baseSlotClasses} cursor-text ${
                           isRevealedByClue || userChar
-                            ? isWrongChar ? 'text-coral' : isCorrect || isRevealedByClue ? 'text-teal' : 'text-playful-purple'
+                            ? isWrongChar ? 'text-[#F0A6A0]' : isCorrect || isRevealedByClue ? 'text-ember' : 'text-royal'
                             : 'text-transparent'
                         }`}
                       >
                         {isActiveSlot ? (
-                          <motion.span
-                            layoutId={`memorize-caret-${lang}`}
-                            animate={{ opacity: [0.55, 1, 0.55] }}
-                            transition={{
-                              layout: { duration: 0.16, ease: "easeOut" },
-                              opacity: { duration: 1.5, repeat: Infinity, ease: "easeInOut" },
-                            }}
-                            className="absolute bottom-1 left-0 right-0 h-[3.5px] rounded-full bg-playful-purple shadow-[0_0_10px_rgba(151,71,255,0.85)] z-20"
+                          <span
+                            className="absolute bottom-1 left-0 right-0 h-[3.5px] rounded-full bg-royal shadow-[0_0_10px_rgba(91,120,255,0.85)] z-20 animate-cursor-blink"
                           />
                         ) : (
-                          <span className={`absolute bottom-1 left-0 right-0 h-[2px] rounded-full transition-all duration-300 ${
+                          <span className={`absolute bottom-1 left-0 right-0 h-[2px] rounded-full ${
                             isRevealedByClue || userChar
-                              ? isWrongChar ? 'bg-coral' : isCorrect || isRevealedByClue ? 'bg-teal' : 'bg-playful-purple'
-                              : 'bg-earth/10 dark:bg-white/10'
+                              ? isWrongChar ? 'bg-crimson' : isCorrect || isRevealedByClue ? 'bg-ember' : 'bg-royal'
+                              : 'bg-white/10'
                           }`} />
                         )}
                         <span className="opacity-0 pointer-events-none select-none">{char}</span>
@@ -2101,20 +2106,20 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
         transition={{ duration: 0.3 }}
       >
         <div className="relative">
-          <div className="w-40 h-40 bg-teal/10 dark:bg-teal/5 border border-teal/20 rounded-[48px] flex items-center justify-center shadow-2xl shadow-teal/5">
-            <CheckCircle2 size={80} className="text-teal" strokeWidth={1.2} />
+          <div className="w-32 h-32 rounded-full bg-(--glass-fill) border border-(--rim-gold) shadow-glow-gold flex items-center justify-center">
+            <CheckCircle2 size={64} className="text-ember" strokeWidth={1.2} />
           </div>
         </div>
 
         <div className="space-y-4 px-6">
-          <h2 className="text-3xl sm:text-4xl font-serif font-black text-earth dark:text-ivory leading-tight">
+          <h2 className="text-3xl sm:text-4xl font-fraunces font-medium text-cool-white leading-tight">
             {state.primaryLanguage === 'es' ? '¡Versículo aprendido!' : 'Verse Learned!'}
           </h2>
-          <div className="text-lg text-earth-light dark:text-lavender-muted font-medium max-w-md mx-auto space-y-4 px-4 py-6 bg-earth/[0.02] dark:bg-white/[0.02] rounded-3xl border border-earth/5 dark:border-white/5">
-            <p className="font-serif leading-relaxed italic text-earth dark:text-ivory">
+          <div className="max-w-md mx-auto space-y-4 px-5 py-6 bg-deep-slate rounded-[24px] border border-(--line)">
+            <p className="font-fraunces text-lg font-normal leading-[1.32] italic text-[#EFE6D8]">
               "{state.memorizeMode === 'en' ? enText : (state.memorizeMode === 'es' ? esText : `${esText} / ${enText}`)}"
             </p>
-            <p className="text-sm font-black uppercase tracking-widest text-teal dark:text-teal-400">
+            <p className="text-[11px] font-hanken font-semibold uppercase tracking-[0.2em] text-ember">
               {getLocalizedBookName(verse.book, state.memorizeMode === 'es' ? 'es' : state.memorizeMode === 'en' ? 'en' : (state.primaryLanguage === 'es' ? 'es' : 'en'))} {verse.chapter}:{verse.verse}
             </p>
           </div>
@@ -2155,20 +2160,20 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                 };
               });
             }} 
-            className="btn-primary w-full flex items-center justify-center gap-3 py-5 shadow-teal/10"
+            className="vbtn vbtn--primary w-full"
           >
-            <RotateCcw size={20} />
-            <span className="text-lg font-bold tracking-tight lowercase">
+            <RotateCcw size={18} />
+            <span>
               {state.primaryLanguage === 'es' ? 'repetir memorización' : 'repeat memorization'}
             </span>
           </button>
-          
-          <button 
+
+          <button
             onClick={onComplete}
-            className="w-full bg-teal/10 hover:bg-teal/20 text-teal dark:text-teal-400 border border-teal/20 shadow-sm rounded-full flex items-center justify-center gap-3 py-4 px-8 transition-all hover:scale-[1.01] active:scale-95 group"
+            className="vbtn vbtn--secondary w-full"
           >
-            <Sprout size={18} className="text-teal dark:text-teal-400" />
-            <span className="font-bold tracking-tight lowercase">
+            <Bookmark size={18} />
+            <span>
               {state.primaryLanguage === 'es' ? 'ver guardados' : 'view saved'}
             </span>
           </button>
@@ -2217,46 +2222,21 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
         transition={{ type: "spring", damping: 15 }}
       >
         <div className="relative">
-          <motion.div 
-            className={`w-40 h-40 ${isAnyPartFailed ? 'bg-sky-blue/10 dark:bg-sky-blue/5' : 'bg-playful-purple/10 dark:bg-plum/10'} rounded-[48px] flex items-center justify-center shadow-2xl ${isAnyPartFailed ? 'shadow-sky-blue/10' : 'shadow-playful-purple/10'}`}
-            animate={{ 
-              scale: [1, 1.05, 1],
-              y: [0, -5, 0]
-            }}
-            transition={{ duration: 3, repeat: Infinity }}
-          >
+          <div className={`w-32 h-32 rounded-full bg-(--glass-fill) border flex items-center justify-center ${isAnyPartFailed ? 'border-(--line)' : 'border-(--rim-gold) shadow-glow-gold'}`}>
             {isAnyPartFailed ? (
-              <BookOpen size={80} className="text-sky-blue" fill="none" strokeWidth={1.5} />
+              <BookOpen size={64} className="text-cold-grey" fill="none" strokeWidth={1.5} />
             ) : (
-              <Sprout size={80} className="text-teal-600 dark:text-teal-400" fill="none" strokeWidth={1.5} />
+              <CheckCircle2 size={64} className="text-ember" fill="none" strokeWidth={1.2} />
             )}
-          </motion.div>
-          
-          {/* Animated Stars - Only for success */}
-          {!isAnyPartFailed && [...Array(5)].map((_, i) => (
-            <motion.div
-              key={i}
-              className="absolute top-1/2 left-1/2"
-              initial={{ opacity: 0, scale: 0 }}
-              animate={{ 
-                x: Math.cos(i * 72 * Math.PI / 180) * 100,
-                y: Math.sin(i * 72 * Math.PI / 180) * 100,
-                opacity: [0, 1, 0],
-                scale: [0, 1, 0],
-              }}
-              transition={{ duration: 2.5, repeat: Infinity, delay: i * 0.2 }}
-            >
-              <Star size={20} className="text-playful-purple/40 dark:text-plum/40" fill="currentColor" />
-            </motion.div>
-          ))}
+          </div>
         </div>
 
         <div className="space-y-4 px-6">
-          <motion.h2 
+          <motion.h2
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.3 }}
-            className="text-3xl sm:text-4xl font-serif font-black text-earth dark:text-ivory leading-tight text-center"
+            className="text-3xl sm:text-4xl font-fraunces font-medium text-cool-white leading-tight text-center"
           >
             {isAnyPartFailed 
               ? failureContent.title
@@ -2273,7 +2253,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.4 }}
-            className="text-lg text-earth-light dark:text-lavender-muted font-medium max-w-sm mx-auto"
+            className="font-hanken text-lg text-cold-grey max-w-sm mx-auto"
           >
             {isAnyPartFailed 
               ? failureContent.body
@@ -2292,7 +2272,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.5 }}
-              className="text-sm font-black text-teal dark:text-teal-400 uppercase tracking-widest mt-4"
+              className="text-[11px] font-hanken font-semibold text-ember uppercase tracking-[0.22em] mt-4"
             >
               {state.primaryLanguage === 'es' ? 'Un paso más.' : 'One more step.'}
             </motion.p>
@@ -2308,11 +2288,11 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                   initial={{ y: 20, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
                   transition={{ delay: 0.5 }}
-                  onClick={() => onGoToFlashcards?.(verse.id)} 
-                  className="w-full bg-teal/10 hover:bg-teal/20 text-teal dark:text-teal-400 border border-teal/20 shadow-sm rounded-full flex items-center justify-center gap-3 py-4 px-8 hover:scale-[1.01] active:scale-95 transition-all group"
+                  onClick={() => onGoToFlashcards?.(verse.id)}
+                  className="vbtn vbtn--earned w-full"
                 >
-                  <Layers size={20} className="text-teal dark:text-teal-400" />
-                  <span className="text-sm sm:text-base font-bold tracking-tight lowercase">
+                  <Layers size={18} />
+                  <span>
                     {state.primaryLanguage === 'es' ? 'Reto: Cita bíblica' : 'Challenge: Citation'}
                   </span>
                 </motion.button>
@@ -2322,7 +2302,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                   animate={{ opacity: 1 }}
                   transition={{ delay: 0.7 }}
                   onClick={() => setShowAbandonConfirm(true)}
-                  className="text-xs font-black uppercase tracking-[0.2em] text-coral/60 hover:text-coral transition-colors py-2 flex items-center gap-2 group"
+                  className="min-h-11 text-[11px] font-hanken font-semibold uppercase tracking-[0.2em] text-[#F0A6A0]/70 hover:text-[#F0A6A0] transition-colors flex items-center gap-2"
                 >
                   <span>{state.primaryLanguage === 'es' ? '← abandonar reto' : '← abandon challenge'}</span>
                 </motion.button>
@@ -2330,47 +2310,47 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                 <AnimatePresence>
                   {showAbandonConfirm && (
                     <div className="fixed inset-0 z-[150] flex items-center justify-center p-6">
-                      <motion.div 
-                        initial={{ opacity: 0 }} 
-                        animate={{ opacity: 1 }} 
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="absolute inset-0 bg-neutral-900/60 backdrop-blur-md"
+                        className="absolute inset-0 bg-[rgba(8,11,16,0.60)] backdrop-blur-sm"
                         onClick={() => setShowAbandonConfirm(false)}
                       />
-                      <motion.div 
-                        initial={{ opacity: 0, scale: 0.95, y: 20 }} 
-                        animate={{ opacity: 1, scale: 1, y: 0 }} 
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                        className="relative w-full max-w-sm bg-white dark:bg-charcoal rounded-[40px] shadow-2xl border border-earth/10 dark:border-white/10 p-8 space-y-6 z-10"
+                        className="relative w-full max-w-sm bg-deep-slate rounded-[24px] shadow-verso-modal border border-(--line) p-7 space-y-6 z-10"
                       >
                         <div className="space-y-3 text-center">
-                          <div className="w-16 h-16 bg-coral/10 rounded-2xl flex items-center justify-center text-coral mx-auto mb-4">
+                          <div className="w-16 h-16 rounded-full bg-[rgba(209,78,92,0.08)] border border-[rgba(209,78,92,0.40)] flex items-center justify-center text-[#F0A6A0] mx-auto mb-4">
                             <AlertCircle size={28} />
                           </div>
-                          <h3 className="text-2xl font-serif font-black text-earth dark:text-ivory">
+                          <h3 className="text-2xl font-fraunces font-medium text-cool-white">
                             {state.primaryLanguage === 'es' ? "¿Abandonar reto?" : "Abandon challenge?"}
                           </h3>
-                          <p className="text-xs font-semibold text-earth-light dark:text-lavender-muted leading-relaxed text-center">
-                            {state.primaryLanguage === 'es' 
+                          <p className="font-hanken text-sm text-cold-grey leading-relaxed text-center">
+                            {state.primaryLanguage === 'es'
                               ? "Si decides abandonar, se perderá tu progreso actual para este intento. No se otorgará crédito por completarlo."
                               : "If you decide to abandon, your current progress for this attempt will be lost. No completion credit will be awarded."}
                           </p>
                         </div>
                         <div className="flex flex-col gap-3 pt-2">
-                          <button 
+                          <button
                             type="button"
                             onClick={() => {
                               setShowAbandonConfirm(false);
                               onAbandon?.();
                             }}
-                            className="w-full h-14 bg-coral text-white hover:bg-coral/90 rounded-3xl font-black uppercase tracking-widest text-xs transition-colors shadow-md shadow-coral/10 animate-none"
+                            className="vbtn vbtn--destructive w-full"
                           >
                             {state.primaryLanguage === 'es' ? "Sí, abandonar" : "Yes, abandon"}
                           </button>
-                          <button 
+                          <button
                             type="button"
                             onClick={() => setShowAbandonConfirm(false)}
-                            className="w-full h-14 bg-earth/5 dark:bg-white/5 hover:bg-earth/10 dark:hover:bg-white/10 text-earth-light dark:text-ivory rounded-3xl font-black uppercase tracking-widest text-xs transition-colors animate-none"
+                            className="vbtn vbtn--secondary w-full"
                           >
                             {state.primaryLanguage === 'es' ? "Cancelar" : "Cancel"}
                           </button>
@@ -2386,10 +2366,10 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ delay: 0.5 }}
                 onClick={reset}
-                className="w-full bg-teal text-white hover:bg-teal-600 rounded-full flex items-center justify-center gap-3 py-4 px-8 shadow-lg shadow-teal/20 hover:scale-[1.01] active:scale-95 transition-all group"
+                className="vbtn vbtn--primary w-full"
               >
                 <RotateCcw size={18} />
-                <span className="text-sm sm:text-base font-bold tracking-tight lowercase">
+                <span>
                   {failureContent.buttonLabel}
                 </span>
               </motion.button>
@@ -2414,23 +2394,17 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
         exit={{ opacity: 0, x: -50 }}
       >
         <div className="relative">
-          <motion.div 
-            className={`w-40 h-40 ${currentPassFailed ? 'bg-sky-blue/10 dark:bg-sky-blue/5' : 'bg-teal/10'} rounded-[48px] flex items-center justify-center shadow-2xl ${currentPassFailed ? 'shadow-sky-blue/5' : 'shadow-teal/5'}`}
-            animate={{ 
-              scale: [1, 1.05, 1],
-            }}
-            transition={{ duration: 3, repeat: Infinity }}
-          >
+          <div className={`w-32 h-32 rounded-full bg-(--glass-fill) border flex items-center justify-center ${currentPassFailed ? 'border-(--line)' : 'border-(--rim-gold) shadow-glow-gold'}`}>
             {currentPassFailed ? (
-              <BookOpen size={80} className="text-sky-blue" fill="none" strokeWidth={1.5} />
+              <BookOpen size={64} className="text-cold-grey" fill="none" strokeWidth={1.5} />
             ) : (
-              <Trophy size={80} className="text-teal" fill="currentColor" />
+              <Trophy size={64} className="text-ember" fill="none" strokeWidth={1.5} />
             )}
-          </motion.div>
+          </div>
         </div>
 
         <div className="space-y-4 px-8">
-          <h2 className="text-3xl sm:text-4xl font-serif font-black text-earth dark:text-ivory leading-tight">
+          <h2 className="text-3xl sm:text-4xl font-fraunces font-medium text-cool-white leading-tight">
             {currentPassFailed 
               ? (state.primaryLanguage === 'es' ? 'Todavía no' : 'Not quite yet')
               : (activeLanguage === 'es'
@@ -2441,13 +2415,13 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
           </h2>
           <div className="space-y-2">
             {!currentPassFailed && (
-              <p className="text-xl font-bold text-playful-purple dark:text-plum">
-                {state.primaryLanguage === 'es' 
-                  ? 'Ya casi. Un idioma completado.' 
+              <p className="font-hanken text-lg font-semibold text-royal-soft">
+                {state.primaryLanguage === 'es'
+                  ? 'Ya casi. Un idioma completado.'
                   : 'Almost there. One language down.'}
               </p>
             )}
-            <p className="text-earth-light dark:text-lavender-muted max-w-xs mx-auto leading-relaxed animate-pulse">
+            <p className="font-hanken text-cold-grey max-w-xs mx-auto leading-relaxed">
               {currentPassFailed
                 ? (state.primaryLanguage === 'es' 
                     ? 'No se puede avanzar tras un intento fallido. Por favor, intenta memorizar el versículo desde el principio.' 
@@ -2463,17 +2437,17 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
 
         <div className="w-full max-w-[280px] px-6 space-y-4">
           {!currentPassFailed ? (
-            <button 
+            <button
               ref={halfwayContinueRef}
               onClick={handleHalfwayContinue}
-              className="w-full bg-playful-purple text-white rounded-[24px] py-5 font-bold shadow-xl shadow-playful-purple/20 hover:scale-[1.02] active:scale-95 transition-all lowercase"
+              className="vbtn vbtn--primary w-full"
             >
               {state.primaryLanguage === 'es' ? 'continuar' : 'continue'}
             </button>
           ) : (
-            <button 
+            <button
               onClick={reset}
-              className="w-full bg-teal text-white rounded-[24px] py-5 font-bold shadow-xl shadow-teal/20 hover:scale-[1.02] active:scale-95 transition-all lowercase"
+              className="vbtn vbtn--primary w-full"
             >
               {state.primaryLanguage === 'es' ? 'intentar de nuevo' : 'try again'}
             </button>
@@ -2484,49 +2458,49 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
   }
 
   return (
-    <div id="memorize-content" className="flex-1 flex flex-col pt-4 pb-6 sm:pb-12">
-      {/* Top Section - Premium Header (Refined Size) */}
-      <div className="px-6 sm:px-12 mb-4 sm:mb-10 flex-shrink-0">
+    <div id="memorize-content" className="flex-1 flex flex-col w-full mx-auto pt-2 sm:pt-0 pb-6 md:max-w-[760px] xl:max-w-[900px]">
+      {/* Top Section - Header */}
+      <div className="mb-6 flex-shrink-0">
         <div className="space-y-2 sm:space-y-3">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-2">
-              <div className="w-2.5 h-2.5 rounded-full bg-amber-500 dark:bg-gold animate-pulse" />
-              <span className="text-[12px] sm:text-[13px] font-black uppercase tracking-[0.3em] text-amber-600 dark:text-gold leading-none">
+          {/* Row 1: eyebrow + language chip (left) and step status (right).
+              The step indicator lives here so the reference below always gets
+              the full column width and never competes with it. */}
+          <div className="flex items-center justify-between gap-3 w-full">
+            <div className="flex flex-wrap items-center gap-3 min-w-0">
+              <span className="font-hanken text-[11.5px] font-semibold uppercase tracking-[0.22em] text-faint leading-none">
                 {state.primaryLanguage === 'es' ? 'MEMORIZA' : 'MEMORIZE'}
               </span>
+
+              {state.memorizeMode === 'both' && (
+                <span className="vchip text-[10px] sm:text-[11px] uppercase tracking-[0.2em] min-h-0 py-1.5 select-none">
+                  {activeLanguage === 'es'
+                    ? (state.primaryLanguage === 'es' ? 'Español' : 'Spanish')
+                    : (state.primaryLanguage === 'es' ? 'Inglés' : 'English')}
+                </span>
+              )}
             </div>
-            
-            {state.memorizeMode === 'both' && (
-              <span className="inline-flex items-center justify-center bg-teal/10 dark:bg-teal/20 text-[10px] sm:text-[11px] font-black uppercase tracking-[0.2em] px-3 py-1 rounded-full text-teal dark:text-teal-400 border border-teal/20">
-                {activeLanguage === 'es' 
-                  ? (state.primaryLanguage === 'es' ? 'Español' : 'Spanish')
-                  : (state.primaryLanguage === 'es' ? 'Inglés' : 'English')}
-              </span>
-            )}
-          </div>
-          
-          <div className="flex flex-row items-center justify-between gap-4 w-full">
-            <h2 className="text-2xl sm:text-4xl lg:text-5xl font-serif font-black text-earth dark:text-ivory tracking-tight leading-tight whitespace-nowrap">
-              {getLocalizedBookName(verse.book, state.memorizeMode === 'es' ? 'es' : state.memorizeMode === 'en' ? 'en' : (state.primaryLanguage === 'es' ? 'es' : 'en'))} {verse.chapter}:{verse.verse}
-            </h2>
-            
+
             {/* Progress Indicator */}
-            <div className="flex items-center gap-1.5 flex-shrink-0">
-              <span className="text-[10px] font-black uppercase tracking-widest text-earth-light/40 dark:text-lavender-muted/30">
+            <div className="flex items-baseline gap-1.5 flex-shrink-0">
+              <span className="text-[11.5px] font-hanken font-semibold uppercase tracking-widest text-faint">
                 {state.primaryLanguage === 'es' ? 'Paso' : 'Step'}
               </span>
-              <div className="flex items-baseline gap-0.5">
-                <span className="text-xl sm:text-2xl font-serif font-black text-amber-600 dark:text-amber-200/90 lining-nums">{Math.min(5, stage)}</span>
-                <span className="text-xs text-earth-light/40 dark:text-ivory/20 font-black">/ 5</span>
-              </div>
+              <span className="text-lg sm:text-xl font-fraunces font-medium text-ember lining-nums leading-none">{Math.min(5, stage)}</span>
+              <span className="text-xs text-faint font-hanken font-semibold">/ 5</span>
             </div>
           </div>
-          
-          <motion.p 
+
+          {/* Row 2: the verse reference owns the full row. Long and Spanish
+              references wrap naturally; never truncated or ellipsized. */}
+          <h2 className="w-full font-fraunces text-[32px] md:text-[42px] font-medium text-cool-white tracking-tight leading-[1.15] break-words">
+            {getLocalizedBookName(verse.book, state.memorizeMode === 'es' ? 'es' : state.memorizeMode === 'en' ? 'en' : (state.primaryLanguage === 'es' ? 'es' : 'en'))} {verse.chapter}:{verse.verse}
+          </h2>
+
+          <motion.p
             key={`${stage}-${state.primaryLanguage}`}
             initial={{ opacity: 0, y: 5 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-sm sm:text-base text-earth-light/70 dark:text-lavender-muted/70 font-medium tracking-tight antialiased"
+            className="font-hanken text-[15px] text-cold-grey antialiased"
           >
             {state.primaryLanguage === 'es' 
               ? (
@@ -2547,8 +2521,10 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
           </motion.p>
         </div>
         
-        {/* Dotted Progress Indicator - Organic Seed Trail */}
-        <div className="w-full flex justify-center items-center pt-4 pb-3 sm:pt-10 sm:pb-8 overflow-hidden">
+        {/* Dotted Progress Indicator - Organic Seed Trail (decorative; the
+            visible "Step N / 5" text above is the accessible equivalent).
+            Sits in the main composition and leads into the Scripture stage. */}
+        <div className="w-full flex justify-center items-center pt-[22px] overflow-hidden" aria-hidden="true">
           <div className="relative flex items-center justify-center gap-2 sm:gap-3 px-4">
             {Array.from({ length: 21 }).map((_, i) => {
               // Every 5th dot is a main node (0, 5, 10, 15, 20)
@@ -2556,10 +2532,10 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
               const mainNodeIdx = i / 5 + 1;
               const isCompleted = isMainNode ? mainNodeIdx < stage : (i < (stage - 1) * 5);
               const isActive = isMainNode && mainNodeIdx === stage;
-              
+
               // Organic wave pattern
               const yOffset = Math.sin(i * 0.8) * 8;
-              
+
               return (
                 <div key={i} className="relative flex items-center justify-center">
                   <motion.div
@@ -2574,40 +2550,21 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                       damping: 20
                     }}
                     className={`rounded-full transition-all duration-700 ${
-                      isMainNode 
+                      isMainNode
                         ? `w-2.5 h-2.5 sm:w-3 sm:h-3 ${
-                            isCompleted 
-                              ? "bg-amber-500/30 dark:bg-amber-200/10 shadow-[0_0_8px_rgba(251,191,36,0.1)]" 
-                              : isActive 
-                                ? "bg-amber-600 dark:bg-amber-200 shadow-[0_0_15px_rgba(251,191,36,0.4)]" 
-                                : "bg-earth-light/20 dark:bg-white/10"
+                            isCompleted
+                              ? "bg-ember/35 shadow-[0_0_8px_rgba(232,179,75,0.15)]"
+                              : isActive
+                                ? "bg-ember shadow-[0_0_14px_rgba(232,179,75,0.45)]"
+                                : "bg-white/10"
                           }`
                         : `w-1 h-1 ${
-                            isCompleted 
-                              ? "bg-amber-500/10 dark:bg-amber-100/5" 
-                              : "bg-earth-light/20 dark:bg-white/5"
+                            isCompleted
+                              ? "bg-ember/15"
+                              : "bg-white/5"
                           }`
                     }`}
                   />
-                  
-                  {/* Subtle active pulse for current main node */}
-                  {isActive && (
-                    <motion.div
-                      className="absolute inset-0 rounded-full bg-amber-500/20 dark:bg-amber-200/40"
-                      initial={{ opacity: 0, scale: 1 }}
-                      animate={{ opacity: [0, 0.4, 0], scale: [1, 2.5, 3] }}
-                      transition={{ duration: 2.5, repeat: Infinity, ease: "easeOut" }}
-                    />
-                  )}
-
-                  {/* Seed glow for completed trail */}
-                  {isCompleted && !isMainNode && i % 2 === 0 && (
-                    <motion.div 
-                      className="absolute inset-0 rounded-full bg-amber-500/10 dark:bg-amber-500/5 blur-[2px]"
-                      animate={{ opacity: [0.3, 0.6, 0.3] }}
-                      transition={{ duration: 3, repeat: Infinity, delay: i * 0.1 }}
-                    />
-                  )}
                 </div>
               );
             })}
@@ -2615,17 +2572,22 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
         </div>
       </div>
 
-      {/* Main Verse Card Wrapper */}
-      <div className="flex-1 flex flex-col items-center px-4 sm:px-12 w-full max-w-5xl mx-auto mb-4">
-        <div 
+      {/* Main Scripture Stage - an open rounded boundary suggested by four
+          corner marks; never a full nested card, never full-width rules */}
+      <div className="flex-1 flex flex-col items-center w-full mb-[22px]">
+        <div
           id="memorize-verse-card"
-          className="shimmer-border w-full rounded-[40px] bg-white dark:bg-charcoal shadow-2xl relative overflow-visible"
+          className="w-full relative overflow-visible rounded-[14px] md:rounded-[18px] bg-[rgba(15,20,27,0.28)]"
         >
-          {/* Card Body - DYNAMIC BUT STABLE HEIGHT */}
-          <div 
-            ref={cardRef}
-            style={cardHeight ? { height: `${cardHeight}px`, minHeight: isMobile ? '320px' : '520px' } : { height: 'auto', minHeight: isMobile ? '320px' : '520px' }}
-            className="w-full flex flex-col items-center relative bg-white dark:bg-charcoal border-none rounded-[40px] overflow-visible transition-[height] duration-500 ease-in-out"
+          {/* Open corner frame: only the two relevant sides of each mark render */}
+          <span aria-hidden="true" className="pointer-events-none absolute top-0 left-0 w-[26px] h-[26px] md:w-[34px] md:h-[34px] border-t border-l border-[rgba(91,120,255,0.32)] rounded-tl-[14px] md:rounded-tl-[18px] shadow-[0_0_18px_rgba(91,120,255,0.08)]" />
+          <span aria-hidden="true" className="pointer-events-none absolute top-0 right-0 w-[26px] h-[26px] md:w-[34px] md:h-[34px] border-t border-r border-[rgba(91,120,255,0.32)] rounded-tr-[14px] md:rounded-tr-[18px] shadow-[0_0_18px_rgba(91,120,255,0.08)]" />
+          <span aria-hidden="true" className="pointer-events-none absolute bottom-0 left-0 w-[26px] h-[26px] md:w-[34px] md:h-[34px] border-b border-l border-[rgba(91,120,255,0.32)] rounded-bl-[14px] md:rounded-bl-[18px] shadow-[0_0_18px_rgba(91,120,255,0.08)]" />
+          <span aria-hidden="true" className="pointer-events-none absolute bottom-0 right-0 w-[26px] h-[26px] md:w-[34px] md:h-[34px] border-b border-r border-[rgba(91,120,255,0.32)] rounded-br-[14px] md:rounded-br-[18px] shadow-[0_0_18px_rgba(91,120,255,0.08)]" />
+          {/* Stage body - content-sized in-flow column (label, verse, utility
+              controls); the Phase 1 shell is the only scroll owner */}
+          <div
+            className="w-full flex flex-col items-center relative overflow-visible py-7 px-2.5 md:py-9 md:px-6 xl:py-[42px] xl:px-9 gap-6 md:gap-7"
           >
             {/* Input Overlay for Stage 5 */}
             {stage === 5 && !isRevealed && !isCorrect && !didFailFlow && (
@@ -2644,8 +2606,8 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                   const hasTextInputModifier = e.altKey || e.ctrlKey || e.metaKey || e.getModifierState('AltGraph');
                   if (hasTextInputModifier) return;
 
-                  const cursor = activeLanguage === 'es' ? cursorIndexEs : cursorIndexEn;
-                  const setCursor = activeLanguage === 'es' ? setCursorIndexEs : setCursorIndexEn;
+                  const cursor = activeLanguage === 'es' ? cursorIndexEsRef.current : cursorIndexEnRef.current;
+                  const setCursor = activeLanguage === 'es' ? setCursorIndexEsLive : setCursorIndexEnLive;
                   const text = activeLanguage === 'es' ? esText : enText;
                   const setter = activeLanguage === 'es' ? setUserInputEs : setUserInputEn;
                   const userInput = activeLanguage === 'es' ? userInputEs : userInputEn;
@@ -2892,8 +2854,8 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                   const nativeInputEvent = e.nativeEvent as InputEvent;
                   if (isInputComposingRef.current || nativeInputEvent.isComposing) return;
 
-                  const cursor = activeLanguage === 'es' ? cursorIndexEs : cursorIndexEn;
-                  const setCursor = activeLanguage === 'es' ? setCursorIndexEs : setCursorIndexEn;
+                  const cursor = activeLanguage === 'es' ? cursorIndexEsRef.current : cursorIndexEnRef.current;
+                  const setCursor = activeLanguage === 'es' ? setCursorIndexEsLive : setCursorIndexEnLive;
                   const setter = activeLanguage === 'es' ? setUserInputEs : setUserInputEn;
                   const userInput = activeLanguage === 'es' ? userInputEs : userInputEn;
 
@@ -2965,25 +2927,25 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
               />
             )}
 
-            {/* Header Area - Translation Label (Absolute Anchored) */}
-            <div className="absolute top-8 sm:top-12 left-0 right-0 flex justify-center z-30">
+            {/* Translation Label - in-flow, centered inside the implied frame */}
+            <div className="relative z-10 flex justify-center">
               <motion.div 
                 key={`${activeLanguage}-${state.selectedTranslations.es}-${state.selectedTranslations.en}`}
                 initial={{ opacity: 0, y: -5 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="flex items-center gap-3 opacity-40 dark:opacity-30"
+                className="flex items-center gap-3"
               >
-                <div className="h-px w-6 bg-earth-light/30 dark:bg-white/20" />
-                <span className="text-[10px] font-black uppercase tracking-[0.4em] text-earth dark:text-lavender-muted">
+                <div className="h-px w-6 bg-(--line)" />
+                <span className="text-[10px] font-hanken font-semibold uppercase tracking-[0.4em] text-faint">
                   {activeLanguage === 'es' ? (activePair?.es || 'RVR1960') : (activePair?.en || 'KJV')}
                 </span>
-                <div className="h-px w-6 bg-earth-light/30 dark:bg-white/20" />
+                <div className="h-px w-6 bg-(--line)" />
               </motion.div>
             </div>
 
-            {/* Body Area - Verse Content (Centered with Padding for Fixed HUD) */}
-            <div className="w-full flex-1 flex flex-col items-center justify-center pt-16 pb-32 sm:pt-24 sm:pb-44 px-6 sm:px-12 overflow-visible relative">
-              <div className="w-full max-w-4xl relative">
+            {/* Verse Content */}
+            <div className="w-full flex flex-col items-center overflow-visible relative z-10">
+              <div className="w-full relative">
                 {activeLanguage === 'es' 
                   ? renderVerseContent(esText, userInputEs, 'es', true)
                   : renderVerseContent(enText, userInputEn, 'en', true)
@@ -2991,35 +2953,22 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
               </div>
             </div>
 
-            {/* Footer Area - Utility Controls (Absolute Anchored Inside Card) */}
-            <div className="absolute bottom-8 sm:bottom-12 left-0 right-0 flex justify-center z-30 pointer-events-none">
-              <div className="flex items-center justify-center gap-6 sm:gap-10 bg-earth/[0.04] dark:bg-white/[0.04] px-7 sm:px-12 py-3 sm:py-4 rounded-full border border-earth/5 dark:border-white/5 backdrop-blur-xl pointer-events-auto">
-                
-                {/* Pista/Clue Slot - Stable width for symmetry */}
-                <div className="min-w-[85px] sm:min-w-[115px] flex justify-end">
-                  <div className={`transition-all duration-500 transform ${
-                    canShowClue 
-                      ? 'opacity-100 translate-y-0 scale-100' 
-                      : 'opacity-0 translate-y-1 scale-95 pointer-events-none'
-                  }`}>
-                    <button 
-                      onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                      onClick={(e) => { e.stopPropagation(); handleClue(activeLanguage); }}
-                      disabled={!canUseClue}
-                      className="flex items-center gap-2.5 px-4 py-2 rounded-xl bg-teal/10 dark:bg-teal-400/10 border border-teal/20 text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-teal dark:text-teal-400 shadow-sm hover:bg-teal/20 transition-all active:scale-95 disabled:opacity-20 disabled:grayscale"
-                    >
-                      <Sparkles size={14} className={activeClueCount >= 1 ? '' : 'text-amber-500/80 animate-pulse'} />
-                      <span className="whitespace-nowrap">{state.primaryLanguage === 'es' ? 'Pista' : 'Clue'}</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Stable Vertical Divider */}
-                <div className="w-px h-6 bg-earth/10 dark:bg-white/10" />
-
-                {/* Eye/Reveal Slot - Stable width for symmetry */}
-                <div className="min-w-[85px] sm:min-w-[115px] flex justify-start">
-                  <button
+            {/* Compact utility control group (clue + peek). Fit-content dark
+                glass; clue keeps its stable slot via visibility so the group
+                never jumps when clue availability changes. */}
+            <div className="relative z-10 inline-flex w-fit items-center min-h-[52px] p-1 gap-1.5 rounded-[18px] bg-[rgba(15,20,27,0.86)] border border-[rgba(150,180,210,0.12)] backdrop-blur-[14px]">
+              <div className={canShowClue ? 'opacity-100' : 'opacity-0 pointer-events-none'}>
+                <button
+                  onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                  onClick={(e) => { e.stopPropagation(); handleClue(activeLanguage); }}
+                  disabled={!canUseClue}
+                  className="inline-flex items-center gap-2 min-h-11 px-3.5 rounded-[14px] bg-transparent border border-dotted border-(--rim-gold) text-[10px] font-hanken font-semibold uppercase tracking-widest text-ember active:translate-y-px disabled:opacity-40 disabled:border-solid disabled:border-(--line) disabled:text-faint disabled:cursor-not-allowed"
+                >
+                  <Sparkles size={14} aria-hidden="true" />
+                  <span className="whitespace-nowrap">{state.primaryLanguage === 'es' ? 'Pista' : 'Clue'}</span>
+                </button>
+              </div>
+              <button
                     disabled={stage === 5}
                     tabIndex={stage === 5 ? -1 : 0}
                     aria-disabled={stage === 5}
@@ -3058,87 +3007,51 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                       userSelect: "none",
                       touchAction: "manipulation",
                     } as React.CSSProperties}
-                    className={`p-2.5 rounded-full transition-all duration-300 border flex items-center justify-center shadow-md active:scale-90 select-none ${
+                    aria-label={state.primaryLanguage === 'es' ? 'Ver el versículo' : 'Peek at the verse'}
+                    className={`w-11 h-11 rounded-[14px] border flex items-center justify-center active:scale-95 select-none ${
                       stage === 5
-                        ? 'bg-transparent border-earth/5 dark:border-white/5 text-earth/10 dark:text-ivory/10 cursor-not-allowed pointer-events-none opacity-40'
-                        : isRevealed 
-                          ? 'bg-playful-purple text-white border-playful-purple scale-110 shadow-lg shadow-playful-purple/20' 
-                          : 'bg-white dark:bg-charcoal text-earth/40 dark:text-ivory/40 border-earth/10 dark:border-white/10 hover:text-playful-purple hover:border-playful-purple/30'
+                        ? 'bg-transparent border-(--line) text-(--control-text-disabled) cursor-not-allowed pointer-events-none opacity-40'
+                        : isRevealed
+                          ? 'bg-[rgba(91,120,255,0.10)] border-(--rim-royal) text-royal shadow-glow-royal'
+                          : 'bg-transparent border-transparent text-cold-grey hover:border-(--rim-royal) hover:text-royal'
                     }`}
                   >
-                    {isRevealed ? <EyeOff size={18} /> : <Eye size={18} />}
+                    {isRevealed ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
                   </button>
-                </div>
-              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* FIXED BOTTOM NAVIGATION AREA - CLEAN & INTEGRATED */}
-      <div 
-        className="w-full flex-shrink-0 px-6 sm:px-12 pb-6 sm:pb-8 pt-4 relative z-10"
+      {/* BOTTOM FLOW: controls, then feedback, then step bars */}
+      <div
+        className="w-full flex-shrink-0 pb-2 relative z-10"
       >
-        {/* Feedback Area (Reserved: 16/20) */}
-        <div className={`w-full flex items-center justify-center mb-1 overflow-hidden transition-[height] duration-300 ${stage === 5 && feedback ? 'h-12' : 'h-0'}`}>
-          <AnimatePresence mode="wait">
-            {stage === 5 && feedback ? (
-              <motion.div 
-                key={feedback}
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                className="flex items-center gap-3 bg-white dark:bg-charcoal px-6 py-2 rounded-full border border-playful-purple/20 dark:border-plum/20 shadow-xl"
-              >
-                <div className={`w-2.5 h-2.5 rounded-full ${isCorrect ? 'bg-teal animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-coral shadow-[0_0_8px_rgba(255,111,97,0.5)]'}`} />
-                <span className={`text-[11px] sm:text-sm font-black uppercase tracking-widest ${isCorrect ? 'text-teal' : 'text-coral'}`}>
-                  {feedback}
-                </span>
-                {!isCorrect && (
-                  <span className="text-[10px] font-black text-earth/30 dark:text-white/20 lowercase">
-                    ({attempts}/3)
-                  </span>
-                )}
-              </motion.div>
-            ) : null}
-          </AnimatePresence>
-        </div>
-
         {/* Action Controls - Balanced & Outlined Circular Buttons */}
         {/* Stable three-column row: reserved Back column | centered primary action | matching spacer */}
         <div className="w-full max-w-2xl mx-auto flex items-center justify-center gap-6 sm:gap-10">
             {/* Back Column (always reserved; Back hidden at stage 1) */}
             <div className="w-14 sm:w-16 flex-shrink-0 flex items-center justify-center">
-              <motion.button
+              <button
                 onClick={stage === 5 ? undefined : prevStage}
                 disabled={stage === 1 || stage === 5}
                 aria-hidden={stage === 1 || undefined}
                 tabIndex={stage === 1 ? -1 : undefined}
-                whileHover={(stage === 1 || stage === 5) ? {} : { scale: 1.05 }}
-                whileTap={(stage === 1 || stage === 5) ? {} : { scale: 0.95 }}
-                className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center transition-all shadow-sm group relative ${
+                className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center border backdrop-blur-[10px] transition-all group relative ${
                   stage === 1
-                    ? 'opacity-0 pointer-events-none bg-white dark:bg-charcoal text-playful-purple dark:text-plum border-2 border-playful-purple/30 dark:border-plum/30'
+                    ? 'opacity-0 pointer-events-none bg-(--glass-fill) border-(--line) text-cool-white'
                     : stage === 5
-                      ? 'bg-earth/5 dark:bg-white/5 border-earth/10 dark:border-white/10 text-earth-light/20 dark:text-ivory/20 cursor-not-allowed'
-                      : 'bg-white dark:bg-charcoal text-playful-purple dark:text-plum border-2 border-playful-purple/30 dark:border-plum/30 hover:bg-playful-purple/5 hover:border-playful-purple'
+                      ? 'bg-(--control-fill-disabled) border-(--line) text-(--control-text-disabled) cursor-not-allowed'
+                      : 'bg-(--glass-fill) border-(--line) text-cool-white hover:border-(--rim-royal) hover:text-royal active:translate-y-px'
                 }`}
                 aria-label="Back"
               >
-                <ArrowLeft size={24} strokeWidth={2.5} className={stage === 5 ? '' : "group-hover:-translate-x-0.5 transition-transform"} />
-                {/* Subtle back ring */}
-                {stage !== 5 && stage !== 1 && (
-                  <motion.div
-                    className="absolute inset-0 rounded-full border border-playful-purple/10"
-                    animate={{ scale: [1, 1.1, 1], opacity: [0.3, 0.1, 0.3] }}
-                    transition={{ duration: 3, repeat: Infinity }}
-                  />
-                )}
-              </motion.button>
+                <ArrowLeft size={24} strokeWidth={2} className={stage === 5 ? '' : "group-hover:-translate-x-0.5 transition-transform"} />
+              </button>
             </div>
 
             {/* Main Action (Next/Check) */}
-            <motion.button
+            <button
               ref={mainActionRef}
               key="main-action"
               onClick={() => {
@@ -3182,49 +3095,66 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                   nextStage();
                 }
               }}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center group shadow-xl transition-all relative ${
-                stage === 5 
-                  ? (isStepComplete ? 'border-2 border-teal text-teal bg-teal/5' : (hasSubmitted && isWrong && attempts < 3 ? 'border-2 border-coral text-coral bg-coral/5' : 'border-2 border-playful-purple text-playful-purple bg-transparent'))
-                  : 'border-2 border-playful-purple text-playful-purple bg-transparent'
+              aria-label={state.primaryLanguage === 'es' ? 'Continuar' : 'Continue'}
+              className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center group border bg-(--glass-fill) backdrop-blur-[10px] transition-all active:translate-y-px relative ${
+                stage === 5
+                  ? (isStepComplete
+                      ? 'border-(--rim-gold) text-ember shadow-glow-gold'
+                      : (hasSubmitted && isWrong && attempts < 3
+                          ? 'border-[rgba(209,78,92,0.55)] text-[#F0A6A0]'
+                          : 'border-(--rim-royal) text-royal shadow-glow-royal'))
+                  : 'border-(--rim-royal) text-royal shadow-glow-royal'
               }`}
             >
-              <ArrowRight size={28} strokeWidth={3} className="group-hover:translate-x-0.5 transition-transform" />
-              
-              {/* Pulsing Ring Animation */}
-              <motion.div 
-                className={`absolute -inset-1.5 rounded-full border-2 opacity-20 pointer-events-none ${
-                  stage === 5 && isStepComplete ? 'border-teal' : 'border-playful-purple'
-                }`}
-                animate={{ 
-                  scale: [1, 1.15, 1],
-                  opacity: [0.1, 0.3, 0.1]
-                }}
-                transition={{ 
-                  duration: 2.5, 
-                  repeat: Infinity,
-                  ease: "easeInOut"
-                }}
-              />
-            </motion.button>
+              <ArrowRight size={28} strokeWidth={2.5} className="group-hover:translate-x-0.5 transition-transform" />
+            </button>
 
             {/* Right balancing column: matches the Back column width to keep the primary action centered */}
             <div className="w-14 sm:w-16 flex-shrink-0" aria-hidden="true" />
         </div>
 
-        {/* Pagination Dots (Reserved) */}
-        <div className="h-8 flex justify-center items-center gap-4 mt-4">
+        {/* Feedback Area - natural height so localized copy never clips */}
+        <div className={`w-full flex items-center justify-center px-2 ${stage === 5 && feedback ? 'mt-[18px]' : ''}`}>
+          <AnimatePresence mode="wait">
+            {stage === 5 && feedback ? (
+              <motion.div
+                key={feedback}
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className={`flex items-center gap-2.5 max-w-full bg-deep-slate px-4 sm:px-5 py-2.5 rounded-2xl border shadow-verso-card ${isCorrect ? 'border-(--rim-gold)' : 'border-[rgba(209,78,92,0.40)]'}`}
+              >
+                {isCorrect ? (
+                  <CheckCircle2 size={16} className="text-ember flex-shrink-0" aria-hidden="true" />
+                ) : (
+                  <AlertCircle size={16} className="text-[#F0A6A0] flex-shrink-0" aria-hidden="true" />
+                )}
+                <span className={`min-w-0 text-[11px] sm:text-sm font-hanken font-semibold uppercase tracking-widest ${isCorrect ? 'text-ember' : 'text-[#F0A6A0]'}`}>
+                  {feedback}
+                </span>
+                {!isCorrect && (
+                  <span className="text-[10px] font-hanken font-semibold text-faint flex-shrink-0">
+                    ({attempts}/3)
+                  </span>
+                )}
+              </motion.div>
+            ) : null}
+          </AnimatePresence>
+        </div>
+
+        {/* Pagination Dots (Reserved; decorative — "Step N / 5" above is the
+            accessible equivalent) */}
+        <div className="h-8 flex justify-center items-center gap-4 mt-[22px]" aria-hidden="true">
           {[1, 2, 3, 4, 5].map(s => (
-            <div 
-              key={s} 
+            <div
+              key={s}
               className={`h-1.5 rounded-full transition-all duration-700 ${
-                s === stage 
-                  ? 'w-10 bg-playful-purple dark:bg-plum shadow-[0_0_15px_rgba(151,71,255,0.4)]' 
-                  : s < stage 
-                    ? 'w-2 bg-teal shadow-[0_0_10px_rgba(20,184,166,0.3)]' 
-                    : 'w-2 bg-earth/20 dark:bg-white/10'
-              }`} 
+                s === stage
+                  ? 'w-10 bg-royal shadow-[0_0_15px_rgba(91,120,255,0.4)]'
+                  : s < stage
+                    ? 'w-2 bg-ember shadow-[0_0_10px_rgba(232,179,75,0.3)]'
+                    : 'w-2 bg-white/10'
+              }`}
             />
           ))}
         </div>
