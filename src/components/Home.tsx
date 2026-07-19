@@ -1147,7 +1147,16 @@ export default function Home({ state, setState, onChangeTranslation, onStartMemo
               >
                 <div className="flex justify-between items-start gap-3">
                   <div className="flex flex-col gap-1 min-w-0">
-                    <h4 className={`${REF} tracking-[0.2em]`}>
+                    {/* Search-result reference: one line always. The book name
+                        and chapter:verse are kept together with whitespace-nowrap
+                        (overriding REF's break-words), and a narrow-screen-only
+                        size/tracking step keeps even `1 TESALONICENSES 5:16`
+                        on one line at 320px without ellipsis, abbreviation, or
+                        horizontal scroll. REF's own text-[10px] is stripped for
+                        this element only so the responsive size has no Tailwind
+                        conflict; every other REF usage is untouched. sm: restores
+                        the exact prior desktop appearance (10px / 0.2em). */}
+                    <h4 className={`${REF.replace(' text-[10px]', '')} whitespace-nowrap min-w-0 text-[9px] tracking-[0.08em] sm:text-[10px] sm:tracking-[0.2em]`}>
                       {getLocalizedBookName(searchResult.book, state.memorizeMode === 'es' ? 'es' : state.memorizeMode === 'en' ? 'en' : (state.primaryLanguage === 'es' ? 'es' : 'en'))} {searchResult.chapter}:{searchResult.verse}
                     </h4>
                     <p className="text-[10px] font-hanken font-semibold uppercase tracking-widest text-faint">
@@ -1157,7 +1166,7 @@ export default function Home({ state, setState, onChangeTranslation, onStartMemo
                   <button
                     onClick={() => setSearchResult(null)}
                     aria-label={isEs ? "Descartar resultado" : "Dismiss result"}
-                    className="flex items-center justify-center min-h-11 min-w-11 -my-2 -mr-2 text-faint hover:text-cool-white transition-colors"
+                    className="flex shrink-0 items-center justify-center min-h-11 min-w-11 -my-2 -mr-2 text-faint hover:text-cool-white transition-colors"
                   >
                     <X size={16} />
                   </button>

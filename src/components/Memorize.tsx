@@ -62,6 +62,94 @@ type MemorizeTypingStateV2 = {
   didFailFlowEn: boolean;
 };
 
+// Home-aligned progress rail: five straight rounded segments, matching the
+// segmented progress-bar vocabulary of the approved Home cards. The stages
+// keep their semantic names (Seed, Water, Root, Sprout, Bloom) in data
+// attributes only — never rendered as icons. Decorative; the visible
+// "Step N / 5" text in the header is the accessible equivalent.
+const STAGE_RAIL_STAGES = ["Seed", "Water", "Root", "Sprout", "Bloom"] as const;
+
+const StageProgressRail = ({ stage }: { stage: number }) => (
+  <div className="w-full max-w-[236px] md:max-w-[280px] flex items-center gap-1.5 md:gap-2">
+    {STAGE_RAIL_STAGES.map((name, i) => {
+      const milestone = i + 1;
+      const status = milestone < stage ? "completed" : milestone === stage ? "current" : "upcoming";
+      return (
+        <span
+          key={name}
+          data-stage-name={name}
+          className="flex-1 h-1 rounded-full"
+          style={{
+            // Completed → earned Ember Gold; current → Verdant Teal identity
+            // with a restrained Royal Blue atmospheric halo; upcoming → Cold
+            // Grey at low opacity. (Locked Memorize accent system.)
+            background:
+              status === "completed" ? "rgba(232,179,75,0.76)"
+              : status === "current" ? "#3E8F7B"
+              : "rgba(139,149,163,0.20)",
+            boxShadow:
+              status === "current" ? "0 0 7px rgba(91,120,255,0.22)"
+              : status === "completed" ? "0 0 4px rgba(232,179,75,0.18)"
+              : undefined,
+          }}
+        />
+      );
+    })}
+  </div>
+);
+
+// NOTE: The former single-typed-glyph geometry that painted each entered
+// Step 5 character inside its canonical target slot was removed with the
+// target-slot rendering model. User-entered glyphs now flow at their own
+// natural proportional widths inside the Recall Composer; the Memory Map
+// never displays typed text. See `renderRecallComposerBody`.
+
+// THE ONE LETTER SET.
+//
+// Four walks convert canonical text into logical letter indices: the canonical
+// cleaner (`getCleanLetters`), Clue's first-letter-per-word walk, the Memory
+// Map slot walk, and the Recall Composer walk. They must agree on exactly which
+// characters count as letters, or their indices name different slots.
+//
+// They did not. Clue's walk omitted `ü/Ü` while the cleaner counted them, so on
+// any verse containing "ü" (e.g. RVR1960 Romans 5:5, "la esperanza no
+// avergüenza") Clue's running index fell one behind the cleaner at the ü and
+// stayed behind — revealing the wrong slots and writing the wrong canonical
+// letter into them. Deriving every classifier from this one source is what
+// keeps them aligned.
+const LETTER_CLASS_SOURCE = "a-zA-ZáéíóúÁÉÍÓÚñÑüÜ";
+// Non-global on purpose: `.test()` on a /g/ regex advances `lastIndex` between
+// calls and would intermittently mis-classify a character.
+const LETTER_RE = new RegExp(`[${LETTER_CLASS_SOURCE}]`);
+// Global, but only ever handed to `String.replace`, which resets `lastIndex`.
+const NON_LETTER_GLOBAL_RE = new RegExp(`[^${LETTER_CLASS_SOURCE}]`, "g");
+const isLetterChar = (ch: string) => LETTER_RE.test(ch);
+
+// One-shot occupancy bloom. Scoped here because no CSS file is authorized.
+// The 100% frame is deliberately identical to the settled occupied inline
+// style, so when the animation retires the handoff is invisible. Keyframes
+// outrank inline styles in the cascade, which is what lets the bloom paint over
+// the settled colour for its single pass and then hand it straight back.
+// One-shot occupancy bloom. The blooming element is always a settled OCCUPIED
+// tile (empty→occupied), so its inline height (10px) and radius (2px) hold
+// throughout — the keyframes animate only background/opacity/box-shadow, so the
+// tile never reverts to a thin rail mid-animation. The 0% and 100% frames are
+// deliberately identical to the settled occupied Royal tile's inline style, so
+// when the animation retires (animationend → class removed) the handoff is
+// invisible. Same 440ms one-shot duration/timing; reduced motion skips it.
+const BEACON_STYLE = `
+@keyframes verso-beacon-bloom {
+  0%   { background: rgba(91,120,255,0.82); opacity: 0.82; box-shadow: 0 0 2px rgba(91,120,255,0.12), inset 0 1px 0 rgba(231,236,242,0.12); }
+  35%  { background: rgba(143,162,255,0.96); opacity: 1; box-shadow: 0 0 12px rgba(91,120,255,0.46), 0 0 5px rgba(62,143,123,0.20), inset 0 1px 0 rgba(231,236,242,0.18); }
+  45%  { background: rgba(143,162,255,0.96); opacity: 1; box-shadow: 0 0 12px rgba(91,120,255,0.46), 0 0 5px rgba(62,143,123,0.20), inset 0 1px 0 rgba(231,236,242,0.18); }
+  100% { background: rgba(91,120,255,0.82); opacity: 1; box-shadow: 0 0 7px rgba(91,120,255,0.24), inset 0 1px 0 rgba(231,236,242,0.12); }
+}
+.verso-beacon-bloom { animation: verso-beacon-bloom 440ms ease-out 1 both; }
+@media (prefers-reduced-motion: reduce) {
+  .verso-beacon-bloom { animation: none; }
+}
+`;
+
 const getExpectedLanguageOrder = (
   mode: AppState["memorizeMode"],
   uiLanguage: AppState["primaryLanguage"]
@@ -342,6 +430,45 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
   });
   const [showAbandonConfirm, setShowAbandonConfirm] = useState(false);
   const [showSparkles, setShowSparkles] = useState(false);
+  // Drives only the Recall Composer's focused rim/glow — never the input engine.
+  const [inputFocused, setInputFocused] = useState(false);
+  // Enter-submit confirmation. The ref carries the latest value into the
+  // synchronous key stream (same rule as the cursor refs) so a fast second
+  // Enter can never read a stale `false` and re-open instead of submitting.
+  // Deliberately not persisted: no stale confirmation may survive a reload.
+  const [pendingSubmit, setPendingSubmit] = useState(false);
+  const pendingSubmitRef = useRef(false);
+  const setPendingSubmitLive = (v: boolean) => {
+    pendingSubmitRef.current = v;
+    setPendingSubmit(v);
+  };
+  const cancelPendingSubmit = () => {
+    if (pendingSubmitRef.current) setPendingSubmitLive(false);
+  };
+
+  // Logical indices awaiting their one-shot occupancy bloom. Detection happens
+  // in an effect below by diffing occupancy against the previous observation —
+  // never in the key event path, so typing measures and schedules nothing.
+  const [beaconIndicesEs, setBeaconIndicesEs] = useState<number[]>([]);
+  const [beaconIndicesEn, setBeaconIndicesEn] = useState<number[]>([]);
+  // `null` means "no baseline yet": that observation only records one and blooms
+  // nothing. The recorded `len` matters as much as the occupancy — buffer
+  // initialisation, a restore, and a verse/translation switch all resize the
+  // array, and a resize is structural, never something the user typed. Together
+  // with the identity check below, this is what stops restored persisted input
+  // from replaying its blooms on load.
+  const occupancyBaselineEsRef = useRef<{ len: number; occ: number[] } | null>(null);
+  const occupancyBaselineEnRef = useRef<{ len: number; occ: number[] } | null>(null);
+  const beaconIdentityRef = useRef<string>("");
+
+  // Retired via animationend (see the rail segment), never a timer.
+  const retireBeacon = (idx: number, lang: 'es' | 'en') => {
+    if (lang === 'es') {
+      setBeaconIndicesEs(cur => (cur.includes(idx) ? cur.filter(i => i !== idx) : cur));
+    } else {
+      setBeaconIndicesEn(cur => (cur.includes(idx) ? cur.filter(i => i !== idx) : cur));
+    }
+  };
   const [coachType, setCoachType] = useState<'encouragement' | 'suggestion' | 'tip'>('encouragement');
   const activePair = getCurrentTranslationPair(state);
 
@@ -661,7 +788,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
     if (cleanCacheRef.current[text] !== undefined) {
       return cleanCacheRef.current[text];
     }
-    const clean = text.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ]/g, "");
+    const clean = text.replace(NON_LETTER_GLOBAL_RE, "");
     if (Object.keys(cleanCacheRef.current).length > 200) {
       cleanCacheRef.current = {};
     }
@@ -691,20 +818,20 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
     return idx >= 0 && idx < cleanLen && !revealedIndices.includes(idx);
   };
 
-  const isValidCursorIndex = (p: number, lang: 'es' | 'en') => {
-    const text = lang === 'es' ? esText : enText;
-    if (!text) return false;
-    const cleanLen = lang === 'es' ? esTextCleanLen : enTextCleanLen;
-    if (p < 0 || p > cleanLen) return false;
-    
-    // Position is valid if we can stand before an editable letter at p
-    if (p < cleanLen && isEditable(p, lang)) return true;
-    
-    // Position is valid if we can stand after an editable letter at p - 1
-    if (p - 1 >= 0 && isEditable(p - 1, lang)) return true;
-    
-    return false;
-  };
+  // THE ONE CURSOR LAW (Step 5).
+  //
+  // The logical cursor is a SLOT cursor: it may only occupy an editable letter
+  // position, or the past-the-end sentinel `cleanLen` reached solely by typing
+  // the final letter. It is never an "insertion boundary".
+  //
+  // This replaces the previous `isValidCursorIndex` rule, which also accepted
+  // any position merely standing AFTER an editable letter (including
+  // `cleanLen` and Clue-revealed indices). Those positions satisfied the
+  // navigation/click rule but failed `insertTypedText`'s `isEditable(cursor)`
+  // guard, so the cursor could rest somewhere that silently swallowed every
+  // keystroke — the intermittent input lock. Navigation, clicks, Clue and
+  // hydration now all route through editable-only helpers, so the position the
+  // map beacon shows is always the position the next keystroke fills.
 
   const findPreviousEditableIndex = (cursorPosition: number, lang: 'es' | 'en') => {
     for (let i = cursorPosition - 1; i >= 0; i--) {
@@ -727,25 +854,24 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
     return -1;
   };
 
+  // Snap an arbitrary position to the nearest EDITABLE slot (reading order
+  // wins ties). Every click, Clue re-seat and hydration path goes through this,
+  // so a cursor can never come to rest on a Clue letter or past the end.
   const getNearestCursorIndex = (p: number, lang: 'es' | 'en') => {
     const text = lang === 'es' ? esText : enText;
     if (!text) return 0;
     const cleanLen = lang === 'es' ? esTextCleanLen : enTextCleanLen;
     p = Math.max(0, Math.min(p, cleanLen));
-    
-    if (isValidCursorIndex(p, lang)) return p;
-    
-    let dist = 1;
-    while (p - dist >= 0 || p + dist <= cleanLen) {
-      if (p + dist <= cleanLen && isValidCursorIndex(p + dist, lang)) return p + dist;
-      if (p - dist >= 0 && isValidCursorIndex(p - dist, lang)) return p - dist;
-      dist++;
+
+    if (p < cleanLen && isEditable(p, lang)) return p;
+
+    for (let dist = 1; dist <= cleanLen; dist++) {
+      const fwd = p + dist;
+      const back = p - dist;
+      if (fwd < cleanLen && isEditable(fwd, lang)) return fwd;
+      if (back >= 0 && isEditable(back, lang)) return back;
     }
     return 0;
-  };
-
-  const getNearestEditable = (idx: number, lang: 'es' | 'en') => {
-    return getNearestCursorIndex(idx, lang);
   };
 
   interface WordGroup {
@@ -831,36 +957,6 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
     }
     return -1;
   };
-
-  const processedEs = useMemo(() => {
-    if (isRevealed) return esText;
-    if (!esText) return "";
-    const words = esText.split(" ");
-    return words.map((word, idx) => {
-      if (!word) return "";
-      if (stage === 1) return word.length > 2 ? word.slice(0, 2) + word.slice(2).replace(/[a-zA-ZáéíóúÁÉÍÓÚñÑ]/g, "_") : word;
-      if (stage === 2) return idx % 2 === 0 ? word : word.replace(/[a-zA-ZáéíóúÁÉÍÓÚñÑ]/g, "_");
-      if (stage === 3) return idx % 2 !== 0 ? word : word.replace(/[a-zA-ZáéíóúÁÉÍÓÚñÑ]/g, "_");
-      if (stage === 4) return (word[0] || "") + word.slice(1).replace(/[a-zA-ZáéíóúÁÉÍÓÚñÑ]/g, "_");
-      if (stage === 5) return word.replace(/[a-zA-ZáéíóúÁÉÍÓÚñÑ]/g, "_");
-      return word;
-    }).join(" ");
-  }, [esText, stage, isRevealed]);
-
-  const processedEn = useMemo(() => {
-    if (isRevealed) return enText;
-    if (!enText) return "";
-    const words = enText.split(" ");
-    return words.map((word, idx) => {
-      if (!word) return "";
-      if (stage === 1) return word.length > 2 ? word.slice(0, 2) + word.slice(2).replace(/[a-zA-ZáéíóúÁÉÍÓÚñÑ]/g, "_") : word;
-      if (stage === 2) return idx % 2 === 0 ? word : word.replace(/[a-zA-ZáéíóúÁÉÍÓÚñÑ]/g, "_");
-      if (stage === 3) return idx % 2 !== 0 ? word : word.replace(/[a-zA-ZáéíóúÁÉÍÓÚñÑ]/g, "_");
-      if (stage === 4) return (word[0] || "") + word.slice(1).replace(/[a-zA-ZáéíóúÁÉÍÓÚñÑ]/g, "_");
-      if (stage === 5) return word.replace(/[a-zA-ZáéíóúÁÉÍÓÚñÑ]/g, "_");
-      return word;
-    }).join(" ");
-  }, [enText, stage, isRevealed]);
 
   const lastConfigRef = useRef({
     selectedTranslationsEs: state.selectedTranslations.es,
@@ -1014,6 +1110,98 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
       }
     }
   }, [stage, esText, enText, userInputEs.length, userInputEn.length]);
+
+  // One-shot occupancy beacons. This diffs committed state — it is deliberately
+  // outside the key event path, so entering a character schedules no timer,
+  // measures no DOM and starts no rAF; typing just writes state as before and
+  // this observes the result. Only empty -> occupied transitions are marked, so
+  // moving the cursor, re-rendering, or clearing a slot bloom nothing, while
+  // clearing and retyping a slot may bloom again. Correct and incorrect entries
+  // are indistinguishable here: occupancy is a bare "something is stored" test
+  // and nothing is ever compared against the canonical answer.
+  useEffect(() => {
+    // A different attempt/verse/translation is a structural change, never typing.
+    const identity = `${attemptId || ""}|${verse.id}|${esTransToUse}|${enTransToUse}|${state.memorizeMode}`;
+    const identityChanged = beaconIdentityRef.current !== identity;
+    if (identityChanged) beaconIdentityRef.current = identity;
+
+    const detect = (
+      input: string[],
+      revealed: number[],
+      baselineRef: React.MutableRefObject<{ len: number; occ: number[] } | null>,
+      setBeacons: React.Dispatch<React.SetStateAction<number[]>>
+    ) => {
+      const occ: number[] = [];
+      for (let i = 0; i < input.length; i++) {
+        if ((input[i] || "").trim() !== "") occ.push(i);
+      }
+      const prev = baselineRef.current;
+      baselineRef.current = { len: input.length, occ };
+
+      // Record-only cases: first observation, a resized buffer, or a new
+      // identity. Restored input lands through one of these and stays dark.
+      if (!prev || identityChanged || prev.len !== input.length) return;
+
+      const prevOccupied = new Set(prev.occ);
+      // Clue letters are excluded: they are revealed, not entered, and render as
+      // Ember glyphs rather than rail segments.
+      const newly = occ.filter(i => !prevOccupied.has(i) && !revealed.includes(i));
+      if (newly.length === 0) return;
+      setBeacons(cur => {
+        const add = newly.filter(i => !cur.includes(i));
+        return add.length > 0 ? [...cur, ...add] : cur;
+      });
+    };
+
+    detect(userInputEs, revealedIndicesEs, occupancyBaselineEsRef, setBeaconIndicesEs);
+    detect(userInputEn, revealedIndicesEn, occupancyBaselineEnRef, setBeaconIndicesEn);
+  }, [
+    userInputEs,
+    userInputEn,
+    revealedIndicesEs,
+    revealedIndicesEn,
+    attemptId,
+    verse.id,
+    esTransToUse,
+    enTransToUse,
+    state.memorizeMode,
+  ]);
+
+  // A pending Enter confirmation belongs to one step, one language pass and one
+  // attempt. Any transition retires it, so it can never carry a submit intent
+  // into a context the user never armed it for. (Reload needs no handling: the
+  // state is not persisted and simply starts closed.)
+  useEffect(() => {
+    setPendingSubmitLive(false);
+  }, [stage, currentPassIndex, attemptId]);
+
+  // Enforce the cursor law on every entry into live Step 5. A cursor restored
+  // from persisted state, left behind by a Clue reveal, or carried across a
+  // language switch could otherwise sit on a non-editable slot and swallow
+  // keystrokes. `cleanLen` (past-the-end, reached only by typing the final
+  // letter) is a legitimate rest position and is left alone.
+  useEffect(() => {
+    if (stage !== 5 || isRevealed || isAlmostDone) return;
+    const lang = activeLanguage;
+    const cleanLen = lang === 'es' ? esTextCleanLen : enTextCleanLen;
+    if (cleanLen === 0) return;
+    const cur = lang === 'es' ? cursorIndexEsRef.current : cursorIndexEnRef.current;
+    if (cur >= cleanLen) return;
+    if (isEditable(cur, lang)) return;
+    const snapped = getNearestCursorIndex(cur, lang);
+    if (snapped === cur) return;
+    if (lang === 'es') setCursorIndexEsLive(snapped);
+    else setCursorIndexEnLive(snapped);
+  }, [
+    stage,
+    isRevealed,
+    isAlmostDone,
+    activeLanguage,
+    esTextCleanLen,
+    enTextCleanLen,
+    revealedIndicesEs,
+    revealedIndicesEn,
+  ]);
 
   // Focus management for Stage 5 typing
   useEffect(() => {
@@ -1587,6 +1775,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
   };
 
   const handleClue = (lang: 'es' | 'en') => {
+    cancelPendingSubmit();
     const processClueForLang = (l: 'es' | 'en') => {
       const text = l === 'es' ? esText : enText;
       if (!text) return;
@@ -1610,8 +1799,11 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
             const chars = word.split("");
             let wordHasLetter = false;
             chars.forEach(char => {
-              const isLetter = /[a-zA-ZáéíóúÁÉÍÓÚñÑ]/.test(char);
-              if (isLetter) {
+              // Must use the SAME letter set as `getCleanLetters`, which
+              // produced `cleanTargetArr` above: this running index addresses
+              // that array. Omitting `ü/Ü` here (as it previously did) desynced
+              // the two for every letter after a ü.
+              if (isLetterChar(char)) {
                 if (!wordHasLetter) {
                   newRevealed.push(currentLetterIndex);
                   wordHasLetter = true;
@@ -1625,6 +1817,26 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
         setRevealed(newRevealed);
         setCount(1);
 
+        // Clue fills and protects these indices, so any review marks they still
+        // carried from an earlier submission no longer describe anything the
+        // user can act on. Drop only those; every other mark stays. Functional
+        // updates, so a mark can never be restored from a stale closure.
+        if (l === 'es') {
+          setIncorrectIndicesEs(prev => prev.filter(i => !newRevealed.includes(i)));
+          setSubmittedWrongCharsEs(prev => {
+            const next = { ...prev };
+            newRevealed.forEach(i => { delete next[i]; });
+            return next;
+          });
+        } else {
+          setIncorrectIndicesEn(prev => prev.filter(i => !newRevealed.includes(i)));
+          setSubmittedWrongCharsEn(prev => {
+            const next = { ...prev };
+            newRevealed.forEach(i => { delete next[i]; });
+            return next;
+          });
+        }
+
         const setter = l === 'es' ? setUserInputEs : setUserInputEn;
         setter(prev => {
           const next = [...prev];
@@ -1636,7 +1848,9 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
 
         if (l === activeLanguage) {
           const setCursor = l === 'es' ? setCursorIndexEsLive : setCursorIndexEnLive;
-          const oldCursor = l === 'es' ? cursorIndexEs : cursorIndexEn;
+          // Latest-value ref, not render state: Clue may fire straight after a
+          // keystroke whose cursor write has not re-rendered yet.
+          const oldCursor = l === 'es' ? cursorIndexEsRef.current : cursorIndexEnRef.current;
 
           const tempRevealed = [...revealed, ...newRevealed];
           const isEditableWithTemp = (idx: number) => {
@@ -1708,6 +1922,21 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
     return value.startsWith(" ") ? value.slice(1) : value;
   };
 
+  // One synchronous focus hand-back for pointer interactions. Deliberately not
+  // a retry loop, not a typing-path timeout and not an rAF: a pointer press
+  // blurs the hidden input, and this returns focus within the same task so the
+  // very next keystroke lands.
+  const focusStreamInput = () => {
+    const el = inputRef.current;
+    if (!el || isInputComposingRef.current) return;
+    try {
+      el.focus({ preventScroll: true });
+      el.setSelectionRange(1, 1);
+    } catch {
+      // Selection APIs can throw on a detached node; focus is best-effort.
+    }
+  };
+
   const resetStreamInput = (input?: HTMLInputElement | null) => {
     if (input) {
       input.value = " ";
@@ -1717,8 +1946,48 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
     }
   };
 
+  // Clear one slot's user entry, plus any stale post-submit bookkeeping for it.
+  // Every write is a functional update, so rapid Backspace/Delete repeats
+  // compose instead of a later event overwriting an earlier one through a stale
+  // array closure. Returns the previous object/array untouched when there is
+  // nothing to change, so no needless re-render is queued.
+  const clearSlotValue = (idx: number, lang: 'es' | 'en') => {
+    if (idx < 0) return;
+    if (lang === 'es') {
+      setSubmittedWrongCharsEs(prev => {
+        if (prev[idx] === undefined) return prev;
+        const next = { ...prev };
+        delete next[idx];
+        return next;
+      });
+      setIncorrectIndicesEs(prev => (prev.includes(idx) ? prev.filter(i => i !== idx) : prev));
+      setUserInputEs(prev => {
+        const next = [...prev];
+        next[idx] = "";
+        return next;
+      });
+    } else {
+      setSubmittedWrongCharsEn(prev => {
+        if (prev[idx] === undefined) return prev;
+        const next = { ...prev };
+        delete next[idx];
+        return next;
+      });
+      setIncorrectIndicesEn(prev => (prev.includes(idx) ? prev.filter(i => i !== idx) : prev));
+      setUserInputEn(prev => {
+        const next = [...prev];
+        next[idx] = "";
+        return next;
+      });
+    }
+  };
+
   const insertTypedText = (textToInsert: string) => {
     if (!textToInsert) return;
+
+    // Printable input is an edit: it cancels a pending Enter confirmation and
+    // continues normally.
+    cancelPendingSubmit();
 
     const cursor = activeLanguage === 'es' ? cursorIndexEsRef.current : cursorIndexEnRef.current;
     const setCursor = activeLanguage === 'es' ? setCursorIndexEsLive : setCursorIndexEnLive;
@@ -1801,7 +2070,11 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
 
   const handleCheck = () => {
     if (isCorrect) return;
-    
+
+    // Every submit path (Enter confirmation, pointer control, Next arrow)
+    // converges here, so the confirmation always closes exactly once.
+    setPendingSubmitLive(false);
+
     if (activeLanguage === 'es') setHasSubmittedEs(true);
     else setHasSubmittedEn(true);
 
@@ -1910,190 +2183,474 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
           nextStage(true);
         }, 2000);
       } else {
-        const remaining = 3 - nextAttempts;
-        setFeedback(state.primaryLanguage === 'es' 
-          ? `Todavía no. Te queda${remaining === 1 ? '' : 'n'} ${remaining} intento${remaining === 1 ? '' : 's'}.` 
-          : `Not quite. You have ${remaining} tr${remaining === 1 ? 'y' : 'ies'} left.`);
+        // Attempt-sensitive, and pointing at the corrective highlights. The
+        // copy names no word, letter, accent or mark, and never the
+        // replacement — the marks say only which positions to review. It also
+        // never claims progress ("Almost there"/"Casi" removed): the system
+        // does not compare attempts, so both messages stay neutral and true.
+        setFeedback(
+          nextAttempts === 1
+            ? (state.primaryLanguage === 'es'
+                ? 'Aún no. Revisa las letras resaltadas. Te quedan 2 intentos.'
+                : 'Not quite. Review the highlighted letters. You have 2 tries left.')
+            : (state.primaryLanguage === 'es'
+                ? 'Aún no. Revisa las letras resaltadas. Te queda 1 intento.'
+                : 'Not quite. Review the highlighted letters. 1 try left.')
+        );
       }
     }
   };
 
   const renderVerseContent = (textContent: string | null | undefined, userInput: string[], lang: 'es' | 'en', isCurrentActive: boolean = true) => {
     if (!textContent) return null;
-    
+
     // Committed-HEAD word-flow: all words flow in one wrapping flex container,
-    // so each viewport finds its own natural balance. Masked characters keep
-    // their footprints (hidden glyphs stay in the layout), so Steps 1-5 share
-    // the identical word arrangement at any given width.
+    // so each viewport finds its own natural balance. Every character keeps
+    // its canonical target glyph in normal inline flow as the layout anchor.
+    // Consecutive hidden/empty letters inside a word form a "hidden run":
+    // their glyphs stay in flow but fully invisible (visibility: hidden — no
+    // silhouette), and one absolute segmented rail divides the run's combined
+    // proportional width evenly, one segment per hidden character. Steps 1-5
+    // therefore share the identical word arrangement at any given width.
     const words = textContent.split(" ");
     const revealed = lang === 'es' ? revealedIndicesEs : revealedIndicesEn;
-    const cleanTargetArr = getCleanLetters(textContent).split("");
-    const isLangRevealed = isRevealed || (lang === 'es' ? didFailFlowEs : didFailFlowEn);
+    // `isLangFailed` is the third-incorrect-submission assisted reveal only —
+    // distinct from a Peek reveal (`isRevealed`). Its canonical verse reads as
+    // neutral Cool White (#E7ECF2), not the warm reading cream (#EFE6D8) used
+    // for Steps 1-4 and Peek, and never Ember (that stays the success reveal).
+    const isLangFailed = lang === 'es' ? didFailFlowEs : didFailFlowEn;
+    const isLangRevealed = isRevealed || isLangFailed;
+    const isLangCorrect = lang === 'es' ? isCorrectEs : isCorrectEn;
+    const isTypingStep = stage === 5 && !isLangRevealed;
+    // The map beacon is the logical cursor itself — no display-side walking.
+    // Under the cursor law it always names an editable slot (or the
+    // past-the-end sentinel, which simply matches no segment), so what the
+    // beacon marks is always where the next keystroke lands.
+    const beaconIdx = lang === 'es' ? cursorIndexEs : cursorIndexEn;
+    // Indices currently playing their one-shot occupancy bloom.
+    const beaconIndices = lang === 'es' ? beaconIndicesEs : beaconIndicesEn;
+    // Review set: a snapshot written ONLY by handleCheck on an explicit
+    // incorrect submission, and pruned per-index the moment that index is
+    // edited. Reading it in render compares nothing against the answer — the
+    // grading already happened, at submit time.
+    const reviewIndices = lang === 'es' ? incorrectIndicesEs : incorrectIndicesEn;
     let cleanLetterAccumulator = 0;
 
+    const baseSlotClasses = `relative inline-flex flex-col items-center justify-center min-w-[0.25em]`;
+
+    type SlotInfo = { char: string; charIdx: number; isLetter: boolean; letterIndex: number };
+
+    const isHiddenSlot = (info: SlotInfo, wordIdx: number) => {
+      if (!info.isLetter || isLangRevealed) return false;
+      if (stage === 1) return info.charIdx >= 2;
+      if (stage === 2) return wordIdx % 2 !== 0;
+      if (stage === 3) return wordIdx % 2 === 0;
+      if (stage === 4) return info.charIdx > 0;
+      // Step 5: a correct submission reveals the whole verse (no rails).
+      if (isLangCorrect) return false;
+      // Otherwise EVERY unrevealed editable letter — typed or not — stays a
+      // rail segment, so the Memory Map geography never shifts while the user
+      // types in the Recall Composer. Only clue-revealed letters are visible.
+      return !revealed.includes(info.letterIndex);
+    };
+
+    // Slot semantics: a clicked map position becomes the cursor, so the next
+    // typed character enters exactly there. (The old left/right-half split
+    // produced an insertion boundary that could land past the end or on a Clue
+    // letter — a dead position that swallowed keystrokes.)
+    const handleLetterSlotClick = (letterIndex: number) => (e: React.MouseEvent<HTMLSpanElement>) => {
+      e.stopPropagation();
+      cancelPendingSubmit();
+      if (!isCurrentActive) setActiveLanguage(lang);
+
+      const targetIdx = getNearestCursorIndex(letterIndex, lang);
+
+      if (lang === 'es') setCursorIndexEsLive(targetIdx);
+      else setCursorIndexEnLive(targetIdx);
+      focusStreamInput();
+    };
+
+    // One shared hidden-run renderer for Steps 1-5. The rail is absolute
+    // (zero layout contribution): its segments divide the run's combined
+    // proportional width evenly, so narrow target letters cannot become dots
+    // and wide letters cannot become oversized lines, while the hidden
+    // character count stays readable. bottom: 0.30em places the rail
+    // ~0.10em beneath the Fraunces baseline at the stage's 1.45 line-height.
+    // The data-lang/data-index attributes and click handler are retained so
+    // keyboard row-navigation and click-to-position still target the map.
+    //
+    // Step 5 segment states are OCCUPANCY + LOCATION only — never correctness.
+    // Nothing here compares an entry to the answer; `isOccupied` is a bare
+    // "something is stored in this slot" test, so a right and a wrong letter
+    // are pixel-identical. No caret and no entered glyph is drawn in the map:
+    // the current slot reads as a quiet located beacon.
+    const renderHiddenRun = (run: SlotInfo[]) => (
+      <span
+        key={`run-${run[0].charIdx}`}
+        className="relative inline-flex flex-row flex-nowrap gap-x-[1.5px] items-end"
+      >
+        {run.map(info => (
+          <span
+            key={info.charIdx}
+            data-lang={isTypingStep ? lang : undefined}
+            data-index={isTypingStep ? info.letterIndex : undefined}
+            onClick={isTypingStep ? handleLetterSlotClick(info.letterIndex) : undefined}
+            className={`${baseSlotClasses}${isTypingStep ? ' cursor-text' : ''}`}
+          >
+            <span className="invisible select-none" aria-hidden="true">{info.char}</span>
+          </span>
+        ))}
+        {/* Fixed-height (12px = tallest tile) bottom-anchored wrapper. It is
+            absolute, so its height contributes NOTHING to Map layout — the
+            in-flow invisible glyph anchors own width and line geometry. Every
+            tile is bottom-aligned (align-items:end) on the same baseline, so a
+            slot changing height (empty rail ↔ occupied ↔ current) grows upward
+            only and never nudges its neighbours or reflows a line. Each tile
+            keeps its column's proportional width (w-full). */}
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute left-0 right-0"
+          style={{
+            bottom: "0.30em",
+            height: "12px",
+            display: "grid",
+            gridTemplateColumns: `repeat(${run.length}, minmax(0, 1fr))`,
+            gap: "2px",
+            alignItems: "end",
+          }}
+        >
+          {run.map(info => {
+            const isCurrent = isTypingStep && isCurrentActive && info.letterIndex === beaconIdx;
+            // Occupancy is a Step 5 entry concept only: Steps 1-4 rails stay
+            // uniformly Cold Grey even if restored input is still in state.
+            const isOccupied = isTypingStep && (userInput[info.letterIndex] || "").trim() !== "";
+            const isBlooming = isTypingStep && beaconIndices.includes(info.letterIndex);
+            // Review outranks current/occupied/empty. The map is the only
+            // surface that can show a MISSING position (the composer has no
+            // glyph to mark there), so it carries the full wrong-or-missing
+            // set. It says "review this position" and nothing more: never the
+            // target letter, never whether a letter is wrong vs absent vs a
+            // casing or accent difference. Static — no pulse, no shake.
+            const isReview = isTypingStep && reviewIndices.includes(info.letterIndex);
+
+            // Precedence (E): review rose > current teal > occupied Royal >
+            // empty Cold Grey rail. Occupancy is correctness-neutral — a right
+            // and a wrong entry produce the identical Royal tile before submit.
+            // Clue letters are Ember glyphs in renderVisibleSlot, never rails,
+            // so they never reach this branch. Empty stays a thin pill rail;
+            // the others are small illuminated rectangular tiles (radius 2px).
+            let tileHeight = "2px";
+            let tileRadius = "999px";
+            let tileBg = "rgba(139,149,163,0.32)";
+            let tileShadow: string | undefined = undefined;
+            if (isReview) {
+              tileHeight = "10px"; tileRadius = "2px";
+              tileBg = "rgba(240,166,160,0.86)";
+              tileShadow = "0 0 7px rgba(209,78,92,0.30), inset 0 1px 0 rgba(231,236,242,0.10)";
+            } else if (isCurrent) {
+              tileHeight = "12px"; tileRadius = "2px";
+              tileBg = "#3E8F7B";
+              tileShadow = "0 0 9px rgba(91,120,255,0.38), inset 0 1px 0 rgba(231,236,242,0.18)";
+            } else if (isOccupied) {
+              tileHeight = "10px"; tileRadius = "2px";
+              tileBg = "rgba(91,120,255,0.82)";
+              tileShadow = "0 0 7px rgba(91,120,255,0.24), inset 0 1px 0 rgba(231,236,242,0.12)";
+            }
+
+            return (
+              <span
+                key={info.charIdx}
+                className={`w-full${isBlooming ? ' verso-beacon-bloom' : ''}`}
+                onAnimationEnd={isBlooming ? () => retireBeacon(info.letterIndex, lang) : undefined}
+                style={{
+                  height: tileHeight,
+                  borderRadius: tileRadius,
+                  background: tileBg,
+                  boxShadow: tileShadow,
+                }}
+              />
+            );
+          })}
+        </span>
+      </span>
+    );
+
+    const renderVisibleSlot = (info: SlotInfo) => {
+      const { char, charIdx, isLetter, letterIndex } = info;
+
+      if (!isLetter) {
+        return (
+          <span
+            key={charIdx}
+            className={`${baseSlotClasses} ${isLangFailed ? 'text-[#E7ECF2]/45' : 'text-[#EFE6D8]/45'} cursor-text`}
+            onClick={(e) => {
+              if (isTypingStep) {
+                e.stopPropagation();
+                cancelPendingSubmit();
+                if (!isCurrentActive) setActiveLanguage(lang);
+
+                const targetIdx = getNearestCursorIndex(letterIndex, lang);
+                if (lang === 'es') setCursorIndexEsLive(targetIdx);
+                else setCursorIndexEnLive(targetIdx);
+                focusStreamInput();
+              }
+            }}
+          >
+            {char}
+          </span>
+        );
+      }
+
+      if (stage < 5 && !isLangRevealed) {
+        // Only pedagogically visible letters reach here; hidden letters are
+        // grouped into runs upstream.
+        return (
+          <span key={charIdx} className={baseSlotClasses}>
+            <span>{char}</span>
+          </span>
+        );
+      }
+
+      if (isTypingStep) {
+        // In Step 5 only clue-revealed letters reach this visible-letter path
+        // (and, after a fully-correct submission, every letter) — all other
+        // editable letters are rail segments grouped upstream. The user's
+        // typed glyphs are NEVER painted into the Memory Map; they live in the
+        // Recall Composer below. Rendered as the canonical glyph in earned
+        // Ember, at its own natural proportional width. No caret here.
+        return (
+          <span key={charIdx} className={`${baseSlotClasses} text-ember`}>
+            <span>{char}</span>
+          </span>
+        );
+      }
+
+      // Revealed / Peek / completed: plain canonical glyph.
+      return (
+        <span key={charIdx} className={`${baseSlotClasses} opacity-100`}>
+          {char}
+        </span>
+      );
+    };
+
     return (
-      <div className={`w-full font-serif select-none text-[#EFE6D8] text-[21px] min-[390px]:text-[23px] md:text-[27px] xl:text-[30px] leading-[1.45] font-normal [font-optical-sizing:auto] transition-opacity duration-500 ${!isCurrentActive ? 'opacity-60' : 'opacity-100'}`}>
+      <div className={`w-full font-serif select-none ${isLangFailed ? 'text-[#E7ECF2]' : 'text-[#EFE6D8]'} text-[21px] min-[390px]:text-[23px] md:text-[27px] xl:text-[30px] leading-[1.45] font-normal [font-optical-sizing:auto] transition-opacity duration-500 ${!isCurrentActive ? 'opacity-60' : 'opacity-100'}`}>
         <div className="flex flex-wrap justify-center content-start gap-y-2 md:gap-y-2.5 gap-x-[0.5em] w-full">
           {words.map((word, wordIdx) => {
             const wordStartIdx = cleanLetterAccumulator;
             const cleanWordLen = getCleanLetters(word).length;
             cleanLetterAccumulator += cleanWordLen;
-            const chars = word.split("");
+
+            // Precompute each character's logical letter index (committed
+            // semantics: a non-letter carries the index of the next letter
+            // for click targeting).
             let lettersInWordCount = 0;
+            const slotInfos: SlotInfo[] = word.split("").map((char, charIdx) => {
+              const isLetter = isLetterChar(char);
+              const letterIndex = wordStartIdx + lettersInWordCount;
+              if (isLetter) {
+                lettersInWordCount++;
+              }
+              return { char, charIdx, isLetter, letterIndex };
+            });
+
+            // Deterministic grouping: consecutive hidden/empty letters become
+            // one hidden run; every other character renders as its own slot.
+            const items: React.ReactNode[] = [];
+            let run: SlotInfo[] = [];
+            const flushRun = () => {
+              if (run.length === 0) return;
+              items.push(renderHiddenRun(run));
+              run = [];
+            };
+            slotInfos.forEach(info => {
+              if (isHiddenSlot(info, wordIdx)) {
+                run.push(info);
+              } else {
+                flushRun();
+                items.push(renderVisibleSlot(info));
+              }
+            });
+            flushRun();
+
             return (
-              <div 
-                key={wordIdx} 
+              <div
+                key={wordIdx}
                 className="flex flex-row flex-nowrap gap-x-[1.5px] items-end cursor-text"
                 onClick={(e) => {
                   if (stage === 5 && !isLangRevealed) {
                     e.stopPropagation();
+                    cancelPendingSubmit();
                     if (!isCurrentActive) setActiveLanguage(lang);
-                    
+
+                    // Click-time geometry only (never per keystroke): a press in
+                    // the word's gaps/punctuation coarsely picks the near end,
+                    // then snaps to the nearest editable slot.
                     const rect = e.currentTarget.getBoundingClientRect();
                     const clickX = e.clientX - rect.left;
                     const isRightHalf = clickX > rect.width / 2;
-                    
+
                     const targetBaseIdx = isRightHalf ? wordStartIdx + cleanWordLen : wordStartIdx;
-                    
+
                     const targetIdx = getNearestCursorIndex(targetBaseIdx, lang);
                     if (lang === 'es') setCursorIndexEsLive(targetIdx);
                     else setCursorIndexEnLive(targetIdx);
-                    setTimeout(() => inputRef.current?.focus(), 0);
+                    focusStreamInput();
                   }
                 }}
               >
-                {chars.map((char, charIdx) => {
-                  const isLetter = /[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ]/.test(char);
-                  const currentLetterIndex = wordStartIdx + lettersInWordCount;
-                  if (isLetter) {
-                    lettersInWordCount++;
-                  }
-                  
-                  const baseSlotClasses = `relative inline-flex flex-col items-center justify-center min-w-[0.25em]`;
-                  
-                  if (!isLetter) {
-                    return (
-                      <span 
-                        key={charIdx} 
-                        className={`${baseSlotClasses} text-[#EFE6D8]/45 cursor-text`}
-                        onClick={(e) => {
-                          if (stage === 5 && !isLangRevealed) {
-                            e.stopPropagation();
-                            if (!isCurrentActive) setActiveLanguage(lang);
-                            
-                            const targetIdx = getNearestCursorIndex(currentLetterIndex, lang);
-                            if (lang === 'es') setCursorIndexEsLive(targetIdx);
-                            else setCursorIndexEnLive(targetIdx);
-                            setTimeout(() => inputRef.current?.focus(), 0);
-                          }
-                        }}
-                      >
-                        {char}
-                      </span>
-                    );
-                  }
-                  
-                  if (stage < 5 && !isLangRevealed) {
-                    let isHidden = false;
-                    if (stage === 1) isHidden = charIdx >= 2;
-                    else if (stage === 2) isHidden = wordIdx % 2 !== 0;
-                    else if (stage === 3) isHidden = wordIdx % 2 === 0;
-                    else if (stage === 4) isHidden = charIdx > 0;
- 
-                    return (
-                      <span key={charIdx} className={baseSlotClasses}>
-                        <span className={isHidden ? 'opacity-0' : 'opacity-100'}>{char}</span>
-                        {isHidden && <span className="absolute bottom-1 left-0 right-0 h-[2px] bg-white/10 rounded-full" />}
-                      </span>
-                    );
-                  }
- 
-                  if (stage === 5 && !isLangRevealed) {
-                    const isRevealedByClue = revealed.includes(currentLetterIndex);
-                    const userChar = (userInput[currentLetterIndex] || "").trim();
-                    const submittedWrongChars = lang === 'es' ? submittedWrongCharsEs : submittedWrongCharsEn;
-                    const isWrongChar = submittedWrongChars[currentLetterIndex] !== undefined && userChar === submittedWrongChars[currentLetterIndex];
-                    
-                    const activeCursorIdx = lang === 'es' ? cursorIndexEs : cursorIndexEn;
-                    const isEditableSlot = isEditable(currentLetterIndex, lang);
-                    
-                    let displayActiveIdx = activeCursorIdx;
-                    if (displayActiveIdx < cleanTargetArr.length && !isEditable(displayActiveIdx, lang)) {
-                      let nextEd = displayActiveIdx;
-                      while (nextEd < cleanTargetArr.length && !isEditable(nextEd, lang)) {
-                        nextEd++;
-                      }
-                      if (nextEd < cleanTargetArr.length) {
-                        displayActiveIdx = nextEd;
-                      }
-                    }
-                    const isActiveSlot = isCurrentActive && currentLetterIndex === displayActiveIdx && isEditableSlot;
- 
-                    return (
-                      <span 
-                        key={charIdx} 
-                        data-lang={isEditableSlot ? lang : undefined}
-                        data-index={isEditableSlot ? currentLetterIndex : undefined}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (!isCurrentActive) setActiveLanguage(lang);
-                          
-                          const rect = e.currentTarget.getBoundingClientRect();
-                          const clickX = e.clientX - rect.left;
-                          const isRightHalf = clickX > rect.width / 2;
-                          const rawCaretPosition = isRightHalf ? currentLetterIndex + 1 : currentLetterIndex;
-                          
-                          const targetIdx = getNearestCursorIndex(rawCaretPosition, lang);
-                          
-                          if (lang === 'es') setCursorIndexEsLive(targetIdx);
-                          else setCursorIndexEnLive(targetIdx);
-                          setTimeout(() => inputRef.current?.focus(), 0);
-                        }}
-                        className={`${baseSlotClasses} cursor-text ${
-                          isRevealedByClue || userChar
-                            ? isWrongChar ? 'text-[#F0A6A0]' : isCorrect || isRevealedByClue ? 'text-ember' : 'text-royal'
-                            : 'text-transparent'
-                        }`}
-                      >
-                        {isActiveSlot ? (
-                          <span
-                            className="absolute bottom-1 left-0 right-0 h-[3.5px] rounded-full bg-royal shadow-[0_0_10px_rgba(91,120,255,0.85)] z-20 animate-cursor-blink"
-                          />
-                        ) : (
-                          <span className={`absolute bottom-1 left-0 right-0 h-[2px] rounded-full ${
-                            isRevealedByClue || userChar
-                              ? isWrongChar ? 'bg-crimson' : isCorrect || isRevealedByClue ? 'bg-ember' : 'bg-royal'
-                              : 'bg-white/10'
-                          }`} />
-                        )}
-                        <span className="opacity-0 pointer-events-none select-none">{char}</span>
-                        <span 
-                          className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center select-none ${(userChar || isRevealedByClue) ? 'opacity-100' : 'opacity-0'} overflow-visible`}
-                          style={{ width: 'max-content', minWidth: 'max-content', maxWidth: 'none' }}
-                        >
-                          <span 
-                            className="whitespace-nowrap overflow-visible flex-shrink-0"
-                            style={{ width: 'max-content', minWidth: 'max-content', maxWidth: 'none' }}
-                          >
-                            {userChar || (isRevealedByClue ? char : "")}
-                          </span>
-                        </span>
-                      </span>
-                    );
-                  }
- 
-                  return (
-                    <span key={charIdx} className={`${baseSlotClasses} opacity-100`}>
-                      {char}
-                    </span>
-                  );
-                })}
+                {items}
               </div>
             );
           })}
         </div>
       </div>
     );
+  };
+
+  // Natural Recall Composer body. Unlike the Memory Map, the ENTERED glyphs
+  // own the visible spacing here: each is a normal inline span at its own
+  // proportional advance, never forced into a canonical target footprint —
+  // so repeated `e`s space naturally, a wrong wide `W` stays fully visible,
+  // and nothing clips or overlaps. Empty positions contribute nothing (no
+  // placeholder geometry, no target-width gaps); clue-revealed letters read in
+  // earned Ember and concatenate with entered letters of the same word;
+  // everything the user typed is uniform Cool White with no per-character
+  // correctness. Canonical punctuation is omitted so the line reads as the
+  // recall itself, and the composer wraps on its own content only.
+  //
+  // Spacing rule: content is grouped by canonical word, and only groups that
+  // actually have something to show (a glyph, or the caret) are emitted —
+  // joined by exactly ONE ordinary space. Walking raw characters instead would
+  // emit a space per canonical space, so words the user has not reached yet
+  // stacked their surrounding spaces into ragged multi-space gaps.
+  const renderRecallComposerBody = (
+    textContent: string | null | undefined,
+    userInput: string[],
+    lang: 'es' | 'en',
+    isCurrentActive: boolean
+  ): React.ReactNode => {
+    if (!textContent) return null;
+    const revealed = lang === 'es' ? revealedIndicesEs : revealedIndicesEn;
+    const cleanLen = lang === 'es' ? esTextCleanLen : enTextCleanLen;
+    // Under the cursor law the logical cursor is already an editable slot (or
+    // the past-the-end sentinel), so the caret needs no display-side walking —
+    // which is what previously let the caret sit in a different word from the
+    // slot that actually received the keystroke.
+    const cursor = lang === 'es' ? cursorIndexEs : cursorIndexEn;
+    // Submitted review snapshot (see renderVerseContent). Marking a glyph here
+    // is a lookup, not a comparison: nothing is graded during entry.
+    const reviewIndices = lang === 'es' ? incorrectIndicesEs : incorrectIndicesEn;
+
+    // One plain vertical typographic caret: a 1px rule sitting ON the Fraunces
+    // baseline (`vertical-align: baseline` puts its bottom edge there, so it
+    // can never hang below the line). No rounding, no scaling, no arrowhead,
+    // no position animation — only a step-end blink.
+    const caret = (key: string) => (
+      <span
+        key={key}
+        aria-hidden="true"
+        className="inline-block w-px h-[0.95em] animate-cursor-blink"
+        style={{
+          background: "#3E8F7B",
+          boxShadow: "0 0 4px rgba(91,120,255,0.20)",
+          verticalAlign: "baseline",
+        }}
+      />
+    );
+
+    const placeCursor = (idx: number) => {
+      cancelPendingSubmit();
+      if (!isCurrentActive) setActiveLanguage(lang);
+      const target = getNearestCursorIndex(idx, lang);
+      if (lang === 'es') setCursorIndexEsLive(target);
+      else setCursorIndexEnLive(target);
+      focusStreamInput();
+    };
+
+    const hasAnyContent =
+      userInput.some(c => (c || "").trim() !== "") || revealed.length > 0;
+
+    if (!hasAnyContent) {
+      return (
+        <span className="text-cold-grey">
+          {isCurrentActive && caret("caret-start")}
+          {state.primaryLanguage === 'es' ? 'Empieza tu recuerdo…' : 'Begin your recall…'}
+        </span>
+      );
+    }
+
+    // Word-grouped walk. letterIndex accumulates exactly as the Memory Map's
+    // does (same letter set, same canonical `split(" ")`), so composer indices
+    // and map indices always name the same slot.
+    const groups: React.ReactNode[][] = [];
+    let letterIndex = 0;
+    textContent.split(" ").forEach((word, wordIdx) => {
+      const wordNodes: React.ReactNode[] = [];
+
+      Array.from(word).forEach((ch, charIdx) => {
+        if (!isLetterChar(ch)) return; // punctuation omitted
+        const here = letterIndex;
+        letterIndex++;
+
+        if (isCurrentActive && cursor === here) {
+          wordNodes.push(caret(`caret-${here}`));
+        }
+        if (revealed.includes(here)) {
+          wordNodes.push(
+            <span key={`w${wordIdx}-c${charIdx}`} className="text-ember">{ch}</span>
+          );
+          return;
+        }
+        const typed = userInput[here] || "";
+        if (typed.trim() !== "") {
+          // A glyph the last submitted answer got wrong: restrained rose ink +
+          // a hairline underline. Colour and decoration only — no fill, box,
+          // glow, animation or transform — so the response's size, spacing,
+          // weight and wrapping are byte-for-byte what they were before the
+          // submission. Correct entries stay Cool White; the whole line never
+          // turns rose.
+          const isReview = reviewIndices.includes(here);
+          wordNodes.push(
+            <span
+              key={`w${wordIdx}-c${charIdx}`}
+              data-composer-index={here}
+              onClick={(e) => { e.stopPropagation(); placeCursor(here); }}
+              className={`cursor-text${isReview ? '' : ' text-cool-white'}`}
+              style={isReview ? {
+                color: "#F0A6A0",
+                textDecorationLine: "underline",
+                textDecorationColor: "rgba(209,78,92,0.72)",
+                textDecorationThickness: "1px",
+                textUnderlineOffset: "0.16em",
+              } : undefined}
+            >
+              {typed}
+            </span>
+          );
+        }
+        // Empty editable position: nothing rendered — a MISSING position is
+        // therefore surfaced only by the Memory Map's review state.
+      });
+
+      // Emit a word group only if it has something to show. A word with no
+      // glyphs still earns its place when the caret rests in it, so the
+      // insertion point stays visible inside an untouched word.
+      if (wordNodes.length > 0) {
+        groups.push(wordNodes);
+      }
+    });
+
+    const nodes: React.ReactNode[] = [];
+    groups.forEach((group, i) => {
+      if (i > 0) nodes.push(" "); // exactly one ordinary inter-word space
+      nodes.push(...group);
+    });
+    if (isCurrentActive && cursor >= cleanLen) {
+      nodes.push(caret("caret-end"));
+    }
+
+    return nodes;
   };
 
   if (state.progress.verseStages[verse.id] === 7) {
@@ -2459,15 +3016,23 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
 
   return (
     <div id="memorize-content" className="flex-1 flex flex-col w-full mx-auto pt-2 sm:pt-0 pb-6 md:max-w-[760px] xl:max-w-[900px]">
+      {/* Scoped keyframes for the one-shot occupancy bloom. Local to Memorize
+          because no CSS file is authorized; this adds no global stylesheet. */}
+      <style>{BEACON_STYLE}</style>
+
       {/* Top Section - Header */}
-      <div className="mb-6 flex-shrink-0">
+      <div className="mb-[18px] md:mb-[22px] flex-shrink-0">
         <div className="space-y-2 sm:space-y-3">
           {/* Row 1: eyebrow + language chip (left) and step status (right).
               The step indicator lives here so the reference below always gets
               the full column width and never competes with it. */}
           <div className="flex items-center justify-between gap-3 w-full">
             <div className="flex flex-wrap items-center gap-3 min-w-0">
-              <span className="font-hanken text-[11.5px] font-semibold uppercase tracking-[0.22em] text-faint leading-none">
+              {/* Section identity — Verdant Teal, no containing pill, no glow. */}
+              <span
+                className="font-hanken text-[11.5px] font-semibold uppercase tracking-[0.22em] leading-none"
+                style={{ color: "#3E8F7B" }}
+              >
                 {state.primaryLanguage === 'es' ? 'MEMORIZA' : 'MEMORIZE'}
               </span>
 
@@ -2480,19 +3045,28 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
               )}
             </div>
 
-            {/* Progress Indicator */}
-            <div className="flex items-baseline gap-1.5 flex-shrink-0">
-              <span className="text-[11.5px] font-hanken font-semibold uppercase tracking-widest text-faint">
-                {state.primaryLanguage === 'es' ? 'Paso' : 'Step'}
+            {/* Step-status utility pill — one line, all numerals on one
+                baseline (no floating gold numeral); Cold Grey label with the
+                current numeral in Verdant Teal, and a restrained Royal halo. */}
+            <div
+              className="flex-shrink-0 inline-flex items-center h-8 px-[10px] rounded-[12px] select-none"
+              style={{
+                background: "rgba(15,20,27,0.58)",
+                border: "1px solid rgba(62,143,123,0.22)",
+                boxShadow: "0 0 8px rgba(91,120,255,0.10)",
+              }}
+            >
+              <span className="font-hanken text-[11px] font-semibold uppercase tracking-widest leading-none text-cold-grey">
+                {state.primaryLanguage === 'es' ? 'Paso ' : 'Step '}
+                <span style={{ color: "#3E8F7B" }}>{Math.min(5, stage)}</span>
+                {state.primaryLanguage === 'es' ? ' de 5' : ' of 5'}
               </span>
-              <span className="text-lg sm:text-xl font-fraunces font-medium text-ember lining-nums leading-none">{Math.min(5, stage)}</span>
-              <span className="text-xs text-faint font-hanken font-semibold">/ 5</span>
             </div>
           </div>
 
           {/* Row 2: the verse reference owns the full row. Long and Spanish
               references wrap naturally; never truncated or ellipsized. */}
-          <h2 className="w-full font-fraunces text-[32px] md:text-[42px] font-medium text-cool-white tracking-tight leading-[1.15] break-words">
+          <h2 className="w-full font-fraunces text-[clamp(1.50rem,6.8vw,1.78rem)] min-[390px]:text-[clamp(1.78rem,6.5vw,2.15rem)] md:text-[42px] font-normal text-cool-white leading-[1.06] break-words [text-wrap:balance]">
             {getLocalizedBookName(verse.book, state.memorizeMode === 'es' ? 'es' : state.memorizeMode === 'en' ? 'en' : (state.primaryLanguage === 'es' ? 'es' : 'en'))} {verse.chapter}:{verse.verse}
           </h2>
 
@@ -2502,79 +3076,36 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
             animate={{ opacity: 1, y: 0 }}
             className="font-hanken text-[15px] text-cold-grey antialiased"
           >
-            {state.primaryLanguage === 'es' 
+            {state.primaryLanguage === 'es'
               ? (
-                stage === 1 ? 'Léelo en voz alta, todavía no tienes que escribir' :
-                stage === 2 ? 'Léelo en voz alta una vez más' :
-                stage === 3 ? 'Respira profundo. Di las palabras en voz alta' :
-                stage === 4 ? 'Una última lectura antes de escribir' :
-                'Ahora escribe lo que recuerdas'
+                stage === 1 ? 'Sin escribir, léelo en voz alta' :
+                stage === 2 ? 'Sin escribir, léelo otra vez' :
+                stage === 3 ? 'Sin escribir, recuerda las palabras que faltan' :
+                stage === 4 ? 'Una última lectura — escribirás en el siguiente paso' :
+                'Recuerda el versículo de memoria'
               )
               : (
-                stage === 1 ? 'Read it out loud, no typing yet' :
-                stage === 2 ? 'Read it out loud once more' :
-                stage === 3 ? 'Take a breath. Speak the words out loud' :
-                stage === 4 ? 'One last read before you type' :
-                'Now type what you remember'
+                stage === 1 ? 'Read it aloud — no typing yet' :
+                stage === 2 ? 'Read it again — no typing yet' :
+                stage === 3 ? 'Recall the missing words — no typing yet' :
+                stage === 4 ? 'One final read — typing begins next' :
+                'Recall the verse from memory'
               )
             }
           </motion.p>
         </div>
         
-        {/* Dotted Progress Indicator - Organic Seed Trail (decorative; the
-            visible "Step N / 5" text above is the accessible equivalent).
-            Sits in the main composition and leads into the Scripture stage. */}
-        <div className="w-full flex justify-center items-center pt-[22px] overflow-hidden" aria-hidden="true">
-          <div className="relative flex items-center justify-center gap-2 sm:gap-3 px-4">
-            {Array.from({ length: 21 }).map((_, i) => {
-              // Every 5th dot is a main node (0, 5, 10, 15, 20)
-              const isMainNode = i % 5 === 0;
-              const mainNodeIdx = i / 5 + 1;
-              const isCompleted = isMainNode ? mainNodeIdx < stage : (i < (stage - 1) * 5);
-              const isActive = isMainNode && mainNodeIdx === stage;
-
-              // Organic wave pattern
-              const yOffset = Math.sin(i * 0.8) * 8;
-
-              return (
-                <div key={i} className="relative flex items-center justify-center">
-                  <motion.div
-                    initial={false}
-                    animate={{
-                      y: yOffset,
-                      scale: isActive ? 1.25 : 1,
-                    }}
-                    transition={{
-                      type: "spring",
-                      stiffness: 300,
-                      damping: 20
-                    }}
-                    className={`rounded-full transition-all duration-700 ${
-                      isMainNode
-                        ? `w-2.5 h-2.5 sm:w-3 sm:h-3 ${
-                            isCompleted
-                              ? "bg-ember/35 shadow-[0_0_8px_rgba(232,179,75,0.15)]"
-                              : isActive
-                                ? "bg-ember shadow-[0_0_14px_rgba(232,179,75,0.45)]"
-                                : "bg-white/10"
-                          }`
-                        : `w-1 h-1 ${
-                            isCompleted
-                              ? "bg-ember/15"
-                              : "bg-white/5"
-                          }`
-                    }`}
-                  />
-                </div>
-              );
-            })}
-          </div>
+        {/* Home-aligned five-segment progress rail (decorative; the visible
+            "Step N / 5" text above is the accessible equivalent). Sits
+            between the instruction and the Scripture stage. */}
+        <div className="w-full flex justify-center items-center pt-[18px] md:pt-[22px]" aria-hidden="true">
+          <StageProgressRail stage={Math.min(5, stage)} />
         </div>
       </div>
 
       {/* Main Scripture Stage - an open rounded boundary suggested by four
           corner marks; never a full nested card, never full-width rules */}
-      <div className="flex-1 flex flex-col items-center w-full mb-[22px]">
+      <div className="flex-1 flex flex-col items-center w-full mb-[14px] md:mb-[18px]">
         <div
           id="memorize-verse-card"
           className="w-full relative overflow-visible rounded-[14px] md:rounded-[18px] bg-[rgba(15,20,27,0.28)]"
@@ -2587,7 +3118,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
           {/* Stage body - content-sized in-flow column (label, verse, utility
               controls); the Phase 1 shell is the only scroll owner */}
           <div
-            className="w-full flex flex-col items-center relative overflow-visible py-7 px-2.5 md:py-9 md:px-6 xl:py-[42px] xl:px-9 gap-6 md:gap-7"
+            className="w-full flex flex-col items-center relative overflow-visible py-7 px-2.5 md:py-9 md:px-6 xl:py-[42px] xl:px-9 gap-[18px] md:gap-6"
           >
             {/* Input Overlay for Stage 5 */}
             {stage === 5 && !isRevealed && !isCorrect && !didFailFlow && (
@@ -2599,6 +3130,8 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                 autoCapitalize="off"
                 spellCheck="false"
                 defaultValue=" "
+                onFocus={() => setInputFocused(true)}
+                onBlur={() => setInputFocused(false)}
                 onKeyDown={(e) => {
                   const isComposingKey = e.nativeEvent.isComposing || isInputComposingRef.current || e.key === 'Dead' || e.key === 'Process';
                   if (isComposingKey) return;
@@ -2608,125 +3141,55 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
 
                   const cursor = activeLanguage === 'es' ? cursorIndexEsRef.current : cursorIndexEnRef.current;
                   const setCursor = activeLanguage === 'es' ? setCursorIndexEsLive : setCursorIndexEnLive;
-                  const text = activeLanguage === 'es' ? esText : enText;
-                  const setter = activeLanguage === 'es' ? setUserInputEs : setUserInputEn;
-                  const userInput = activeLanguage === 'es' ? userInputEs : userInputEn;
+                  const cleanLen = activeLanguage === 'es' ? esTextCleanLen : enTextCleanLen;
 
-                  const getNextIdx = (idx: number, dir: number) => {
-                    if (!text) return 0;
-                    const cleanLen = activeLanguage === 'es' ? esTextCleanLen : enTextCleanLen;
-                    let next = idx + dir;
-                    while (next >= 0 && next <= cleanLen) {
-                      if (isValidCursorIndex(next, activeLanguage)) {
-                        return next;
-                      }
-                      next += dir;
+                  // Reset the post-submit marks when the user starts correcting.
+                  const clearSubmittedMarks = () => {
+                    if (!hasSubmitted) return;
+                    if (activeLanguage === 'es') {
+                      setHasSubmittedEs(false);
+                      setIsWrongEs(false);
+                    } else {
+                      setHasSubmittedEn(false);
+                      setIsWrongEn(false);
                     }
-                    return getNearestCursorIndex(idx + dir, activeLanguage);
                   };
+
+                  // macOS full-keyboard forward Delete reports key "Delete"
+                  // (fn+Delete on laptops reports key "Delete" with code
+                  // "Backspace", so Backspace must be matched on `key` first).
+                  const isForwardDelete =
+                    e.key === 'Delete' || e.key === 'Del' || e.code === 'Delete';
 
                   if (e.key === 'Backspace') {
                     e.preventDefault();
+                    cancelPendingSubmit();
+                    clearSubmittedMarks();
 
-                    // Reset "submitted" state if user starts correcting
-                    if (hasSubmitted) {
-                      if (activeLanguage === 'es') {
-                        setHasSubmittedEs(false);
-                        setIsWrongEs(false);
-                      } else {
-                        setHasSubmittedEn(false);
-                        setIsWrongEn(false);
-                      }
+                    // One predictable slot-editor rule: step back to the
+                    // previous editable slot, clear it, and stay there. Clue
+                    // letters are not editable, so they are skipped and can
+                    // never be deleted; the search is editable-only (not
+                    // occupancy-based), so empty runs cannot trap the cursor.
+                    const prevEditable = findPreviousEditableIndex(cursor, activeLanguage);
+                    if (prevEditable !== -1) {
+                      clearSlotValue(prevEditable, activeLanguage);
+                      setCursor(prevEditable);
                     }
-
-                    const isCurrentEditable = isEditable(cursor, activeLanguage);
-                    const hasTypedInCurrent = isCurrentEditable && (userInput[cursor] || "").trim() !== "";
-
-                    if (hasTypedInCurrent) {
-                      if (activeLanguage === 'es') {
-                        setSubmittedWrongCharsEs(prev => {
-                          const next = { ...prev };
-                          delete next[cursor];
-                          return next;
-                        });
-                        setIncorrectIndicesEs(prev => prev.filter(idx => idx !== cursor));
-                      } else {
-                        setSubmittedWrongCharsEn(prev => {
-                          const next = { ...prev };
-                          delete next[cursor];
-                          return next;
-                        });
-                        setIncorrectIndicesEn(prev => prev.filter(idx => idx !== cursor));
-                      }
-                      setter(prevArr => {
-                        const next = [...prevArr];
-                        next[cursor] = ""; // Clear active slot
-                        return next;
-                      });
-                    } else {
-                      const prevEditable = findPreviousEditableIndex(cursor, activeLanguage);
-                      if (prevEditable !== -1) {
-                        if (activeLanguage === 'es') {
-                          setSubmittedWrongCharsEs(prev => {
-                            const next = { ...prev };
-                            delete next[prevEditable];
-                            return next;
-                          });
-                          setIncorrectIndicesEs(prev => prev.filter(idx => idx !== prevEditable));
-                        } else {
-                          setSubmittedWrongCharsEn(prev => {
-                            const next = { ...prev };
-                            delete next[prevEditable];
-                            return next;
-                          });
-                          setIncorrectIndicesEn(prev => prev.filter(idx => idx !== prevEditable));
-                        }
-                        setter(prevArr => {
-                          const next = [...prevArr];
-                          next[prevEditable] = ""; // Clear character before cursor
-                          return next;
-                        });
-                        setCursor(prevEditable);
-                      }
-                    }
-                  } else if (e.key === 'Delete') {
+                  } else if (isForwardDelete) {
                     e.preventDefault();
-                    
-                    if (hasSubmitted) {
-                      if (activeLanguage === 'es') {
-                        setHasSubmittedEs(false);
-                        setIsWrongEs(false);
-                      } else {
-                        setHasSubmittedEn(false);
-                        setIsWrongEn(false);
-                      }
-                    }
+                    cancelPendingSubmit();
+                    clearSubmittedMarks();
 
-                    const nextEditable = findNextEditableIndex(cursor, activeLanguage);
-                    if (nextEditable !== -1) {
-                      if (activeLanguage === 'es') {
-                        setSubmittedWrongCharsEs(prev => {
-                          const next = { ...prev };
-                          delete next[nextEditable];
-                          return next;
-                        });
-                        setIncorrectIndicesEs(prev => prev.filter(idx => idx !== nextEditable));
-                      } else {
-                        setSubmittedWrongCharsEn(prev => {
-                          const next = { ...prev };
-                          delete next[nextEditable];
-                          return next;
-                        });
-                        setIncorrectIndicesEn(prev => prev.filter(idx => idx !== nextEditable));
-                      }
-                      setter(prevArr => {
-                        const nextArr = [...prevArr];
-                        nextArr[nextEditable] = ""; // Clear character after caret
-                        return nextArr;
-                      });
+                    // Forward Delete clears the CURRENT editable slot and does
+                    // not move the cursor. An empty slot simply stays empty; a
+                    // Clue slot is not editable and is never cleared.
+                    if (cursor < cleanLen && isEditable(cursor, activeLanguage)) {
+                      clearSlotValue(cursor, activeLanguage);
                     }
                   } else if (e.key === 'Tab') {
                     e.preventDefault();
+                    cancelPendingSubmit();
                     if (e.shiftKey) {
                       const prevWordStart = findPreviousEditableWordStart(cursor, activeLanguage);
                       if (prevWordStart !== -1) {
@@ -2740,19 +3203,33 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                     }
                   } else if (e.key === ' ' || e.key === 'Spacebar') {
                     e.preventDefault();
+                    cancelPendingSubmit();
                     const nextWordStart = findNextEditableWordStart(cursor, activeLanguage);
                     if (nextWordStart !== -1) {
                       setCursor(nextWordStart);
                     }
                   } else if (e.key === 'ArrowLeft') {
                     e.preventDefault();
-                    setCursor(getNextIdx(cursor, -1));
+                    cancelPendingSubmit();
+                    // Exactly one editable slot backward, across word
+                    // boundaries, regardless of occupancy; stop at the first.
+                    const prevEditable = findPreviousEditableIndex(cursor, activeLanguage);
+                    if (prevEditable !== -1) {
+                      setCursor(prevEditable);
+                    }
                   } else if (e.key === 'ArrowRight') {
                     e.preventDefault();
-                    setCursor(getNextIdx(cursor, 1));
+                    cancelPendingSubmit();
+                    // Exactly one editable slot forward, across word
+                    // boundaries, regardless of occupancy; stop at the last.
+                    const nextEditable = findNextEditableIndex(cursor + 1, activeLanguage);
+                    if (nextEditable !== -1) {
+                      setCursor(nextEditable);
+                    }
                   } else if (e.key === 'ArrowUp') {
                     e.preventDefault();
-                    const currentSpan = document.querySelector(`[data-lang="${activeLanguage}"][data-index="${cursor}"]`) 
+                    cancelPendingSubmit();
+                    const currentSpan = document.querySelector(`[data-lang="${activeLanguage}"][data-index="${cursor}"]`)
                       || document.querySelector(`[data-lang="${activeLanguage}"][data-index="${cursor - 1}"]`);
                     if (currentSpan) {
                       const refRect = currentSpan.getBoundingClientRect();
@@ -2792,7 +3269,8 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                     }
                   } else if (e.key === 'ArrowDown') {
                     e.preventDefault();
-                    const currentSpan = document.querySelector(`[data-lang="${activeLanguage}"][data-index="${cursor}"]`) 
+                    cancelPendingSubmit();
+                    const currentSpan = document.querySelector(`[data-lang="${activeLanguage}"][data-index="${cursor}"]`)
                       || document.querySelector(`[data-lang="${activeLanguage}"][data-index="${cursor - 1}"]`);
                     if (currentSpan) {
                       const refRect = currentSpan.getBoundingClientRect();
@@ -2832,7 +3310,24 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                     }
                   } else if (e.key === 'Enter') {
                     e.preventDefault();
+                    // A held Enter must never both open and confirm: OS key
+                    // repeat is dropped, so confirming always takes a second,
+                    // distinct press.
+                    if (e.repeat) return;
+                    if (!pendingSubmitRef.current) {
+                      // First Enter only arms the confirmation. It must not
+                      // reach handleCheck, so it can never consume an attempt.
+                      setPendingSubmitLive(true);
+                      return;
+                    }
                     handleCheck();
+                  } else if (e.key === 'Escape') {
+                    if (pendingSubmitRef.current) {
+                      e.preventDefault();
+                      setPendingSubmitLive(false);
+                      // The hidden input already owns focus — it is the element
+                      // receiving this key — so editing simply resumes.
+                    }
                   }
                 }}
                 onCompositionStart={() => {
@@ -2856,8 +3351,6 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
 
                   const cursor = activeLanguage === 'es' ? cursorIndexEsRef.current : cursorIndexEnRef.current;
                   const setCursor = activeLanguage === 'es' ? setCursorIndexEsLive : setCursorIndexEnLive;
-                  const setter = activeLanguage === 'es' ? setUserInputEs : setUserInputEn;
-                  const userInput = activeLanguage === 'es' ? userInputEs : userInputEn;
 
                   // Detect addition
                   if (val.length > 0) {
@@ -2866,56 +3359,25 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                       insertTypedText(typedText);
                     }
                   } else if (val.length === 0) {
-                    // Mobile Backspace detection fallback
-                    const isCurrentEditable = isEditable(cursor, activeLanguage);
-                    const hasTypedInCurrent = isCurrentEditable && (userInput[cursor] || "").trim() !== "";
-
-                    if (hasTypedInCurrent) {
+                    // Mobile Backspace detection fallback — the soft keyboard
+                    // consumed the space sentinel instead of emitting a
+                    // keydown. It runs the identical slot-editor rule as the
+                    // hardware Backspace above: step back to the previous
+                    // editable slot, clear it, stay there.
+                    cancelPendingSubmit();
+                    if (hasSubmitted) {
                       if (activeLanguage === 'es') {
-                        setSubmittedWrongCharsEs(prev => {
-                          const next = { ...prev };
-                          delete next[cursor];
-                          return next;
-                        });
-                        setIncorrectIndicesEs(prev => prev.filter(idx => idx !== cursor));
+                        setHasSubmittedEs(false);
+                        setIsWrongEs(false);
                       } else {
-                        setSubmittedWrongCharsEn(prev => {
-                          const next = { ...prev };
-                          delete next[cursor];
-                          return next;
-                        });
-                        setIncorrectIndicesEn(prev => prev.filter(idx => idx !== cursor));
+                        setHasSubmittedEn(false);
+                        setIsWrongEn(false);
                       }
-                      setter(prevArr => {
-                        const nextArr = [...prevArr];
-                        nextArr[cursor] = ""; // Clear character at active slot
-                        return nextArr;
-                      });
-                    } else {
-                      const prevEditable = findPreviousEditableIndex(cursor, activeLanguage);
-                      if (prevEditable !== -1) {
-                        if (activeLanguage === 'es') {
-                          setSubmittedWrongCharsEs(prev => {
-                            const next = { ...prev };
-                            delete next[prevEditable];
-                            return next;
-                          });
-                          setIncorrectIndicesEs(prev => prev.filter(idx => idx !== prevEditable));
-                        } else {
-                          setSubmittedWrongCharsEn(prev => {
-                            const next = { ...prev };
-                            delete next[prevEditable];
-                            return next;
-                          });
-                          setIncorrectIndicesEn(prev => prev.filter(idx => idx !== prevEditable));
-                        }
-                        setter(prevArr => {
-                          const nextArr = [...prevArr];
-                          nextArr[prevEditable] = ""; // Clear character at the previous editable index
-                          return nextArr;
-                        });
-                        setCursor(prevEditable);
-                      }
+                    }
+                    const prevEditable = findPreviousEditableIndex(cursor, activeLanguage);
+                    if (prevEditable !== -1) {
+                      clearSlotValue(prevEditable, activeLanguage);
+                      setCursor(prevEditable);
                     }
                   }
 
@@ -2943,30 +3405,108 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
               </motion.div>
             </div>
 
-            {/* Verse Content */}
+            {/* Verse Content — the Memory Map (verse geography, hidden-run
+                rails, clue letters). It never shows the user's typed text and
+                stays visually stable through Step 5. */}
             <div className="w-full flex flex-col items-center overflow-visible relative z-10">
               <div className="w-full relative">
-                {activeLanguage === 'es' 
+                {activeLanguage === 'es'
                   ? renderVerseContent(esText, userInputEs, 'es', true)
                   : renderVerseContent(enText, userInputEn, 'en', true)
                 }
               </div>
             </div>
 
-            {/* Compact utility control group (clue + peek). Fit-content dark
-                glass; clue keeps its stable slot via visibility so the group
-                never jumps when clue availability changes. */}
-            <div className="relative z-10 inline-flex w-fit items-center min-h-[52px] p-1 gap-1.5 rounded-[18px] bg-[rgba(15,20,27,0.86)] border border-[rgba(150,180,210,0.12)] backdrop-blur-[14px]">
-              <div className={canShowClue ? 'opacity-100' : 'opacity-0 pointer-events-none'}>
+            {/* Natural Recall Composer — one coordinated area beneath the
+                Memory Map inside the same Scripture stage. Only during live
+                Step 5 entry (not on reveal, success, or a failed run). */}
+            {stage === 5 && !isRevealed && !isCorrect && !didFailFlow && (
+              <>
+                {/* Restrained divider — short + centered, never a full-width
+                    rule (keeps the open-corner stage vocabulary). */}
+                <div aria-hidden="true" className="w-10 md:w-12 h-px rounded-full bg-[rgba(139,149,163,0.22)]" />
+
+                {/* Composer surface: one restrained dark-glass panel. The
+                    entered glyphs own the width; no fixed max-height, no inner
+                    scroll, no transition/animation tied to typing. */}
+                <div
+                  onClick={() => {
+                    // Hand focus back only — never relocate the cursor. Sending
+                    // it to `cleanLen` here was the primary input lock: that
+                    // past-the-end position satisfied the old navigation rule
+                    // but failed insertTypedText's editable guard, so every
+                    // later keystroke was silently dropped. Fine positioning
+                    // belongs to the map beacon and the per-glyph spans, both
+                    // of which snap to a real editable slot.
+                    cancelPendingSubmit();
+                    focusStreamInput();
+                  }}
+                  className="relative z-10 w-full rounded-[16px] p-[14px] md:p-4 cursor-text"
+                  style={{
+                    minHeight: "72px",
+                    // Teal core, Royal only as atmosphere; the inset top
+                    // highlight is what gives the glass its lit edge. No fill,
+                    // no repeating animation — focus simply swaps the values.
+                    background: "rgba(15,20,27,0.44)",
+                    border: `1px solid ${inputFocused ? "rgba(62,143,123,0.62)" : "rgba(62,143,123,0.30)"}`,
+                    boxShadow: inputFocused
+                      ? "0 0 0 1px rgba(62,143,123,0.08), 0 0 18px rgba(91,120,255,0.22), 0 0 30px rgba(62,143,123,0.09), inset 0 1px 0 rgba(231,236,242,0.04)"
+                      : "0 0 10px rgba(91,120,255,0.08), inset 0 1px 0 rgba(231,236,242,0.025)",
+                  }}
+                >
+                  {/* Label — not a pill; sits immediately above the response. */}
+                  <div className="font-hanken text-[10px] font-semibold uppercase tracking-[0.28em] text-cold-grey mb-2 select-none">
+                    {state.primaryLanguage === 'es' ? 'TU RECUERDO' : 'YOUR RECALL'}
+                  </div>
+                  {/* The user's answer in natural proportional Fraunces flow,
+                      centered so it shares the Memory Map's visual axis. Plain
+                      `text-align: center` only: each wrapped line centers
+                      itself, glyphs keep their own advances, and the caret
+                      rides the real insertion point. The composer still wraps
+                      on its own entered content — its line breaks are NOT
+                      coupled to the map's, and nothing is scaled to match. */}
+                  <div className="w-full text-center font-serif font-normal text-cool-white text-[20px] min-[390px]:text-[22px] md:text-[26px] xl:text-[28px] leading-[1.45] break-words [font-optical-sizing:auto]">
+                    {activeLanguage === 'es'
+                      ? renderRecallComposerBody(esText, userInputEs, 'es', true)
+                      : renderRecallComposerBody(enText, userInputEn, 'en', true)}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Compact utility control group (clue + peek) inside the
+                Scripture stage. Fit-content dark glass, 44px interaction
+                height with smaller visual surfaces; clue keeps its stable
+                slot via visibility so the group never jumps when clue
+                availability changes. EXPLICITLY unrendered while the Enter
+                tray is armed — a `hidden` class lost to this element's own
+                `inline-flex` display utility in the cascade (display
+                utilities conflict by CSS source order, not class order), so
+                Clue/Peek stayed visible. Conditional JSX is unambiguous; the
+                underlying React state is untouched, so cancelling restores it. */}
+            {!(stage === 5 && pendingSubmit) && (
+            <div className="relative z-10 inline-flex w-fit h-11 items-center px-1 gap-1 rounded-[13px] bg-[rgba(15,20,27,0.86)] border border-[rgba(150,180,210,0.12)] backdrop-blur-[14px]">
+              <div className={`flex items-center gap-1 ${canShowClue ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
                 <button
                   onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
                   onClick={(e) => { e.stopPropagation(); handleClue(activeLanguage); }}
                   disabled={!canUseClue}
-                  className="inline-flex items-center gap-2 min-h-11 px-3.5 rounded-[14px] bg-transparent border border-dotted border-(--rim-gold) text-[10px] font-hanken font-semibold uppercase tracking-widest text-ember active:translate-y-px disabled:opacity-40 disabled:border-solid disabled:border-(--line) disabled:text-faint disabled:cursor-not-allowed"
+                  className="h-11 min-w-11 flex items-center justify-center active:translate-y-px disabled:cursor-not-allowed"
                 >
-                  <Sparkles size={14} aria-hidden="true" />
-                  <span className="whitespace-nowrap">{state.primaryLanguage === 'es' ? 'Pista' : 'Clue'}</span>
+                  <span className={`relative h-8 inline-flex items-center gap-1.5 px-[9px] rounded-[11px] text-[10px] font-hanken font-semibold uppercase tracking-widest ${
+                    canUseClue ? 'text-ember' : 'text-faint opacity-50'
+                  }`}>
+                    <span
+                      aria-hidden="true"
+                      className={`pointer-events-none absolute inset-[3px] rounded-[8px] border ${
+                        canUseClue ? 'border-[rgba(232,179,75,0.42)]' : 'border-(--line)'
+                      }`}
+                    />
+                    <Sparkles size={12} aria-hidden="true" />
+                    <span className="whitespace-nowrap">{state.primaryLanguage === 'es' ? 'Pista' : 'Clue'}</span>
+                  </span>
                 </button>
+                <span aria-hidden="true" className="w-px h-4 bg-[rgba(139,149,163,0.12)]" />
               </div>
               <button
                     disabled={stage === 5}
@@ -3008,17 +3548,84 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                       touchAction: "manipulation",
                     } as React.CSSProperties}
                     aria-label={state.primaryLanguage === 'es' ? 'Ver el versículo' : 'Peek at the verse'}
-                    className={`w-11 h-11 rounded-[14px] border flex items-center justify-center active:scale-95 select-none ${
-                      stage === 5
-                        ? 'bg-transparent border-(--line) text-(--control-text-disabled) cursor-not-allowed pointer-events-none opacity-40'
-                        : isRevealed
-                          ? 'bg-[rgba(91,120,255,0.10)] border-(--rim-royal) text-royal shadow-glow-royal'
-                          : 'bg-transparent border-transparent text-cold-grey hover:border-(--rim-royal) hover:text-royal'
+                    className={`w-11 h-11 flex items-center justify-center active:scale-95 select-none ${
+                      stage === 5 ? 'cursor-not-allowed pointer-events-none' : ''
                     }`}
                   >
-                    {isRevealed ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
+                    <span className={`w-[30px] h-[30px] rounded-[9px] flex items-center justify-center ${
+                      stage === 5
+                        ? 'bg-transparent text-(--control-text-disabled) opacity-40'
+                        : isRevealed
+                          ? 'bg-[rgba(91,120,255,0.10)] text-royal'
+                          : 'bg-transparent text-cold-grey hover:text-royal'
+                    }`}>
+                      {isRevealed ? <EyeOff size={15} aria-hidden="true" /> : <Eye size={15} aria-hidden="true" />}
+                    </span>
                   </button>
             </div>
+            )}
+
+            {/* Enter-submit confirmation TRAY. Rendered in the Clue/Peek slot
+                (directly beneath the composer), replacing the lower control
+                zone in normal document flow — never an absolute overlay that
+                could detach on long-page scroll. While it is armed the
+                Clue/Peek group above and the Previous/Next row below are both
+                left UNRENDERED (explicit conditional JSX, not a display class),
+                so nothing is duplicated and no empty wrapper reserves height.
+                A neutral decision state: dark slate + Verdant Teal + restrained
+                Royal atmosphere, never rose. The hidden input keeps focus (the
+                buttons preventDefault their own mousedown), so the second Enter
+                still reaches it. */}
+            {stage === 5 && pendingSubmit && (
+              <div
+                role="group"
+                aria-label={state.primaryLanguage === 'es' ? 'Confirmar envío' : 'Confirm submission'}
+                className="relative z-10 rounded-2xl px-3 py-2.5 flex flex-col items-center gap-2"
+                style={{
+                  width: "calc(100% - 24px)",
+                  maxWidth: "300px",
+                  background: "rgba(15,20,27,0.96)",
+                  border: "1px solid rgba(62,143,123,0.42)",
+                  boxShadow: "0 0 18px rgba(91,120,255,0.12), inset 0 1px 0 rgba(231,236,242,0.035)",
+                }}
+              >
+                <div className="text-center">
+                  <p className="text-[12px] font-hanken font-semibold text-cool-white leading-tight">
+                    {state.primaryLanguage === 'es'
+                      ? '¿Listo para comprobar lo que recuerdas?'
+                      : 'Ready to check your recall?'}
+                  </p>
+                  <p className="text-[10px] font-hanken text-cold-grey leading-tight mt-0.5">
+                    {state.primaryLanguage === 'es'
+                      ? 'Pulsa Enter otra vez para enviar · Esc para seguir editando'
+                      : 'Press Enter again to submit · Esc to keep editing'}
+                  </p>
+                </div>
+                <div className="flex items-center justify-center gap-2 w-full">
+                  <button
+                    onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                    onClick={(e) => { e.stopPropagation(); setPendingSubmitLive(false); focusStreamInput(); }}
+                    className="group h-11 flex items-center justify-center outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[rgba(62,143,123,0.6)]"
+                  >
+                    <span className="h-8 inline-flex items-center px-2.5 rounded-[11px] border border-(--line) text-[10px] font-hanken font-semibold uppercase tracking-wide text-cold-grey group-hover:text-cool-white whitespace-nowrap">
+                      {state.primaryLanguage === 'es' ? 'Seguir editando' : 'Keep editing'}
+                    </span>
+                  </button>
+                  <button
+                    onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                    onClick={(e) => { e.stopPropagation(); handleCheck(); }}
+                    className="group h-11 flex items-center justify-center outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[rgba(62,143,123,0.6)]"
+                  >
+                    <span
+                      className="h-8 inline-flex items-center px-2.5 rounded-[11px] border text-[10px] font-hanken font-semibold uppercase tracking-wide whitespace-nowrap"
+                      style={{ borderColor: "rgba(62,143,123,0.52)", color: "#3E8F7B", background: "rgba(62,143,123,0.10)" }}
+                    >
+                      {state.primaryLanguage === 'es' ? 'Comprobar' : 'Check answer'}
+                    </span>
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -3027,28 +3634,34 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
       <div
         className="w-full flex-shrink-0 pb-2 relative z-10"
       >
-        {/* Action Controls - Balanced & Outlined Circular Buttons */}
-        {/* Stable three-column row: reserved Back column | centered primary action | matching spacer */}
-        <div className="w-full max-w-2xl mx-auto flex items-center justify-center gap-6 sm:gap-10">
-            {/* Back Column (always reserved; Back hidden at stage 1) */}
-            <div className="w-14 sm:w-16 flex-shrink-0 flex items-center justify-center">
-              <button
-                onClick={stage === 5 ? undefined : prevStage}
-                disabled={stage === 1 || stage === 5}
-                aria-hidden={stage === 1 || undefined}
-                tabIndex={stage === 1 ? -1 : undefined}
-                className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center border backdrop-blur-[10px] transition-all group relative ${
-                  stage === 1
-                    ? 'opacity-0 pointer-events-none bg-(--glass-fill) border-(--line) text-cool-white'
-                    : stage === 5
-                      ? 'bg-(--control-fill-disabled) border-(--line) text-(--control-text-disabled) cursor-not-allowed'
-                      : 'bg-(--glass-fill) border-(--line) text-cool-white hover:border-(--rim-royal) hover:text-royal active:translate-y-px'
-                }`}
-                aria-label="Back"
-              >
-                <ArrowLeft size={24} strokeWidth={2} className={stage === 5 ? '' : "group-hover:-translate-x-0.5 transition-transform"} />
-              </button>
-            </div>
+        {/* Action Controls - compact secondary rounded rectangles beneath the
+            Scripture stage. The Back slot is always reserved (hidden at
+            stage 1) so the pair never shifts; 44px interaction targets wrap
+            the smaller visual surfaces. EXPLICITLY unrendered while the Enter
+            tray is armed (same cascade reason as Clue/Peek: `flex` beat the
+            `hidden` class), so the tray fully replaces this row + Clue/Peek;
+            React state is untouched, so cancelling restores it exactly. */}
+        {!(stage === 5 && pendingSubmit) && (
+        <div className="w-full flex items-center justify-center gap-2">
+            {/* Previous */}
+            <button
+              onClick={stage === 5 ? undefined : prevStage}
+              disabled={stage === 1 || stage === 5}
+              aria-hidden={stage === 1 || undefined}
+              tabIndex={stage === 1 ? -1 : undefined}
+              className={`group h-11 min-w-11 flex items-center justify-center rounded-[13px] outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[rgba(91,120,255,0.6)] ${
+                stage === 1 ? 'opacity-0 pointer-events-none' : stage === 5 ? 'cursor-not-allowed' : ''
+              }`}
+              aria-label="Back"
+            >
+              <span className={`w-10 h-[34px] rounded-[11px] border flex items-center justify-center backdrop-blur-[10px] ${
+                stage === 5
+                  ? 'bg-(--control-fill-disabled) border-(--line) text-(--control-text-disabled)'
+                  : 'bg-[rgba(15,20,27,0.55)] border-(--line) text-cold-grey group-hover:text-cool-white group-active:translate-y-px'
+              }`}>
+                <ArrowLeft size={16} strokeWidth={2} className={stage === 5 ? '' : "group-hover:-translate-x-0.5 transition-transform"} />
+              </span>
+            </button>
 
             {/* Main Action (Next/Check) */}
             <button
@@ -3096,25 +3709,25 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                 }
               }}
               aria-label={state.primaryLanguage === 'es' ? 'Continuar' : 'Continue'}
-              className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center group border bg-(--glass-fill) backdrop-blur-[10px] transition-all active:translate-y-px relative ${
+              className="group h-11 min-w-11 flex items-center justify-center rounded-[13px] outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[rgba(91,120,255,0.6)]"
+            >
+              <span className={`w-11 h-[34px] rounded-[11px] border flex items-center justify-center bg-[rgba(15,20,27,0.55)] backdrop-blur-[10px] group-active:translate-y-px ${
                 stage === 5
                   ? (isStepComplete
-                      ? 'border-(--rim-gold) text-ember shadow-glow-gold'
+                      ? 'border-(--rim-gold) text-ember shadow-[0_0_4px_rgba(232,179,75,0.30)]'
                       : (hasSubmitted && isWrong && attempts < 3
                           ? 'border-[rgba(209,78,92,0.55)] text-[#F0A6A0]'
-                          : 'border-(--rim-royal) text-royal shadow-glow-royal'))
-                  : 'border-(--rim-royal) text-royal shadow-glow-royal'
-              }`}
-            >
-              <ArrowRight size={28} strokeWidth={2.5} className="group-hover:translate-x-0.5 transition-transform" />
+                          : 'border-(--rim-royal) text-royal shadow-[0_0_4px_rgba(91,120,255,0.30)]'))
+                  : 'border-(--rim-royal) text-royal shadow-[0_0_4px_rgba(91,120,255,0.30)]'
+              }`}>
+                <ArrowRight size={18} strokeWidth={2.25} className="group-hover:translate-x-0.5 transition-transform" />
+              </span>
             </button>
-
-            {/* Right balancing column: matches the Back column width to keep the primary action centered */}
-            <div className="w-14 sm:w-16 flex-shrink-0" aria-hidden="true" />
         </div>
+        )}
 
         {/* Feedback Area - natural height so localized copy never clips */}
-        <div className={`w-full flex items-center justify-center px-2 ${stage === 5 && feedback ? 'mt-[18px]' : ''}`}>
+        <div className={`w-full flex items-center justify-center px-2 ${stage === 5 && feedback ? 'mt-3 md:mt-4' : ''}`}>
           <AnimatePresence mode="wait">
             {stage === 5 && feedback ? (
               <motion.div
@@ -3142,22 +3755,6 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
           </AnimatePresence>
         </div>
 
-        {/* Pagination Dots (Reserved; decorative — "Step N / 5" above is the
-            accessible equivalent) */}
-        <div className="h-8 flex justify-center items-center gap-4 mt-[22px]" aria-hidden="true">
-          {[1, 2, 3, 4, 5].map(s => (
-            <div
-              key={s}
-              className={`h-1.5 rounded-full transition-all duration-700 ${
-                s === stage
-                  ? 'w-10 bg-royal shadow-[0_0_15px_rgba(91,120,255,0.4)]'
-                  : s < stage
-                    ? 'w-2 bg-ember shadow-[0_0_10px_rgba(232,179,75,0.3)]'
-                    : 'w-2 bg-white/10'
-              }`}
-            />
-          ))}
-        </div>
       </div>
     </div>
   );
