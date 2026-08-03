@@ -242,6 +242,22 @@ export interface ActiveAttemptSnapshot {
   contextKey?: string;
   verseContentKey?: string;
   citationCorrect?: boolean;
+  // --- Phase 3C Citation Step (Memorize Step 6) -----------------------------
+  // All optional and additive, so attempts persisted before Phase 3C stay valid
+  // and no schema-version bump / migration is required. Transient confirmation
+  // and empty-input helper state are deliberately NOT persisted.
+  /** True once the user has entered the Citation Step from the stage-6 handoff. */
+  citationStarted?: boolean;
+  /** In-progress citation drafts, exactly as typed. */
+  citationDraftEs?: string;
+  citationDraftEn?: string;
+  /** Confirmed incorrect submissions used so far (0-3). */
+  citationAttemptsUsed?: number;
+  /** True once three attempts are spent: canonical reveal + acknowledgment pending. */
+  citationExhausted?: boolean;
+  /** Per-language submitted-review markers from the last confirmed submission. */
+  citationWrongEs?: boolean;
+  citationWrongEn?: boolean;
   // Latches to true once the attempt advances past Step 1 (stage >= 2). Used by
   // the challenge-in-progress guard so protection survives reviewing back to
   // Step 1. Optional/undefined for older saved attempts (treated as not started).

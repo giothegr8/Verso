@@ -17,6 +17,23 @@ import CoachCard from "./CoachCard";
 const ES_TRANSLATIONS = ["RVR1960", "NVI", "NBLA"];
 const isEsTranslation = (t: string) => ES_TRANSLATIONS.includes(t);
 
+// THE FAILED-TRANSLATION SENTINELS (same narrow contract as Memorize.tsx).
+//
+// `loadVerseAndMerge` records a failed fetch by writing a sentence into the
+// verse, so the structured failure is lost at the source and the message
+// becomes ordinary content that `validateVerseTranslation` accepts as
+// Scripture. Matched EXACTLY after trimming — never as a keyword search — so
+// real Scripture containing the word "error" is never rejected.
+const FAILED_TRANSLATION_SENTINELS = [
+  "Error al cargar la traducción en Español.",
+  "Error loading English translation.",
+];
+const isFailedTranslationText = (text: string | null | undefined) => {
+  if (!text) return false;
+  const trimmed = text.trim();
+  return FAILED_TRANSLATION_SENTINELS.some(sentinel => trimmed === sentinel);
+};
+
 // Phase 2 locked Home visual recipe (tokens/dark-theme via Tailwind mappings).
 // Card: Deep Slate, hairline, 18px radius, 18px padding (24px >=768).
 const CARD = "bg-deep-slate border border-(--line) rounded-[18px] p-[18px] md:p-6";
@@ -50,6 +67,11 @@ export default function Home({ state, setState, onChangeTranslation, onStartMemo
   const [lookupError, setLookupError] = useState<string | null>(null);
   const [suggestion, setSuggestion] = useState<string | null>(null);
   const [searchTranslation, setSearchTranslation] = useState<Translation | " font-bold uppercase py-2" | "">("");
+  // Which translation actually produced the current search result. Normally the
+  // preferred one; after a one-time alternate-language fallback it is the other
+  // language's translation, so the selected verse is pinned to the language
+  // whose text really loaded rather than the interface default.
+  const [resultTranslation, setResultTranslation] = useState<Translation | null>(null);
   const isEs = state.primaryLanguage === "es";
 
   // Safety confirmation and undo completion states
@@ -69,19 +91,64 @@ export default function Home({ state, setState, onChangeTranslation, onStartMemo
     }
   }, [showUndoToast]);
 
+  /**
+   * THE ONE-TIME ALTERNATE-LANGUAGE FALLBACK.
+   *
+   * `searchVerse` separates the two failure kinds precisely: every reference
+   * problem (unparseable input, unknown book, out-of-range chapter/verse)
+   * THROWS a `PARSE_ERROR`, while a canonical reference that resolved but whose
+   * TEXT could not be fetched returns `null`. Only the `null` case can benefit
+   * from another language, so only the `null` case triggers one.
+   *
+   * Cost discipline — this issues NO extra request on a normal successful
+   * search. The alternate request happens only after the preferred language's
+   * text fails, is attempted exactly ONCE, reuses the same typed query (the
+   * parser already resolves English and Spanish aliases to one shared canonical
+   * passage, so the user never retypes the book name), and is never retried.
+   * A thrown `PARSE_ERROR` propagates out of here untouched, so the "Did you
+   * mean?" path and invalid-reference handling are unchanged.
+   */
+  const preferredSearchTranslation = () =>
+    (searchTranslation || (isEs ? state.selectedTranslations.es : state.selectedTranslations.en)) as Translation;
+
+  const runSearchWithFallback = async (
+    query: string
+  ): Promise<{ result: Verse | null; translation: Translation | null }> => {
+    const preferred = preferredSearchTranslation();
+    const first = await searchVerse(query, preferred);
+    if (first) return { result: first, translation: preferred };
+
+    // Reference resolved, preferred text failed -> try the other language once.
+    const alternate = (isEsTranslation(preferred)
+      ? state.selectedTranslations.en
+      : state.selectedTranslations.es) as Translation;
+    if (!alternate || alternate === preferred) return { result: null, translation: null };
+
+    const second = await searchVerse(query, alternate);
+    return second ? { result: second, translation: alternate } : { result: null, translation: null };
+  };
+
   const handleApplySuggestion = (sug: string) => {
     setSearchQuery(sug);
     setSuggestion(null);
     setLookupError(null);
     setTimeout(() => {
       setIsSearching(true);
-      searchVerse(sug, searchTranslation || (isEs ? state.selectedTranslations.es : state.selectedTranslations.en))
-        .then((result) => {
+      runSearchWithFallback(sug)
+        .then(({ result, translation }) => {
           if (result) {
             setSearchResult(result);
+            setResultTranslation(translation);
             setLookupError(null);
           } else {
-            setLookupError(isEs ? "Versículo no encontrado. Prueba 'Juan 3:16'." : "Verse not found. Try 'John 3:16'.");
+            // BOTH languages' text failed. The reference itself resolved (a
+            // reference problem would have thrown), so this must never claim
+            // the passage does not exist. The "Did you mean?" path below is
+            // untouched.
+            setResultTranslation(null);
+            setLookupError(isEs
+              ? "La referencia es válida, pero no se pudo cargar el texto en este momento. Inténtalo de nuevo."
+              : "The reference is valid, but its text could not be loaded right now. Please try again.");
             setSearchResult(null);
           }
         })
@@ -116,14 +183,22 @@ export default function Home({ state, setState, onChangeTranslation, onStartMemo
     setSuggestion(null);
 
     try {
-      const translation = searchTranslation || (isEs ? state.selectedTranslations.es : state.selectedTranslations.en);
-      const result = await searchVerse(searchQuery, translation as Translation);
+      const { result, translation } = await runSearchWithFallback(searchQuery);
 
       if (result) {
         setSearchResult(result);
+        setResultTranslation(translation);
         setLookupError(null);
       } else {
-        setLookupError(isEs ? "Versículo no encontrado. Prueba 'Juan 3:16'." : "Verse not found. Try 'John 3:16'.");
+        // REFERENCE FAILURE vs TRANSLATION FAILURE. Every reference-resolution
+        // failure inside `searchVerse` THROWS a PARSE_ERROR (caught below), so
+        // reaching here means the reference resolved and BOTH the preferred and
+        // the one alternate text request failed. Reporting that as "verse not
+        // found" would tell the user a valid passage does not exist.
+        setResultTranslation(null);
+        setLookupError(isEs
+          ? "La referencia es válida, pero no se pudo cargar el texto en este momento. Inténtalo de nuevo."
+          : "The reference is valid, but its text could not be loaded right now. Please try again.");
         setSearchResult(null);
       }
     } catch (e: any) {
@@ -143,7 +218,11 @@ export default function Home({ state, setState, onChangeTranslation, onStartMemo
 
   const onSelectCustomVerse = () => {
     if (searchResult) {
-      const translation = searchTranslation || (isEs ? state.selectedTranslations.es : state.selectedTranslations.en);
+      // Pin the verse to the translation that ACTUALLY produced the result. After
+      // a one-time alternate-language fallback that is the other language, so
+      // using the interface default here would pair the verse with a translation
+      // whose text never loaded.
+      const translation = resultTranslation || preferredSearchTranslation();
 
       // Part 8: Check if it matches an existing mock verse by address for normalization
       const matchingMock = MOCK_VERSES.find(v => {
@@ -387,7 +466,20 @@ export default function Home({ state, setState, onChangeTranslation, onStartMemo
     return false;
   })();
 
-  const { esText, enText, esError, enError, activePair: validatedPair } = getValidatedVerse(currentVerse, state);
+  // CONTENT-INTEGRITY GATE. A failed translation is never Scripture: it cannot
+  // render in a verse body, cannot enter the Share snapshot, and cannot satisfy
+  // the memorize button's enable condition (which tests these same values).
+  const {
+    esText: rawEsText,
+    enText: rawEnText,
+    esError,
+    enError,
+    activePair: validatedPair,
+  } = getValidatedVerse(currentVerse, state);
+  const esTranslationFailed = isFailedTranslationText(rawEsText);
+  const enTranslationFailed = isFailedTranslationText(rawEnText);
+  const esText = esTranslationFailed ? null : rawEsText;
+  const enText = enTranslationFailed ? null : rawEnText;
   const esTransToUse = validatedPair?.es || esDetail.id;
   const enTransToUse = validatedPair?.en || enDetail.id;
   // Tie the verse-card translation label/name to the same validated pair used
@@ -402,18 +494,50 @@ export default function Home({ state, setState, onChangeTranslation, onStartMemo
   // in the exact order they render (Spanish block first, then English). One source
   // of order, used for both the visible reference and the Home Share snapshot
   // reference so the two always match.
-  const referenceLangs: ('es' | 'en')[] =
-    state.memorizeMode === 'es' ? ['es'] : state.memorizeMode === 'en' ? ['en'] : ['es', 'en'];
+  // INTERFACE LANGUAGE decides bilingual order — never fetch timing, object
+  // insertion order, the language of the search query, or which translation
+  // arrived first. Availability then removes any language with no valid text.
+  const requestedHomeLangs: ('es' | 'en')[] =
+    state.memorizeMode === 'es' ? ['es']
+    : state.memorizeMode === 'en' ? ['en']
+    : (state.primaryLanguage === 'es' ? ['es', 'en'] : ['en', 'es']);
+  const referenceLangs: ('es' | 'en')[] = (() => {
+    const available = requestedHomeLangs.filter(lang => (lang === 'es' ? esText : enText));
+    return available.length > 0 ? available : requestedHomeLangs;
+  })();
+  // Reported only when the card genuinely still shows the other language.
+  const homeUnavailableLang: ('es' | 'en') | null =
+    esTranslationFailed && !esText && !!enText ? 'es'
+    : enTranslationFailed && !enText && !!esText ? 'en'
+    : null;
 
   // The rendered reference drives the locked Home type rules: long references
   // tighten tracking (0.20em -> 0.12em past 22 chars) and step the verse body
   // down one notch (24px -> 21px, never below the 20px floor). Long verse
   // bodies step down the same notch so the reading column stays composed.
-  const displayedReference = formatLocalizedReference(currentVerse.book, currentVerse.chapter, currentVerse.verse, referenceLangs);
+  // THE HEADER USES THE UNFILTERED, INTERFACE-ORDERED LIST.
+  //
+  // `referenceLangs` is availability-filtered, so a failed Spanish translation
+  // collapsed the top bilingual header to "1 Thessalonians 5:17" and the
+  // Spanish book name vanished. Translation availability governs SCRIPTURE
+  // CONTENT — it must never delete a known localized Bible reference from the
+  // header. `requestedHomeLangs` carries interface-language order without that
+  // filter, and `formatLocalizedReference` joins the names with " / " and
+  // appends chapter:verse exactly ONCE at the end:
+  //   English interface -> "1 Thessalonians / 1 Tesalonicenses 5:17"
+  //   Spanish interface -> "1 Tesalonicenses / 1 Thessalonians 5:17"
+  // Single-language mode passes a one-entry list, so it still renders one book
+  // name with no slash. `referenceLangs` is deliberately left untouched below,
+  // where the Share snapshot continues to use it unchanged.
+  const displayedReference = formatLocalizedReference(currentVerse.book, currentVerse.chapter, currentVerse.verse, requestedHomeLangs);
   const isLongReference = displayedReference.length > 22;
   const isLongVerse = (esText?.length ?? 0) > 140 || (enText?.length ?? 0) > 140;
   const verseSizeClass = (isLongReference || isLongVerse) ? "text-[21px]" : "text-[24px]";
-  const refTrackingClass = isLongReference ? "tracking-[0.12em]" : "tracking-[0.2em]";
+  // `refTrackingClass` existed only to tighten the COMBINED card header, which
+  // has been removed: each language block now owns its own localized reference,
+  // so there is no combined string whose length should drive tracking.
+  // `displayedReference` itself is retained — the Share snapshot and ShareModal
+  // still consume it, and `isLongVerse`/`isLongReference` still size the body.
 
   // Path memory-verse reference (path card block): same wrapping rules; the
   // chapter:verse group never breaks internally, so a forced wrap lands before
@@ -532,15 +656,6 @@ export default function Home({ state, setState, onChangeTranslation, onStartMemo
           </div>
         )}
 
-        <div className="absolute top-4 right-4 md:top-5 md:right-5 z-20">
-          <IconButton
-            id="share-btn-home"
-            label={state.primaryLanguage === 'es' ? "Compartir versículo" : "Share verse"}
-            icon={<BrandIcon name="ui-share" size={18} />}
-            onClick={onShareClick}
-          />
-        </div>
-
         <div className="relative flex flex-col gap-6">
           {state.anotherVerseError && (
             <div id={errId} className="vmsg vmsg--error animate-in fade-in slide-in-from-top-2 duration-300">
@@ -549,59 +664,124 @@ export default function Home({ state, setState, onChangeTranslation, onStartMemo
             </div>
           )}
 
-          <h3 className={`${REF} ${refTrackingClass} pr-12`}>
-            {displayedReference}
-          </h3>
-
+          {/* THE COMBINED CARD HEADER IS GONE.
+              It restated, slash-joined, the very references each language block
+              already owns ("1 THESSALONIANS / 1 TESALONICENSES 5:17"), wrapped
+              badly at iPhone SE width, and competed with the Share control for
+              the same corner. The FIRST language block is now the card's top
+              content anchor, and Share rides that block's own reference row —
+              so there is no duplicated title, no empty header pocket, and no
+              separate row for the control to float in.
+              Blocks still render in INTERFACE-LANGUAGE order, each with its OWN
+              localized reference, so a Spanish verse can never be labelled with
+              an English book name (or the reverse). */}
           <div className="flex flex-col gap-6">
-            {(state.memorizeMode === 'es' || state.memorizeMode === 'both') && (
-              <div className="flex flex-col gap-3">
-                <span className="text-[10px] font-hanken font-semibold uppercase tracking-[0.2em] text-faint">
-                  {esVerseDetail.name}
-                </span>
-                {esText ? (
-                  <p className={`${VERSE} ${verseSizeClass}`}>
-                    {esText}
-                  </p>
-                ) : isEsLoading ? (
-                  <div className="flex flex-col gap-2 animate-pulse py-2">
-                    <div className="h-6 bg-white/10 rounded-lg w-full" />
-                    <div className="h-6 bg-white/10 rounded-lg w-5/6" />
+            {requestedHomeLangs.map((lang, i) => {
+              const blockText = lang === 'es' ? esText : enText;
+              const blockLoading = lang === 'es' ? isEsLoading : isEnLoading;
+              const blockError = lang === 'es' ? esError : enError;
+              const blockDetail = lang === 'es' ? esVerseDetail : enVerseDetail;
+              const blockFailed = lang === 'es' ? esTranslationFailed : enTranslationFailed;
+              return (
+                <React.Fragment key={lang}>
+                  {i > 0 && <div className="h-px w-full bg-(--line)" />}
+                  <div className="flex flex-col gap-3">
+                    {/* The localized reference is ALWAYS shown in full — never
+                        hidden, never ellipsized. Only the translation label
+                        swaps form: its official abbreviation (KJV, NBLA, ...)
+                        at narrow widths, the full name from `sm:` up. Both come
+                        from the existing TRANSLATION_DETAILS entry, so no new
+                        data, type or token is involved. `break-words` lets the
+                        metadata wrap naturally inside its own region, which now
+                        never overlaps the Share control. This span sits above
+                        the text/loading/error branch, so a language whose
+                        Scripture failed keeps its reference and its label. */}
+                    {/* METADATA ROW — the card's top anchor for the first block.
+                        Two real regions: a `min-w-0 flex-1` text column and, on
+                        the first block only, a `shrink-0` Share column. The
+                        reference wraps inside its own column, so Share can never
+                        overlap a reference, a label, Scripture or a notice, and
+                        nothing is absolutely positioned.
+                        Hierarchy: the localized reference is primary (Royal Soft
+                        via the existing REF token); the translation identifier is
+                        subordinate (smaller, Cold Grey). Narrow widths stack them
+                        and show the official abbreviation (KJV / NIV / NBLA);
+                        from `sm:` up they share a baseline row and the full
+                        translation name returns. Nothing is truncated or
+                        ellipsized, and a language whose Scripture failed keeps
+                        both lines. */}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1 flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:gap-2">
+                        <span className={`${REF} min-w-0`}>
+                          {getLocalizedBookName(currentVerse.book, lang)} {currentVerse.chapter}:{currentVerse.verse}
+                        </span>
+                        <span className="text-[9px] font-hanken font-semibold uppercase tracking-[0.18em] text-cold-grey break-words">
+                          <span className="sm:hidden">{blockDetail.label}</span>
+                          <span className="hidden sm:inline">{blockDetail.name}</span>
+                        </span>
+                      </div>
+                      {i === 0 && (
+                        // SHARE — a 44x44 hit target wrapping a compact 30px
+                        // rounded-square ghost: transparent fill, restrained
+                        // hairline border, Royal Soft icon, royal hover/focus
+                        // glow. Never a large glass disc, never Verdant Teal.
+                        // The -my-3 offset (derived from 44px control vs ~15px
+                        // text line) keeps the row the height of the text, so no
+                        // empty pocket forms beneath it.
+                        <button
+                          id="share-btn-home"
+                          type="button"
+                          aria-label={state.primaryLanguage === 'es' ? "Compartir versículo" : "Share verse"}
+                          onClick={onShareClick}
+                          className="group shrink-0 -my-3 -mr-1 w-11 h-11 flex items-center justify-center outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[rgba(91,120,255,0.6)]"
+                        >
+                          <span className="w-[30px] h-[30px] rounded-[9px] flex items-center justify-center border border-(--line) bg-transparent text-royal-soft transition-colors group-hover:border-(--rim-royal) group-hover:shadow-[0_0_10px_rgba(91,120,255,0.20)]">
+                            <BrandIcon name="ui-share" size={16} />
+                          </span>
+                        </button>
+                      )}
+                    </div>
+                    {blockText ? (
+                      <p className={`${VERSE} ${verseSizeClass}`}>
+                        {blockText}
+                      </p>
+                    ) : blockLoading ? (
+                      <div className="flex flex-col gap-2 animate-pulse py-2">
+                        <div className="h-6 bg-white/10 rounded-lg w-full" />
+                        <div className="h-6 bg-white/10 rounded-lg w-5/6" />
+                      </div>
+                    ) : (
+                      // Never the raw service sentence: a known failed
+                      // translation gets its own localized notice inside the
+                      // existing message row, not a Scripture paragraph.
+                      <div className="vmsg vmsg--error">
+                        <span className="vmsg__icon"><AlertCircle size={20} /></span>
+                        <p className="text-sm font-medium">
+                          {blockFailed
+                            ? (isEs
+                                ? `La traducción en ${lang === 'es' ? 'español' : 'inglés'} no está disponible en este momento.`
+                                : `The ${lang === 'es' ? 'Spanish' : 'English'} translation is unavailable right now.`)
+                            : blockError}
+                        </p>
+                      </div>
+                    )}
                   </div>
-                ) : (
-                  <div className="vmsg vmsg--error">
-                    <span className="vmsg__icon"><AlertCircle size={20} /></span>
-                    <p className="text-sm font-medium">{esError}</p>
-                  </div>
-                )}
-              </div>
-            )}
+                </React.Fragment>
+              );
+            })}
 
-            {state.memorizeMode === 'both' && (
-              <div className="h-px w-full bg-(--line)" />
-            )}
-
-            {(state.memorizeMode === 'en' || state.memorizeMode === 'both') && (
-              <div className="flex flex-col gap-3">
-                <span className="text-[10px] font-hanken font-semibold uppercase tracking-[0.2em] text-faint">
-                  {enVerseDetail.name}
-                </span>
-                {enText ? (
-                  <p className={`${VERSE} ${verseSizeClass}`}>
-                    {enText}
-                  </p>
-                ) : isEnLoading ? (
-                  <div className="flex flex-col gap-2 animate-pulse py-2">
-                    <div className="h-6 bg-white/10 rounded-lg w-full" />
-                    <div className="h-6 bg-white/10 rounded-lg w-5/6" />
-                  </div>
-                ) : (
-                  <div className="vmsg vmsg--error">
-                    <span className="vmsg__icon"><AlertCircle size={20} /></span>
-                    <p className="text-sm font-medium">{enError}</p>
-                  </div>
-                )}
-              </div>
+            {/* One localized notice, outside every Scripture block, stating that
+                the card has fallen back to the language that is still valid. */}
+            {homeUnavailableLang && (
+              <p role="status" className="text-[12px] font-hanken text-cold-grey leading-snug">
+                {homeUnavailableLang === 'es'
+                  ? (isEs
+                      ? 'La traducción en español no está disponible en este momento. Se muestra solo el inglés.'
+                      : 'The Spanish translation is unavailable right now. Showing English only.')
+                  : (isEs
+                      ? 'La traducción en inglés no está disponible en este momento. Se muestra solo el español.'
+                      : 'The English translation is unavailable right now. Showing Spanish only.')}
+              </p>
             )}
           </div>
 

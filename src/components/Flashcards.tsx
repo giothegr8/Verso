@@ -262,10 +262,15 @@ export default function Flashcards({ state, setState, onMemorize, onRestartMemor
     verse
   ]);
 
+  // Phase 3C: stage-6 Citation acquisition moved to Memorize Step 6. Cards must
+  // no longer host a reachable citation challenge, so eligibility is permanently
+  // false here. Everything downstream is gated on this flag — the challenge
+  // cannot arm, submit, consume an attempt, or complete — leaving the legacy
+  // implementation dormant without a Phase 4 Cards refactor. A stage-6 verse now
+  // shows the existing "locked → go memorize" state, which routes back to the
+  // Citation Step. Stage-7 Cards review is unaffected.
   const isEligible = useMemo(() => {
-    return state.progress.verseStages?.[verse.id] === 6 &&
-      !!activeCardsAttempt &&
-      isCardsReadyAttempt(activeCardsAttempt);
+    return false;
   }, [state.progress.verseStages, verse.id, activeCardsAttempt]);
 
   // Reset state when verse or configuration changes

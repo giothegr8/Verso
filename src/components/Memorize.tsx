@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useLayoutEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
   ACTIVE_ATTEMPT_SCHEMA_VERSION,
@@ -8,6 +8,7 @@ import {
   MemorizeLanguage,
   TRANSLATION_PAIRS,
   TRANSLATION_DETAILS,
+  Translation,
   Verse
 } from "../types";
 import { loadVerseAndMerge } from "../services/bibleService";
@@ -15,7 +16,8 @@ import { MOCK_VERSES, getVerseByDate } from "../constants";
 import { CheckCircle2, RotateCcw, Eye, EyeOff, ArrowRight, ArrowLeft, Trophy, Sparkles, AlertCircle, Bookmark, Layers, BookOpen, Loader2 } from "lucide-react";
 import React from "react";
 import confetti from "canvas-confetti";
-import { getCurrentTranslationPair, getValidatedVerse, getLocalizedBookName, getLocalDateString, removeAccents } from "../utils/verseUtils";
+import { getCurrentTranslationPair, getValidatedVerse, getLocalizedBookName, getLocalDateString, removeAccents, validateVerseTranslation } from "../utils/verseUtils";
+import CitationStep, { CitationPersistPatch } from "./CitationStep";
 
 interface MemorizeProps {
   state: AppState;
@@ -64,10 +66,14 @@ type MemorizeTypingStateV2 = {
 
 // Home-aligned progress rail: five straight rounded segments, matching the
 // segmented progress-bar vocabulary of the approved Home cards. The stages
-// keep their semantic names (Seed, Water, Root, Sprout, Bloom) in data
-// attributes only — never rendered as icons. Decorative; the visible
-// "Step N / 5" text in the header is the accessible equivalent.
-const STAGE_RAIL_STAGES = ["Seed", "Water", "Root", "Sprout", "Bloom"] as const;
+// keep their semantic names in data attributes only — never rendered as icons.
+// Decorative; the visible "Step N of 6" text in the header is the accessible
+// equivalent.
+// Six segments since Phase 3C: Citation is Step 6. Steps 1-5 keep their exact
+// appearance and behaviour; only the segment count changed. The sixth segment
+// is named for the step it represents — Citation — so no terminology other than
+// the locked Citation/Cita name reaches the rendered DOM.
+const STAGE_RAIL_STAGES = ["Seed", "Water", "Root", "Sprout", "Bloom", "Citation"] as const;
 
 const StageProgressRail = ({ stage }: { stage: number }) => (
   <div className="w-full max-w-[236px] md:max-w-[280px] flex items-center gap-1.5 md:gap-2">
@@ -125,6 +131,64 @@ const LETTER_RE = new RegExp(`[${LETTER_CLASS_SOURCE}]`);
 const NON_LETTER_GLOBAL_RE = new RegExp(`[^${LETTER_CLASS_SOURCE}]`, "g");
 const isLetterChar = (ch: string) => LETTER_RE.test(ch);
 
+// THE CANONICAL DISPLAY-CASING LAW (Step 5 Recall Composer — DISPLAY ONLY).
+//
+// The Composer paints the user's own glyphs at their natural proportional
+// Fraunces advances, and uppercase advances are wider than lowercase ones. A
+// correct all-caps entry therefore overflowed its canonical row and wrapped
+// again INSIDE it (the row's `break-words` emergency fallback), so the Composer
+// stopped following the frozen canonical line map — while the Memory Map, and
+// Arrow Up/Down which navigate the Map's logical cells, stayed on the canonical
+// rows and could skip text that looked visually adjacent.
+//
+// The correction is a paint-time decision and nothing else: the canonical glyph
+// at the SAME logical index decides only whether the entered glyph is shown
+// uppercase or lowercase. Raw entered input is never touched — not in state,
+// not in refs, not in persistence, not in validation (`handleCheck` keeps
+// grading through `removeAccents` + `toLowerCase`, so it stays case- AND
+// accent-insensitive). Casing is not accepted, rejected or graded here; it is
+// only painted.
+//
+// Identity is preserved absolutely — a wrong letter stays wrong, an accent
+// stays on its letter, and the canonical letter is NEVER substituted for what
+// the user actually typed:
+//
+//   canonical `a`:  `A` -> `a`,  `X` -> `x`,  `Á` -> `á`
+//   canonical `N`:  `n` -> `N`,  `x` -> `X`,  `ñ` -> `Ñ`
+//
+// Unicode-aware by construction: case is decided by asking the canonical glyph
+// itself, never by an ASCII range test — so ñ/Ñ, ü/Ü and every accented vowel
+// in THE ONE LETTER SET case correctly and one-to-one. Locale-INDEPENDENT
+// casing only (`toUpperCase`/`toLowerCase`, never the `toLocale*` variants), so
+// the same raw persisted input deterministically restores to the same display
+// on reload regardless of browser locale. Digits and caseless glyphs have no
+// case to match and pass through exactly as typed.
+//
+// ONE LOGICAL POSITION IN, ONE LOGICAL POSITION OUT. A conversion that would
+// expand the glyph (`ß` -> `SS`, `ﬁ` -> `FI`, `İ` -> `i` + combining dot) is
+// REFUSED and the raw glyph is painted as typed. Case conversion can therefore
+// never add, remove or shift a logical index, move the cursor, or alter a Clue
+// index, a review index or the persisted length.
+const toCanonicalDisplayCase = (entered: string, canonical: string) => {
+  if (!entered || !canonical) return entered;
+
+  const canonicalUpper = canonical.toUpperCase();
+  const canonicalLower = canonical.toLowerCase();
+  // Caseless canonical glyph (digit, symbol, uncased script): no opinion.
+  if (canonicalUpper === canonicalLower) return entered;
+
+  const wantsUpper = canonical === canonicalUpper;
+  // A canonical glyph that is neither its own uppercase nor its own lowercase
+  // form (e.g. a titlecase digraph) also gets no opinion.
+  if (!wantsUpper && canonical !== canonicalLower) return entered;
+
+  const cased = wantsUpper ? entered.toUpperCase() : entered.toLowerCase();
+  if (cased === entered) return entered;
+  // Refuse expansion: the code-point count must be identical.
+  if (Array.from(cased).length !== Array.from(entered).length) return entered;
+  return cased;
+};
+
 // One-shot occupancy bloom. Scoped here because no CSS file is authorized.
 // The 100% frame is deliberately identical to the settled occupied inline
 // style, so when the animation retires the handoff is invisible. Keyframes
@@ -150,6 +214,60 @@ const BEACON_STYLE = `
 }
 `;
 
+// THE UNIFORM LOGICAL CELL BOARD (Step 5 Memory Map; CitationStep.tsx keeps
+// its own mirrored constants for the independent Step 6 Reference Map).
+// The board is a structural occupancy guide, not a proportional text
+// silhouette: every logical letter/digit is one fixed-width cell, every
+// intra-word gap is identical, and every inter-word gap is identical and
+// visibly larger. NOTHING here derives from canonical or typed glyph widths.
+//
+// Since the canonical-line-map pass, the approved responsive clamp() values
+// are resolved in JS during canonical-layout measurement (never during
+// typing) so ONE global scale — taken from the densest canonical line — can
+// shrink the whole board system consistently when a line would otherwise
+// overflow the stage width.
+const BOARD_CELL_H = "14px";
+const BOARD_TILE_H = "10px";
+const BOARD_BASE = {
+  cell:  { min: 9,  vw: 0.027, max: 11 },
+  intra: { min: 3,  vw: 0.009, max: 4 },
+  inter: { min: 11, vw: 0.031, max: 15 },
+} as const;
+
+// One canonical responsive line map — measured from a hidden mirror of the
+// Steps 1-4 proportional Scripture rendering — drives the line breaks of the
+// Step 5 Memory Map and Recall Composer, so Steps 1-5 always show the passage
+// arranged on the same lines. `lines` holds canonical word indices per
+// rendered line; `board` holds the globally scaled Step-5 cell metrics.
+type CanonicalLayout = {
+  key: string;
+  width: number;
+  sig: string;
+  lines: number[][];
+  board: { cell: number; intra: number; inter: number };
+};
+
+// THE FAILED-TRANSLATION SENTINELS.
+//
+// `loadVerseAndMerge` (services/bibleService.ts) records a failed fetch by
+// WRITING A SENTENCE INTO THE VERSE, so the structured failure is discarded at
+// the source and the message becomes ordinary content that `validateVerseTranslation`
+// happily accepts as Scripture. These are the two exact strings it emits.
+//
+// Matched EXACTLY (after trimming) and never as a keyword search, so genuine
+// Scripture that happens to contain the word "error" is never rejected.
+const FAILED_TRANSLATION_SENTINELS = [
+  "Error al cargar la traducción en Español.",
+  "Error loading English translation.",
+];
+const isFailedTranslationText = (text: string | null | undefined) => {
+  if (!text) return false;
+  const trimmed = text.trim();
+  return FAILED_TRANSLATION_SENTINELS.some(sentinel => trimmed === sentinel);
+};
+
+// Interface language decides bilingual order. It never decides the CONTENT
+// language of a stream — only which valid stream is shown first.
 const getExpectedLanguageOrder = (
   mode: AppState["memorizeMode"],
   uiLanguage: AppState["primaryLanguage"]
@@ -302,7 +420,10 @@ const isValidTypingState = (
   return true;
 };
 
-export default function Memorize({ state, setState, onComplete, onGoToFlashcards, onAbandon, tourStepId }: MemorizeProps) {
+// `onGoToFlashcards` remains on the props interface for call-site compatibility
+// but is no longer consumed: Phase 3C moved Citation into Step 6 of this flow,
+// so Memorize never hands stage-6 acquisition off to Cards.
+export default function Memorize({ state, setState, onComplete, onAbandon, tourStepId }: MemorizeProps) {
   const today = getLocalDateString();
   const votd = getVerseByDate(today);
   
@@ -364,9 +485,85 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
 
   const verse = getResolvedVerse();
   const activeAttempt = isValidMemorizeAttempt(state.activeAttempt, verse.id) ? state.activeAttempt : null;
-  const attemptLanguageOrder = activeAttempt?.languageOrder && activeAttempt.languageOrder.length > 0
+
+  // ==========================================================================
+  // THE CONTENT-INTEGRITY GATE.
+  //
+  // A failed translation must never become Scripture. Because bibleService
+  // stores its failure as a sentence inside the verse (see the sentinels
+  // above), the message would otherwise flow into Steps 1-5, the Citation
+  // Step, the learned card, and Saved — graded, persisted and acquired as if
+  // it were the passage.
+  //
+  // The failing language is not blanked; it is REMOVED from this attempt.
+  // Every downstream consumer derives from `attemptLanguageOrder` and
+  // `effectiveMemorizeMode` below, so the message has no path into any stream,
+  // payload or record. Nothing here rewrites persisted storage: a restored
+  // draft simply re-enters this same gate and re-reduces, so no Saved data,
+  // completed passage or unrelated key is ever touched.
+  // ==========================================================================
+  const validatedVerse = getValidatedVerse(verse, state);
+  const validatedPair = validatedVerse.activePair;
+  const esError = validatedVerse.esError;
+  const enError = validatedVerse.enError;
+
+  const esTranslationFailed = isFailedTranslationText(verse?.text?.es?.[validatedPair.es]);
+  const enTranslationFailed = isFailedTranslationText(verse?.text?.en?.[validatedPair.en]);
+
+  // Usable iff the project's own validator accepts it AND it is not a
+  // failed-translation sentinel. The validator is reused rather than replaced,
+  // so "coming soon" placeholders keep behaving exactly as before.
+  const usableTextFor = (lang: MemorizeLanguage): string | null => {
+    const trans = lang === 'es' ? validatedPair.es : validatedPair.en;
+    if (!validateVerseTranslation(verse, lang, trans).isValid) return null;
+    const raw = verse.text[lang][trans] || "";
+    return isFailedTranslationText(raw) ? null : raw;
+  };
+
+  const usableEsText = usableTextFor('es');
+  const usableEnText = usableTextFor('en');
+  const requestedEs = state.memorizeMode === 'es' || state.memorizeMode === 'both';
+  const requestedEn = state.memorizeMode === 'en' || state.memorizeMode === 'both';
+
+  let resolvedEsText = requestedEs ? usableEsText : null;
+  let resolvedEnText = requestedEn ? usableEnText : null;
+  // Every requested language failed but the other one is genuinely valid: the
+  // attempt continues in that language rather than collapsing. This is what
+  // turns a failed Spanish fetch — even under a Spanish-only request — into a
+  // real English-only attempt instead of nothing.
+  if (!resolvedEsText && !resolvedEnText) {
+    if (usableEnText) resolvedEnText = usableEnText;
+    else if (usableEsText) resolvedEsText = usableEsText;
+  }
+  const esText = resolvedEsText;
+  const enText = resolvedEnText;
+
+  // Interface-language order first (unchanged), then availability removes any
+  // language with no valid text. The both-null case is owned by the existing
+  // "verse unavailable" guard further down.
+  const requestedLanguageOrder = activeAttempt?.languageOrder && activeAttempt.languageOrder.length > 0
     ? activeAttempt.languageOrder
     : getExpectedLanguageOrder(state.memorizeMode, state.primaryLanguage);
+  const availableLanguageOrder = requestedLanguageOrder.filter(lang => (lang === 'es' ? esText : enText));
+  const rescueLanguageOrder: MemorizeLanguage[] = enText ? ['en'] : esText ? ['es'] : [];
+  const attemptLanguageOrder = availableLanguageOrder.length > 0
+    ? availableLanguageOrder
+    : rescueLanguageOrder.length > 0
+      ? rescueLanguageOrder
+      : requestedLanguageOrder;
+
+  // The mode this ATTEMPT actually runs in. `state.memorizeMode` stays the
+  // user's global preference and is never mutated by a transport failure.
+  const effectiveMemorizeMode: AppState["memorizeMode"] =
+    attemptLanguageOrder.length > 1 ? 'both' : attemptLanguageOrder[0];
+
+  // Which language dropped out — reported only when the attempt genuinely
+  // continues in the other one, so the notice is never shown next to nothing.
+  const unavailableNoticeLang: MemorizeLanguage | null =
+    esTranslationFailed && !esText && !!enText ? 'es'
+    : enTranslationFailed && !enText && !!esText ? 'en'
+    : null;
+
   const attemptId = activeAttempt?.attemptId || null;
   const typingStateKey = attemptId ? `memorize_typing_state_v${MEMORIZE_TYPING_STATE_SCHEMA_VERSION}_${attemptId}` : null;
 
@@ -587,7 +784,6 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
   }, [attemptId, currentPassIndex, setState]);
 
   const celebratedHalfwayRef = useRef<string>("");
-  const celebratedAlmostDoneRef = useRef<string>("");
 
   // Refs and helper to always hold the latest state values for non-reactive access in debounced save
   const stateRef = useRef({
@@ -715,15 +911,17 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
 
   const isEsDone = isCorrectEs || didFailFlowEs;
   const isEnDone = isCorrectEn || didFailFlowEn;
-  const isStepComplete = state.memorizeMode === 'both' ? (isEsDone && isEnDone) : (state.memorizeMode === 'es' ? isEsDone : isEnDone);
-  
-  const isOverallSuccess = state.memorizeMode === 'both' 
-    ? (isCorrectEs && isCorrectEn) 
-    : (state.memorizeMode === 'es' ? isCorrectEs : isCorrectEn);
+  // Completion is judged against the languages this attempt ACTUALLY runs, so a
+  // language dropped for a failed translation can never hold the attempt open.
+  const isStepComplete = effectiveMemorizeMode === 'both' ? (isEsDone && isEnDone) : (effectiveMemorizeMode === 'es' ? isEsDone : isEnDone);
 
-  const isAnyPartFailed = (state.memorizeMode === 'both'
+  const isOverallSuccess = effectiveMemorizeMode === 'both'
+    ? (isCorrectEs && isCorrectEn)
+    : (effectiveMemorizeMode === 'es' ? isCorrectEs : isCorrectEn);
+
+  const isAnyPartFailed = (effectiveMemorizeMode === 'both'
     ? (didFailFlowEs || didFailFlowEn)
-    : (state.memorizeMode === 'es' ? didFailFlowEs : didFailFlowEn)) || sessionFailed;
+    : (effectiveMemorizeMode === 'es' ? didFailFlowEs : didFailFlowEn)) || sessionFailed;
 
   const activeClueCount = activeLanguage === 'es' ? clueCountEs : clueCountEn;
   const activeAttempts = activeLanguage === 'es' ? attemptsEs : attemptsEn;
@@ -777,6 +975,10 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
   const mainActionRef = useRef<HTMLButtonElement>(null);
   const halfwayContinueRef = useRef<HTMLButtonElement>(null);
   const challengeCitationRef = useRef<HTMLButtonElement>(null);
+  // Declared here (with the other refs) rather than beside the Citation helpers
+  // below, because those live after this component's early returns and a hook
+  // must never be called conditionally.
+  const citationAcquiredRef = useRef(false);
   const isInputComposingRef = useRef(false);
   
   const esDetail = TRANSLATION_DETAILS[activePair?.es || "RVR1960"] || TRANSLATION_DETAILS["RVR1960"];
@@ -796,7 +998,9 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
     return clean;
   };
 
-  const { esText, enText, esError, enError, activePair: validatedPair } = getValidatedVerse(verse, state);
+  // esText / enText / esError / enError / validatedPair are resolved by the
+  // content-integrity gate near the top of this component, so no consumer can
+  // read the raw, unsanitised translation text.
   const esTransToUse = validatedPair?.es || (state.selectedTranslations?.es || "RVR1960");
   const enTransToUse = validatedPair?.en || (state.selectedTranslations?.en || "KJV");
   const isEsLoading = !!(verse && state.loadingTranslations && state.loadingTranslations[`${verse.id}_${esTransToUse}`]);
@@ -1175,6 +1379,169 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
     setPendingSubmitLive(false);
   }, [stage, currentPassIndex, attemptId]);
 
+  // ==========================================================================
+  // THE CANONICAL LINE MAP. Steps 1-4's proportional Scripture layout is the
+  // single layout authority. A hidden, aria-hidden, non-interactive mirror of
+  // that exact rendering (same width, font, sizes, gaps, per-character slot
+  // minimums) is measured to produce one ordered line map — which canonical
+  // word indices share each rendered line — plus ONE global Step-5 board
+  // scale derived from the densest line. Measured on verse / language /
+  // translation / width / font-load changes only; never on keystrokes,
+  // cursor moves, Clue use, or submission.
+  // ==========================================================================
+  const activeCanonicalText = activeLanguage === 'es' ? esText : enText;
+  const canonicalLayoutKey = `${verse.id}|${activeLanguage}|${esTransToUse}|${enTransToUse}|${activeCanonicalText || ""}`;
+  const [canonicalLayout, setCanonicalLayout] = useState<CanonicalLayout | null>(null);
+  const canonicalMirrorRef = useRef<HTMLDivElement | null>(null);
+  const canonicalMirrorRORef = useRef<ResizeObserver | null>(null);
+  // Latest-value refs: the measurement function and the ResizeObserver
+  // callback always read the current identity/text, never a stale closure.
+  const canonicalKeyRef = useRef(canonicalLayoutKey);
+  canonicalKeyRef.current = canonicalLayoutKey;
+  const activeCanonicalTextRef = useRef(activeCanonicalText);
+  activeCanonicalTextRef.current = activeCanonicalText;
+
+  // THE FREEZE RULE (width hysteresis). For one layout identity, a measured
+  // width within this many pixels of the frozen map's width is treated as THE
+  // SAME width and cannot replace the map. This is what makes the line map
+  // immune to every interaction state — including the indirect path QA hit:
+  // Clue (or typing) grows the Composer, the page crosses the scroll
+  // threshold, a classic scrollbar appears, and the stage narrows by the
+  // scrollbar's ~15px. That is an interaction side-effect, not a layout
+  // change. A genuine resize or rotation moves the width far beyond this
+  // tolerance and remeasures normally.
+  const CANONICAL_WIDTH_FREEZE_PX = 24;
+
+  const measureCanonicalLayout = () => {
+      const mirror = canonicalMirrorRef.current;
+      const activeText = activeCanonicalTextRef.current;
+      const layoutKey = canonicalKeyRef.current;
+      if (!mirror || !activeText) return;
+      const wordEls = Array.from(mirror.querySelectorAll<HTMLElement>("[data-mword]"));
+      if (wordEls.length === 0) return;
+
+      // Group canonical words into visual lines by rendered top position; the
+      // small tolerance absorbs sub-pixel layout differences.
+      const lines: number[][] = [];
+      let prevTop: number | null = null;
+      wordEls.forEach(el => {
+        const top = el.offsetTop;
+        const idx = Number(el.dataset.mword || "0");
+        if (prevTop === null || Math.abs(top - prevTop) > 4) {
+          lines.push([idx]);
+          prevTop = top;
+        } else {
+          lines[lines.length - 1].push(idx);
+        }
+      });
+
+      // ONE global board-fit scale (Section G): resolve the approved clamp()
+      // proportions in JS, sum each canonical line's logical occupancy (cells,
+      // intra gaps, a fixed punctuation reserve, inter gaps), and scale the
+      // whole board system so the densest line fits the stage width. The
+      // calculation depends only on canonical structure and available width —
+      // typed glyphs (wide `W` included) play no part.
+      const vw = window.innerWidth;
+      const resolve = (c: { min: number; vw: number; max: number }) =>
+        Math.min(c.max, Math.max(c.min, c.vw * vw));
+      const baseCell = resolve(BOARD_BASE.cell);
+      const baseIntra = resolve(BOARD_BASE.intra);
+      const baseInter = resolve(BOARD_BASE.inter);
+      const basePunct = baseCell * 0.5; // reserve per fixed punctuation glyph
+
+      const words = activeText.split(" ");
+      const avail = mirror.clientWidth;
+      let maxRequired = 0;
+      lines.forEach(line => {
+        let req = Math.max(0, line.length - 1) * baseInter;
+        line.forEach(wi => {
+          const word = words[wi] || "";
+          const letters = getCleanLetters(word).length;
+          const punct = Array.from(word).filter(ch => !isLetterChar(ch)).length;
+          req += letters * baseCell + Math.max(0, letters - 1) * baseIntra + punct * basePunct;
+        });
+        if (req > maxRequired) maxRequired = req;
+      });
+      const scale = avail > 0 && maxRequired > avail ? avail / maxRequired : 1;
+
+      const sig = lines.map(l => l.join(",")).join("|");
+      const next: CanonicalLayout = {
+        key: layoutKey,
+        width: avail,
+        sig,
+        lines,
+        board: { cell: baseCell * scale, intra: baseIntra * scale, inter: baseInter * scale },
+      };
+
+      setCanonicalLayout(prev => {
+        // THE FROZEN VALID MAP (Section F). A valid map for the current layout
+        // identity is preserved against every interaction state. Only three
+        // things may replace it:
+        //   1. a different layout identity (verse/language/translation/text);
+        //   2. a genuine width change beyond the freeze tolerance
+        //      (resize/rotation — never the scrollbar side-effect of Clue or
+        //      typing growing the page);
+        //   3. the authoritative post-font-load correction: the SAME width
+        //      (sub-pixel, ≤1px) measuring a genuinely different row signature.
+        // Clue, typing, cursor movement, Peek, submission and review can
+        // trigger none of these, so they can never regroup the lines.
+        if (prev && prev.key === layoutKey) {
+          const widthDelta = Math.abs(prev.width - avail);
+          if (widthDelta <= CANONICAL_WIDTH_FREEZE_PX) {
+            if (widthDelta <= 1 && prev.sig !== sig) {
+              return next; // font-readiness correction at the same width
+            }
+            return prev; // frozen — identical or interaction-induced delta
+          }
+        }
+        return next; // new identity or genuine resize
+      });
+  };
+  // Stable identity holder so the ResizeObserver callback and the mount
+  // callback ref always invoke the latest measurement logic.
+  const measureCanonicalLayoutRef = useRef(measureCanonicalLayout);
+  measureCanonicalLayoutRef.current = measureCanonicalLayout;
+
+  // Mirror lifecycle rides the NODE itself. This stable callback ref runs on
+  // mount/unmount only (never on re-renders, never on keystrokes): on mount it
+  // measures pre-paint and attaches the mirror-scoped ResizeObserver; on
+  // unmount it disconnects. Because the lifecycle is node-driven, no
+  // interaction flag needs to appear in any dependency list, and returning
+  // from an early-return branch re-measures automatically when the mirror
+  // remounts.
+  const attachCanonicalMirror = useMemo(() => (node: HTMLDivElement | null) => {
+    canonicalMirrorRef.current = node;
+    if (canonicalMirrorRORef.current) {
+      canonicalMirrorRORef.current.disconnect();
+      canonicalMirrorRORef.current = null;
+    }
+    if (node) {
+      measureCanonicalLayoutRef.current();
+      if (typeof ResizeObserver !== "undefined") {
+        canonicalMirrorRORef.current = new ResizeObserver(() => measureCanonicalLayoutRef.current());
+        canonicalMirrorRORef.current.observe(node);
+      }
+    }
+  }, []);
+
+  useLayoutEffect(() => {
+    // Layout identity changed (verse / language / translation / canonical
+    // text): measure pre-paint so Step 5 never flickers, then re-measure once
+    // fonts settle. The fonts promise is guarded against staleness by
+    // comparing the identity that subscribed with the identity at resolution.
+    measureCanonicalLayoutRef.current();
+    let cancelled = false;
+    const keyAtSubscribe = canonicalLayoutKey;
+    try {
+      document.fonts?.ready?.then(() => {
+        if (!cancelled && canonicalKeyRef.current === keyAtSubscribe) {
+          measureCanonicalLayoutRef.current();
+        }
+      });
+    } catch { /* Fonts API unavailable: the pre-paint measurement stands. */ }
+    return () => { cancelled = true; };
+  }, [canonicalLayoutKey]);
+
   // Enforce the cursor law on every entry into live Step 5. A cursor restored
   // from persisted state, left behind by a Clue reveal, or carried across a
   // language switch could otherwise sit on a non-editable slot and swallow
@@ -1255,7 +1622,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
 
   // Final bilingual completion handoff uses the focused citation button's native Enter activation.
   useEffect(() => {
-    if (!isAlmostDone || state.memorizeMode !== 'both' || isAnyPartFailed) return;
+    if (!isAlmostDone || effectiveMemorizeMode !== 'both' || isAnyPartFailed) return;
     const timer = window.setTimeout(() => {
       try {
         challengeCitationRef.current?.focus({ preventScroll: true });
@@ -1266,54 +1633,14 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
     return () => window.clearTimeout(timer);
   }, [isAlmostDone, state.memorizeMode, isAnyPartFailed]);
 
-  useEffect(() => {
-    if (isAlmostDone && isOverallSuccess) {
-      if (state.memorizeMode === 'both') {
-        const halfwayKey = `second_${verse.id}_${activeLanguage}`;
-        if (celebratedAlmostDoneRef.current !== halfwayKey) {
-          celebratedAlmostDoneRef.current = halfwayKey;
-          confetti({
-            particleCount: 50,
-            spread: 60,
-            origin: { y: 0.6 },
-            colors: ['#E8B34B', '#F0C46E', '#8FA2FF'], // Ember gold + royal soft (earned)
-            ticks: 200,
-            gravity: 1.2
-          });
-        }
-      } else {
-        // Earned burst in the locked palette for single language mode complete
-        const duration = 2 * 1000;
-        const animationEnd = Date.now() + duration;
-        const colors = ['#E8B34B', '#F0C46E', '#8FA2FF', '#E7ECF2'];
-
-        const frame = () => {
-          const timeLeft = animationEnd - Date.now();
-
-          if (timeLeft <= 0) return;
-
-          const particleCount = 10 * (timeLeft / duration);
-          
-          confetti({
-            particleCount,
-            startVelocity: 30,
-            spread: 360,
-            origin: { x: Math.random(), y: Math.random() - 0.2 },
-            colors: colors,
-            shapes: ['circle'],
-            gravity: 0.8,
-            scalar: 0.7,
-            drift: 0,
-            ticks: 100
-          });
-
-          requestAnimationFrame(frame);
-        };
-        
-        frame();
-      }
-    }
-  }, [isAlmostDone, isOverallSuccess, state.memorizeMode, activeLanguage, verse.id]);
+  // Phase 3C: the stage-6 "You're almost there" screen is an INTERMEDIATE
+  // milestone — the passage is not acquired until Citation is complete — so the
+  // large confetti/particle burst that used to fire here was REMOVED, along with
+  // its `celebratedAlmostDoneRef` guard. Reaching Step 6 no longer reads as the
+  // finale and nothing crosses the dock. The handoff screen itself is untouched
+  // (checkmark, gold ring and glow, copy, Citation action), no replacement
+  // animation was added, and the final stage-7 acquisition celebration is
+  // unchanged. Trigger-scope correction only — not the Phase 8 redesign.
 
   useEffect(() => {
     const isFailedSession = activeLanguage === 'es' ? didFailFlowEs : didFailFlowEn;
@@ -1574,8 +1901,8 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
   };
 
   const reset = () => {
-    // If we're in both-languages mode, check if we can perform a partial retry
-    if (state.memorizeMode === 'both') {
+    // If this attempt actually runs both languages, check for a partial retry.
+    if (effectiveMemorizeMode === 'both') {
       const enPassed = isCorrectEn && !didFailFlowEn;
       const esPassed = isCorrectEs && !didFailFlowEs;
       
@@ -1695,7 +2022,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
     setShowHalfwayTransition(false);
     setBilingualPass(1);
     
-    const initialLang = state.memorizeMode === 'en' ? 'en' : (state.memorizeMode === 'es' ? 'es' : state.primaryLanguage);
+    const initialLang = attemptLanguageOrder[0] || (effectiveMemorizeMode === 'en' ? 'en' : effectiveMemorizeMode === 'es' ? 'es' : state.primaryLanguage);
     setActiveLanguage(initialLang);
     
     setDidFailFlowEs(false);
@@ -1744,7 +2071,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
   };
 
   const handleLanguageSwitch = (lang: 'es' | 'en') => {
-    if (state.memorizeMode === 'both' && activeLanguage !== lang) {
+    if (effectiveMemorizeMode === 'both' && activeLanguage !== lang) {
       setActiveLanguage(lang);
       
       const targetText = lang === 'es' ? esText : enText;
@@ -1904,7 +2231,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
       }
     };
 
-    if (state.memorizeMode === 'both' && !isMobile) {
+    if (effectiveMemorizeMode === 'both' && !isMobile) {
       processClueForLang('es');
       processClueForLang('en');
     } else {
@@ -2201,6 +2528,184 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
     }
   };
 
+  // ===========================================================================
+  // Phase 3C — Citation Step (Step 6) coordination.
+  //
+  // Memorize stays the flow coordinator: it decides WHEN Citation is shown and
+  // owns the acquisition write. All Citation internals (drafts, validation,
+  // attempts, confirmation, clue, reveal) live in CitationStep.tsx.
+  // ===========================================================================
+
+  const citationRestored = {
+    draftEs: activeAttempt?.citationDraftEs || "",
+    draftEn: activeAttempt?.citationDraftEn || "",
+    attemptsUsed: activeAttempt?.citationAttemptsUsed || 0,
+    exhausted: !!activeAttempt?.citationExhausted,
+    wrongEs: !!activeAttempt?.citationWrongEs,
+    wrongEn: !!activeAttempt?.citationWrongEn,
+  };
+
+  // Citation is entered from the stage-6 handoff and latched on the attempt, so
+  // a reload returns straight to the Citation Step rather than the handoff.
+  const citationActive = !!activeAttempt?.citationStarted;
+
+  const persistCitation = (patch: CitationPersistPatch) => {
+    if (!attemptId) return;
+    setState(s => {
+      if (!s.activeAttempt || s.activeAttempt.attemptId !== attemptId) return s;
+      return { ...s, activeAttempt: { ...s.activeAttempt, ...patch } };
+    });
+  };
+
+  const enterCitationStep = () => {
+    if (!attemptId) return;
+    setState(s => {
+      if (!s.activeAttempt || s.activeAttempt.attemptId !== attemptId) return s;
+      if (s.activeAttempt.citationStarted) return s;
+      return { ...s, activeAttempt: { ...s.activeAttempt, citationStarted: true } };
+    });
+  };
+
+  // The existing final completion celebration, preserved EXACTLY as the Cards
+  // flow implements it (same palette array, particle counts, velocity, spread,
+  // shapes, gravity, scalar, drift, ticks, duration and rAF loop). Moving
+  // Citation into Memorize would otherwise make it unreachable; this is the
+  // minimal trigger connection permitted, with no visual or timing change.
+  const runFinalCelebration = () => {
+    const duration = 4 * 1000;
+    const animationEnd = Date.now() + duration;
+    const colors = ['#0284c7', '#0ea5e9', '#38bdf8', '#7dd3fc', '#bae6fd', '#0d9488'];
+
+    const frame = () => {
+      const timeLeft = animationEnd - Date.now();
+      if (timeLeft <= 0) return;
+      const particleCount = 25 * (timeLeft / duration);
+      confetti({
+        particleCount,
+        startVelocity: 35,
+        spread: 360,
+        origin: { x: Math.random(), y: Math.random() - 0.2 },
+        colors: colors,
+        shapes: ['circle'],
+        gravity: 0.7,
+        scalar: Math.random() * 0.5 + 0.5,
+        drift: 0,
+        ticks: 150
+      });
+      requestAnimationFrame(frame);
+    };
+    frame();
+  };
+
+  // ONE acquisition-accounting path for BOTH Citation outcomes. Each caller
+  // supplies a truthful `citationCorrect`; the accounting itself is identical,
+  // so a correct citation and an exhausted acknowledgment acquire the passage
+  // exactly once and record the same completion fields.
+  const completeCitationAcquisition = (citationCorrect: boolean) => {
+    if (citationAcquiredRef.current) return;
+    if (state.progress.verseStages[verse.id] === 7) return;
+    citationAcquiredRef.current = true;
+
+    const today = getLocalDateString();
+    const wasFailedSession = (() => {
+      try {
+        return localStorage.getItem(`memorize_failed_${verse.id}`) === "true";
+      } catch {
+        return false;
+      }
+    })();
+
+    // Record the truthful citation outcome on the attempt before it is retired.
+    setState(s => (
+      s.activeAttempt && s.activeAttempt.attemptId === attemptId
+        ? { ...s, activeAttempt: { ...s.activeAttempt, citationCorrect } }
+        : s
+    ));
+
+    setState(s => {
+      // Double defense against duplicate acquisition.
+      if (s.progress.verseStages?.[verse.id] === 7) return s;
+
+      const isAlreadyCompleted = s.progress.completedVerses.includes(verse.id);
+      const newLastCompletedDailyVerseDate =
+        verse.id === votd.id ? today : s.progress.lastCompletedDailyVerseDate;
+
+      const currentCounts = s.progress.completionCounts || {};
+      const oldVal = currentCounts[verse.id] !== undefined
+        ? currentCounts[verse.id]
+        : (isAlreadyCompleted ? 1 : 0);
+      const newCounts = { ...currentCounts, [verse.id]: oldVal + 1 };
+
+      // The EFFECTIVE mode, not the global preference: a language dropped for a
+      // failed translation must never be recorded as completed, counted, or
+      // written into the acquisition record.
+      const mode = effectiveMemorizeMode;
+      const completedLangs: MemorizeLanguage[] = [...attemptLanguageOrder];
+      const pair = s.selectedTranslations;
+
+      const prevLang = s.progress.completionsByLanguage?.[verse.id] || { en: 0, es: 0 };
+      const newLang = {
+        en: prevLang.en + (completedLangs.includes('en') ? 1 : 0),
+        es: prevLang.es + (completedLangs.includes('es') ? 1 : 0),
+      };
+
+      const newTrans: Partial<Record<Translation, number>> = {
+        ...(s.progress.completionsByTranslation?.[verse.id] || {}),
+      };
+      const newLastTrans: { es?: Translation; en?: Translation } = {
+        ...(s.progress.lastCompletedTranslation?.[verse.id] || {}),
+      };
+      for (const lang of completedLangs) {
+        const t = pair[lang];
+        newTrans[t] = (newTrans[t] || 0) + 1;
+        newLastTrans[lang] = t;
+      }
+
+      return {
+        ...s,
+        activeAttempt: null,
+        progress: {
+          ...s.progress,
+          totalMemorized: isAlreadyCompleted ? s.progress.totalMemorized : s.progress.totalMemorized + 1,
+          completedVerses: isAlreadyCompleted ? s.progress.completedVerses : [...s.progress.completedVerses, verse.id],
+          completionCounts: newCounts,
+          completionsByLanguage: {
+            ...(s.progress.completionsByLanguage || {}),
+            [verse.id]: newLang
+          },
+          completionsByTranslation: {
+            ...(s.progress.completionsByTranslation || {}),
+            [verse.id]: newTrans
+          },
+          lastCompletedLanguage: {
+            ...(s.progress.lastCompletedLanguage || {}),
+            [verse.id]: mode
+          },
+          lastCompletedTranslation: {
+            ...(s.progress.lastCompletedTranslation || {}),
+            [verse.id]: newLastTrans
+          },
+          lastCompletedDailyVerseDate: newLastCompletedDailyVerseDate,
+          verseStages: {
+            ...s.progress.verseStages,
+            [verse.id]: 7
+          }
+        }
+      };
+    });
+
+    // Clear stale failure keys, including the legacy citation key, so a later
+    // attempt on this verse can never open with zero citation attempts.
+    try {
+      localStorage.removeItem(`memorize_failed_${verse.id}`);
+      localStorage.removeItem(`citation_failed_${verse.id}`);
+    } catch (e) {
+      console.warn("Failed to clear failure keys", e);
+    }
+
+    if (!wasFailedSession) runFinalCelebration();
+  };
+
   const renderVerseContent = (textContent: string | null | undefined, userInput: string[], lang: 'es' | 'en', isCurrentActive: boolean = true) => {
     if (!textContent) return null;
 
@@ -2270,107 +2775,44 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
       focusStreamInput();
     };
 
-    // One shared hidden-run renderer for Steps 1-5. The rail is absolute
-    // (zero layout contribution): its segments divide the run's combined
-    // proportional width evenly, so narrow target letters cannot become dots
-    // and wide letters cannot become oversized lines, while the hidden
-    // character count stays readable. bottom: 0.30em places the rail
-    // ~0.10em beneath the Fraunces baseline at the stage's 1.45 line-height.
-    // The data-lang/data-index attributes and click handler are retained so
-    // keyboard row-navigation and click-to-position still target the map.
-    //
-    // Step 5 segment states are OCCUPANCY + LOCATION only — never correctness.
-    // Nothing here compares an entry to the answer; `isOccupied` is a bare
-    // "something is stored in this slot" test, so a right and a wrong letter
-    // are pixel-identical. No caret and no entered glyph is drawn in the map:
-    // the current slot reads as a quiet located beacon.
+    // Steps 1-4 hidden-run rails ONLY. The rail is absolute (zero layout
+    // contribution): its segments divide the run's combined proportional width
+    // evenly, so the hidden character count stays readable while the invisible
+    // canonical glyph anchors keep owning word width and line wrapping — the
+    // approved Steps 1-4 Scripture geography is untouched. This renderer no
+    // longer serves Step 5: the typing step early-returns the uniform logical
+    // cell board (see the board branch before the proportional return below),
+    // so these rails are always plain Cold Grey with no occupancy, cursor,
+    // review, or beacon state. The failed fixed-width-distributed-across-
+    // proportional-word-widths compromise (`space-between` over glyph-anchored
+    // runs) was removed with that board.
     const renderHiddenRun = (run: SlotInfo[]) => (
       <span
         key={`run-${run[0].charIdx}`}
         className="relative inline-flex flex-row flex-nowrap gap-x-[1.5px] items-end"
       >
         {run.map(info => (
-          <span
-            key={info.charIdx}
-            data-lang={isTypingStep ? lang : undefined}
-            data-index={isTypingStep ? info.letterIndex : undefined}
-            onClick={isTypingStep ? handleLetterSlotClick(info.letterIndex) : undefined}
-            className={`${baseSlotClasses}${isTypingStep ? ' cursor-text' : ''}`}
-          >
+          <span key={info.charIdx} className={baseSlotClasses}>
             <span className="invisible select-none" aria-hidden="true">{info.char}</span>
           </span>
         ))}
-        {/* Fixed-height (12px = tallest tile) bottom-anchored wrapper. It is
-            absolute, so its height contributes NOTHING to Map layout — the
-            in-flow invisible glyph anchors own width and line geometry. Every
-            tile is bottom-aligned (align-items:end) on the same baseline, so a
-            slot changing height (empty rail ↔ occupied ↔ current) grows upward
-            only and never nudges its neighbours or reflows a line. Each tile
-            keeps its column's proportional width (w-full). */}
         <span
           aria-hidden="true"
           className="pointer-events-none absolute left-0 right-0"
           style={{
             bottom: "0.30em",
-            height: "12px",
             display: "grid",
             gridTemplateColumns: `repeat(${run.length}, minmax(0, 1fr))`,
             gap: "2px",
-            alignItems: "end",
           }}
         >
-          {run.map(info => {
-            const isCurrent = isTypingStep && isCurrentActive && info.letterIndex === beaconIdx;
-            // Occupancy is a Step 5 entry concept only: Steps 1-4 rails stay
-            // uniformly Cold Grey even if restored input is still in state.
-            const isOccupied = isTypingStep && (userInput[info.letterIndex] || "").trim() !== "";
-            const isBlooming = isTypingStep && beaconIndices.includes(info.letterIndex);
-            // Review outranks current/occupied/empty. The map is the only
-            // surface that can show a MISSING position (the composer has no
-            // glyph to mark there), so it carries the full wrong-or-missing
-            // set. It says "review this position" and nothing more: never the
-            // target letter, never whether a letter is wrong vs absent vs a
-            // casing or accent difference. Static — no pulse, no shake.
-            const isReview = isTypingStep && reviewIndices.includes(info.letterIndex);
-
-            // Precedence (E): review rose > current teal > occupied Royal >
-            // empty Cold Grey rail. Occupancy is correctness-neutral — a right
-            // and a wrong entry produce the identical Royal tile before submit.
-            // Clue letters are Ember glyphs in renderVisibleSlot, never rails,
-            // so they never reach this branch. Empty stays a thin pill rail;
-            // the others are small illuminated rectangular tiles (radius 2px).
-            let tileHeight = "2px";
-            let tileRadius = "999px";
-            let tileBg = "rgba(139,149,163,0.32)";
-            let tileShadow: string | undefined = undefined;
-            if (isReview) {
-              tileHeight = "10px"; tileRadius = "2px";
-              tileBg = "rgba(240,166,160,0.86)";
-              tileShadow = "0 0 7px rgba(209,78,92,0.30), inset 0 1px 0 rgba(231,236,242,0.10)";
-            } else if (isCurrent) {
-              tileHeight = "12px"; tileRadius = "2px";
-              tileBg = "#3E8F7B";
-              tileShadow = "0 0 9px rgba(91,120,255,0.38), inset 0 1px 0 rgba(231,236,242,0.18)";
-            } else if (isOccupied) {
-              tileHeight = "10px"; tileRadius = "2px";
-              tileBg = "rgba(91,120,255,0.82)";
-              tileShadow = "0 0 7px rgba(91,120,255,0.24), inset 0 1px 0 rgba(231,236,242,0.12)";
-            }
-
-            return (
-              <span
-                key={info.charIdx}
-                className={`w-full${isBlooming ? ' verso-beacon-bloom' : ''}`}
-                onAnimationEnd={isBlooming ? () => retireBeacon(info.letterIndex, lang) : undefined}
-                style={{
-                  height: tileHeight,
-                  borderRadius: tileRadius,
-                  background: tileBg,
-                  boxShadow: tileShadow,
-                }}
-              />
-            );
-          })}
+          {run.map(info => (
+            <span
+              key={info.charIdx}
+              className="w-full rounded-full"
+              style={{ height: "2px", background: "rgba(139,149,163,0.32)" }}
+            />
+          ))}
         </span>
       </span>
     );
@@ -2432,6 +2874,164 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
         </span>
       );
     };
+
+    // ================= THE UNIFORM LOGICAL CELL BOARD (Step 5) ================
+    // The live typing Map is a logical occupancy board — fixed-width cells,
+    // one intra-word gap, one larger inter-word gap — rendered as EXPLICIT
+    // ROWS taken from the measured canonical line map, so every word sits on
+    // exactly the line it occupies in Steps 1-4. One global board scale
+    // (derived from the densest canonical line) fits every row at the current
+    // width; CSS never rewraps the board on its own, and typed or canonical
+    // glyph widths play no part in cell geometry. Steps 1-4, Peek
+    // (isLangRevealed), the success reveal (isLangCorrect), and the
+    // third-failure reveal all skip this branch and keep the proportional
+    // Scripture rendering below.
+    if (isTypingStep && !isLangCorrect) {
+      const boardWords = textContent.split(" ");
+      const boardWordStarts: number[] = [];
+      {
+        let acc = 0;
+        boardWords.forEach(w => {
+          boardWordStarts.push(acc);
+          acc += getCleanLetters(w).length;
+        });
+      }
+
+      // The canonical layout is measured in a layout effect before this commit
+      // paints, so this fallback is never visible.
+      if (!canonicalLayout) {
+        return <div aria-hidden="true" className="w-full" />;
+      }
+      const { lines: canonicalRows, board } = canonicalLayout;
+
+      const renderBoardWord = (word: string, wordIdx: number) => {
+        if (word.length === 0) return null;
+        const wordStartIdx = boardWordStarts[wordIdx] || 0;
+        let lettersInWord = 0;
+        const cells = word.split("").map((char, charIdx) => {
+          const isLetter = isLetterChar(char);
+          const letterIndex = wordStartIdx + lettersInWord;
+          if (isLetter) lettersInWord++;
+          return { char, charIdx, isLetter, letterIndex };
+        });
+
+        return (
+          // One logical word group: cells in canonical order with the global
+          // intra-word gap. flex-nowrap — the global scale guarantees the row
+          // fits, and canonical rows never rewrap on their own.
+          <div
+            key={wordIdx}
+            className="flex flex-nowrap items-end"
+            style={{ gap: `${board.intra}px` }}
+          >
+                  {cells.map(info => {
+                    if (!info.isLetter) {
+                      // Fixed canonical punctuation: a glyph attached to its
+                      // word — never a tile, never graded, never rose.
+                      return (
+                        <span
+                          key={info.charIdx}
+                          onClick={handleLetterSlotClick(info.letterIndex)}
+                          className="self-end pb-[1px] leading-none text-[14px] min-[390px]:text-[15px] text-[#EFE6D8]/45 cursor-text select-none"
+                        >
+                          {info.char}
+                        </span>
+                      );
+                    }
+
+                    const li = info.letterIndex;
+
+                    // Ember provenance is EXACT logical index only: a cell is a
+                    // Clue cell iff its own index is in `revealed`. Character
+                    // value is never consulted, so a typed `f` beside a Clue
+                    // `F` stays a normal occupied tile. The glyph is centered
+                    // in the same fixed cell footprint — revealing it never
+                    // shifts neighbours, gaps, or wrapping.
+                    if (revealed.includes(li)) {
+                      return (
+                        <span
+                          key={info.charIdx}
+                          className="inline-flex items-center justify-center select-none"
+                          style={{ width: `${board.cell}px`, height: BOARD_CELL_H }}
+                        >
+                          <span className="text-ember leading-none text-[13px] min-[390px]:text-[14px]">
+                            {info.char}
+                          </span>
+                        </span>
+                      );
+                    }
+
+                    const isReview = reviewIndices.includes(li);
+                    const isCurrent = isCurrentActive && li === beaconIdx;
+                    const isOccupied = (userInput[li] || "").trim() !== "";
+                    const isBlooming = beaconIndices.includes(li);
+
+                    // Precedence: review rose > current teal > occupied Royal >
+                    // empty grey rail. Occupied/current/review all share the
+                    // identical fixed dimensions; states differ only through
+                    // colour and glow. Correctness never influences geometry.
+                    let tileHeight = "2px";
+                    let tileRadius = "999px";
+                    let tileBg = "rgba(139,149,163,0.32)";
+                    let tileShadow: string | undefined = undefined;
+                    if (isReview) {
+                      tileHeight = BOARD_TILE_H; tileRadius = "2px";
+                      tileBg = "rgba(240,166,160,0.86)";
+                      tileShadow = "0 0 7px rgba(209,78,92,0.30), inset 0 1px 0 rgba(231,236,242,0.10)";
+                    } else if (isCurrent) {
+                      tileHeight = BOARD_TILE_H; tileRadius = "2px";
+                      tileBg = "#3E8F7B";
+                      tileShadow = "0 0 9px rgba(91,120,255,0.38), inset 0 1px 0 rgba(231,236,242,0.18)";
+                    } else if (isOccupied) {
+                      tileHeight = BOARD_TILE_H; tileRadius = "2px";
+                      tileBg = "rgba(91,120,255,0.82)";
+                      tileShadow = "0 0 7px rgba(91,120,255,0.24), inset 0 1px 0 rgba(231,236,242,0.12)";
+                    }
+
+                    return (
+                      <span
+                        key={info.charIdx}
+                        data-lang={lang}
+                        data-index={li}
+                        onClick={handleLetterSlotClick(li)}
+                        className="inline-flex items-end justify-center cursor-text"
+                        style={{ width: `${board.cell}px`, height: BOARD_CELL_H }}
+                      >
+                        <span
+                          className={`w-full${isBlooming ? ' verso-beacon-bloom' : ''}`}
+                          onAnimationEnd={isBlooming ? () => retireBeacon(li, lang) : undefined}
+                          style={{
+                            height: tileHeight,
+                            borderRadius: tileRadius,
+                            background: tileBg,
+                            boxShadow: tileShadow,
+                          }}
+                        />
+                      </span>
+                    );
+                  })}
+          </div>
+        );
+      };
+
+      return (
+        <div className={`w-full font-serif select-none transition-opacity duration-500 ${!isCurrentActive ? 'opacity-60' : 'opacity-100'}`}>
+          <div className="w-full flex flex-col items-center" style={{ rowGap: "10px" }}>
+            {canonicalRows.map((rowWordIdxs, rowIdx) => (
+              // One explicit centered Map row per canonical Scripture line —
+              // words stay on exactly the line they occupy in Steps 1-4.
+              <div
+                key={rowIdx}
+                className="flex flex-nowrap justify-center items-end"
+                style={{ columnGap: `${board.inter}px` }}
+              >
+                {rowWordIdxs.map(wi => renderBoardWord(boardWords[wi] || "", wi))}
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
 
     return (
       <div className={`w-full font-serif select-none ${isLangFailed ? 'text-[#E7ECF2]' : 'text-[#EFE6D8]'} text-[21px] min-[390px]:text-[23px] md:text-[27px] xl:text-[30px] leading-[1.45] font-normal [font-optical-sizing:auto] transition-opacity duration-500 ${!isCurrentActive ? 'opacity-60' : 'opacity-100'}`}>
@@ -2583,7 +3183,9 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
     // Word-grouped walk. letterIndex accumulates exactly as the Memory Map's
     // does (same letter set, same canonical `split(" ")`), so composer indices
     // and map indices always name the same slot.
-    const groups: React.ReactNode[][] = [];
+    // Index-aligned per-word nodes, so canonical lines can pick exactly their
+    // own words when the rows are assembled below.
+    const wordNodesByIdx: React.ReactNode[][] = [];
     let letterIndex = 0;
     textContent.split(" ").forEach((word, wordIdx) => {
       const wordNodes: React.ReactNode[] = [];
@@ -2596,36 +3198,63 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
         if (isCurrentActive && cursor === here) {
           wordNodes.push(caret(`caret-${here}`));
         }
+        // THE COMPOSER COLOR LAW: every glyph carries its color as an OWN-NODE
+        // INLINE STYLE chosen from its exact logical index — never from a
+        // utility class alone, a parent, or inheritance. QA produced a state
+        // where ordinary typed glyphs beside Clue glyphs rendered Ember even
+        // though the branch logic was exact-index; inline color at the span is
+        // the one mechanism no cascade interaction can override.
+        //
+        // Ember iff `here` is in `revealed` — character value is never
+        // consulted, so a user-typed `f` at index N+1 stays Cool White even
+        // when Clue revealed an `f` at index N.
         if (revealed.includes(here)) {
           wordNodes.push(
-            <span key={`w${wordIdx}-c${charIdx}`} className="text-ember">{ch}</span>
+            <span
+              key={`w${wordIdx}-c${charIdx}`}
+              className="text-ember"
+              style={{ color: "#E8B34B" }}
+            >
+              {ch}
+            </span>
           );
           return;
         }
         const typed = userInput[here] || "";
         if (typed.trim() !== "") {
+          // Display casing only (see THE CANONICAL DISPLAY-CASING LAW). `ch` is
+          // this same walk's canonical glyph at logical index `here` — the walk
+          // iterates the canonical text and `letterIndex` advances per letter —
+          // so no separate canonical lookup, and no second letter walk, is
+          // introduced. It decides upper/lower and nothing more: the glyph
+          // painted is always the one the user entered, accent included, and a
+          // wrong letter is never swapped for the canonical answer. The raw
+          // value in `userInput` is left exactly as typed.
+          const displayGlyph = toCanonicalDisplayCase(typed, ch);
           // A glyph the last submitted answer got wrong: restrained rose ink +
           // a hairline underline. Colour and decoration only — no fill, box,
           // glow, animation or transform — so the response's size, spacing,
           // weight and wrapping are byte-for-byte what they were before the
-          // submission. Correct entries stay Cool White; the whole line never
-          // turns rose.
+          // submission. The rose marks the SAME wrong glyph, now canonically
+          // cased: styling is index-driven, so casing changes nothing about
+          // which positions are marked or what they say. Ordinary entries carry
+          // explicit inline Cool White; the whole line never turns rose.
           const isReview = reviewIndices.includes(here);
           wordNodes.push(
             <span
               key={`w${wordIdx}-c${charIdx}`}
               data-composer-index={here}
               onClick={(e) => { e.stopPropagation(); placeCursor(here); }}
-              className={`cursor-text${isReview ? '' : ' text-cool-white'}`}
+              className="cursor-text text-cool-white"
               style={isReview ? {
                 color: "#F0A6A0",
                 textDecorationLine: "underline",
                 textDecorationColor: "rgba(209,78,92,0.72)",
                 textDecorationThickness: "1px",
                 textUnderlineOffset: "0.16em",
-              } : undefined}
+              } : { color: "#E7ECF2" }}
             >
-              {typed}
+              {displayGlyph}
             </span>
           );
         }
@@ -2633,24 +3262,68 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
         // therefore surfaced only by the Memory Map's review state.
       });
 
-      // Emit a word group only if it has something to show. A word with no
-      // glyphs still earns its place when the caret rests in it, so the
+      // Store at the word's canonical index (possibly empty). A word with no
+      // glyphs still shows content when the caret rests in it, so the
       // insertion point stays visible inside an untouched word.
-      if (wordNodes.length > 0) {
-        groups.push(wordNodes);
-      }
+      wordNodesByIdx[wordIdx] = wordNodes;
     });
 
-    const nodes: React.ReactNode[] = [];
-    groups.forEach((group, i) => {
-      if (i > 0) nodes.push(" "); // exactly one ordinary inter-word space
-      nodes.push(...group);
-    });
-    if (isCurrentActive && cursor >= cleanLen) {
-      nodes.push(caret("caret-end"));
+    const endCaret = isCurrentActive && cursor >= cleanLen ? caret("caret-end") : null;
+
+    // ===== Canonical row assembly (one centered Composer row per canonical
+    // Scripture line). The Composer's correct canonical text therefore breaks
+    // on exactly the same lines as Steps 1-4 and the Step 5 Memory Map. Words
+    // within a row are joined by single ordinary spaces; `break-words` on a
+    // row is only the emergency fallback for unusually wide INCORRECT glyphs —
+    // correct canonical text always fits its canonical row (the Composer type
+    // sizes are at or below the Scripture sizes the rows were measured at),
+    // and the fallback never touches the line map or the Memory Map. =====
+    if (!canonicalLayout) {
+      // Pre-measurement fallback (never painted: the layout is measured in a
+      // layout effect before this commit reaches the screen).
+      const flat: React.ReactNode[] = [];
+      wordNodesByIdx.forEach(group => {
+        if (!group || group.length === 0) return;
+        if (flat.length > 0) flat.push(" ");
+        flat.push(...group);
+      });
+      if (endCaret) flat.push(endCaret);
+      return flat;
     }
 
-    return nodes;
+    const rows: React.ReactNode[][] = canonicalLayout.lines.map(lineWordIdxs => {
+      const children: React.ReactNode[] = [];
+      lineWordIdxs.forEach(wi => {
+        const group = wordNodesByIdx[wi];
+        if (!group || group.length === 0) return;
+        if (children.length > 0) children.push(" ");
+        children.push(...group);
+      });
+      return children;
+    });
+
+    // The end-of-passage caret rides the last row that has visible content.
+    if (endCaret) {
+      let target = -1;
+      rows.forEach((r, i) => { if (r.length > 0) target = i; });
+      if (target === -1) {
+        rows.push([endCaret]);
+      } else {
+        rows[target].push(endCaret);
+      }
+    }
+
+    return (
+      <>
+        {rows.map((children, rowIdx) =>
+          children.length > 0 ? (
+            <div key={rowIdx} className="w-full text-center break-words">
+              {children}
+            </div>
+          ) : null
+        )}
+      </>
+    );
   };
 
   if (state.progress.verseStages[verse.id] === 7) {
@@ -2672,13 +3345,29 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
           <h2 className="text-3xl sm:text-4xl font-fraunces font-medium text-cool-white leading-tight">
             {state.primaryLanguage === 'es' ? '¡Versículo aprendido!' : 'Verse Learned!'}
           </h2>
+          {/* One block PER ACQUIRED LANGUAGE, in interface-language order, each
+              verse paired with its OWN localized reference. The former single
+              quotation joined by " / " with one shared reference could label
+              Spanish Scripture with an English book name, and a failed
+              translation would have been concatenated straight into it. A
+              language that is not part of this attempt contributes no block at
+              all — no empty quote, no slash, no mislabelled reference. Card
+              shell, spacing and type are the existing ones. */}
           <div className="max-w-md mx-auto space-y-4 px-5 py-6 bg-deep-slate rounded-[24px] border border-(--line)">
-            <p className="font-fraunces text-lg font-normal leading-[1.32] italic text-[#EFE6D8]">
-              "{state.memorizeMode === 'en' ? enText : (state.memorizeMode === 'es' ? esText : `${esText} / ${enText}`)}"
-            </p>
-            <p className="text-[11px] font-hanken font-semibold uppercase tracking-[0.2em] text-ember">
-              {getLocalizedBookName(verse.book, state.memorizeMode === 'es' ? 'es' : state.memorizeMode === 'en' ? 'en' : (state.primaryLanguage === 'es' ? 'es' : 'en'))} {verse.chapter}:{verse.verse}
-            </p>
+            {attemptLanguageOrder.map(lang => {
+              const learnedText = lang === 'es' ? esText : enText;
+              if (!learnedText) return null;
+              return (
+                <div key={lang} className="space-y-2">
+                  <p className="font-fraunces text-lg font-normal leading-[1.32] italic text-[#EFE6D8] break-words">
+                    "{learnedText}"
+                  </p>
+                  <p className="text-[11px] font-hanken font-semibold uppercase tracking-[0.2em] text-ember break-words">
+                    {getLocalizedBookName(verse.book, lang)} {verse.chapter}:{verse.verse}
+                  </p>
+                </div>
+              );
+            })}
           </div>
         </div>
 
@@ -2739,6 +3428,25 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
     );
   }
 
+  // Phase 3C: Citation is Step 6 of Memorize. Once entered from the stage-6
+  // handoff (and on every reload thereafter) the Citation Step renders here
+  // instead of switching to Cards. The handoff screen below is unchanged.
+  if (isAlmostDone && citationActive && !isAnyPartFailed) {
+    return (
+      <CitationStep
+        verse={verse}
+        esText={esText}
+        enText={enText}
+        memorizeMode={effectiveMemorizeMode}
+        primaryLanguage={state.primaryLanguage === 'es' ? 'es' : 'en'}
+        restored={citationRestored}
+        onPersist={persistCitation}
+        onCorrect={() => completeCitationAcquisition(true)}
+        onExhaustedAcknowledge={() => completeCitationAcquisition(false)}
+      />
+    );
+  }
+
   if (isAlmostDone) {
     const getFailureScreenContent = () => {
       const enPassed = isCorrectEn && !didFailFlowEn;
@@ -2750,7 +3458,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
         : 'You did not successfully memorize the verse text. Please try again to unlock the citation challenge.';
       let buttonLabel = state.primaryLanguage === 'es' ? 'intentar de nuevo' : 'try again';
 
-      if (state.memorizeMode === 'both') {
+      if (effectiveMemorizeMode === 'both') {
         if (enPassed && !esPassed) {
           title = state.primaryLanguage === 'es' ? 'Todavía no' : 'Not quite yet';
           body = state.primaryLanguage === 'es'
@@ -2795,9 +3503,9 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
             transition={{ delay: 0.3 }}
             className="text-3xl sm:text-4xl font-fraunces font-medium text-cool-white leading-tight text-center"
           >
-            {isAnyPartFailed 
+            {isAnyPartFailed
               ? failureContent.title
-              : (state.memorizeMode === 'both'
+              : (effectiveMemorizeMode === 'both'
                   ? (activeLanguage === 'es'
                       ? (state.primaryLanguage === 'es' ? '¡Buen trabajo! — Español memorizado' : 'Great job — Spanish locked in!')
                       : (state.primaryLanguage === 'es' ? '¡Excelente! — Inglés memorizado' : 'Nice — English locked in!')
@@ -2812,9 +3520,9 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
             transition={{ delay: 0.4 }}
             className="font-hanken text-lg text-cold-grey max-w-sm mx-auto"
           >
-            {isAnyPartFailed 
+            {isAnyPartFailed
               ? failureContent.body
-              : (state.memorizeMode === 'both'
+              : (effectiveMemorizeMode === 'both'
                   ? (state.primaryLanguage === 'es' 
                       ? 'Ambos idiomas listos. Ya casi. Ahora falta el último paso: la cita bíblica.' 
                       : 'Both languages locked in. Almost there. Now for the final step: the citation.')
@@ -2845,7 +3553,7 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                   initial={{ y: 20, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
                   transition={{ delay: 0.5 }}
-                  onClick={() => onGoToFlashcards?.(verse.id)}
+                  onClick={enterCitationStep}
                   className="vbtn vbtn--earned w-full"
                 >
                   <Layers size={18} />
@@ -3059,15 +3767,22 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
               <span className="font-hanken text-[11px] font-semibold uppercase tracking-widest leading-none text-cold-grey">
                 {state.primaryLanguage === 'es' ? 'Paso ' : 'Step '}
                 <span style={{ color: "#3E8F7B" }}>{Math.min(5, stage)}</span>
-                {state.primaryLanguage === 'es' ? ' de 5' : ' of 5'}
+                {state.primaryLanguage === 'es' ? ' de 6' : ' of 6'}
               </span>
             </div>
           </div>
 
           {/* Row 2: the verse reference owns the full row. Long and Spanish
               references wrap naturally; never truncated or ellipsized. */}
+          {/* Paired to the CONTENT language of the pane on screen, not to the
+              interface language. A Spanish pass therefore always reads
+              "1 Tesalonicenses 5:17" even under an English interface, and an
+              English pass always reads "1 Thessalonians 5:17" even under a
+              Spanish one. (The previous expression fell back to the interface
+              language whenever the mode was bilingual, which is how a Spanish
+              memorization came to show an English book name.) */}
           <h2 className="w-full font-fraunces text-[clamp(1.50rem,6.8vw,1.78rem)] min-[390px]:text-[clamp(1.78rem,6.5vw,2.15rem)] md:text-[42px] font-normal text-cool-white leading-[1.06] break-words [text-wrap:balance]">
-            {getLocalizedBookName(verse.book, state.memorizeMode === 'es' ? 'es' : state.memorizeMode === 'en' ? 'en' : (state.primaryLanguage === 'es' ? 'es' : 'en'))} {verse.chapter}:{verse.verse}
+            {getLocalizedBookName(verse.book, activeLanguage)} {verse.chapter}:{verse.verse}
           </h2>
 
           <motion.p
@@ -3093,8 +3808,30 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
               )
             }
           </motion.p>
+
+          {/* Translation-unavailable notice. Deliberately OUTSIDE the Scripture
+              stage and styled as interface chrome, so it can never be mistaken
+              for — or graded as — verse content. Localized to the INTERFACE
+              language while naming the content language that dropped out. */}
+          {unavailableNoticeLang && (
+            <div
+              role="status"
+              className="w-full flex items-start gap-2.5 rounded-2xl px-4 py-2.5 bg-deep-slate border border-(--line)"
+            >
+              <AlertCircle size={15} className="text-cold-grey flex-shrink-0 mt-px" aria-hidden="true" />
+              <span className="min-w-0 text-[12px] font-hanken text-cold-grey leading-snug">
+                {unavailableNoticeLang === 'es'
+                  ? (state.primaryLanguage === 'es'
+                      ? 'La traducción en español no está disponible en este momento. Este intento continúa solo en inglés.'
+                      : 'The Spanish translation is unavailable right now. This attempt continues in English only.')
+                  : (state.primaryLanguage === 'es'
+                      ? 'La traducción en inglés no está disponible en este momento. Este intento continúa solo en español.'
+                      : 'The English translation is unavailable right now. This attempt continues in Spanish only.')}
+              </span>
+            </div>
+          )}
         </div>
-        
+
         {/* Home-aligned five-segment progress rail (decorative; the visible
             "Step N / 5" text above is the accessible equivalent). Sits
             between the instruction and the Scripture stage. */}
@@ -3410,6 +4147,31 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                 stays visually stable through Step 5. */}
             <div className="w-full flex flex-col items-center overflow-visible relative z-10">
               <div className="w-full relative">
+                {/* Canonical line-map measurement mirror (Section E): an exact
+                    invisible replica of the Steps 1-4 proportional Scripture
+                    rendering — same width, outer font classes, word flex
+                    structure, per-character slot minimums and gaps — measured
+                    (offsetTop per word) to derive the one line map that drives
+                    the Step 5 Memory Map and Recall Composer. visibility:hidden
+                    keeps full layout while removing it from paint AND from the
+                    accessibility tree (with aria-hidden as belt and braces);
+                    pointer-events-none and no interactive children keep it
+                    unfocusable and unclickable. */}
+                <div
+                  ref={attachCanonicalMirror}
+                  aria-hidden="true"
+                  className="invisible pointer-events-none absolute inset-x-0 top-0 w-full select-none font-serif text-[21px] min-[390px]:text-[23px] md:text-[27px] xl:text-[30px] leading-[1.45] font-normal [font-optical-sizing:auto]"
+                >
+                  <div className="flex flex-wrap justify-center content-start gap-y-2 md:gap-y-2.5 gap-x-[0.5em] w-full">
+                    {(activeCanonicalText || "").split(" ").map((word, wi) => (
+                      <div key={wi} data-mword={wi} className="flex flex-row flex-nowrap gap-x-[1.5px] items-end">
+                        {word.split("").map((ch, ci) => (
+                          <span key={ci} className="relative inline-flex flex-col items-center justify-center min-w-[0.25em]">{ch}</span>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                </div>
                 {activeLanguage === 'es'
                   ? renderVerseContent(esText, userInputEs, 'es', true)
                   : renderVerseContent(enText, userInputEn, 'en', true)
@@ -3422,10 +4184,6 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                 Step 5 entry (not on reveal, success, or a failed run). */}
             {stage === 5 && !isRevealed && !isCorrect && !didFailFlow && (
               <>
-                {/* Restrained divider — short + centered, never a full-width
-                    rule (keeps the open-corner stage vocabulary). */}
-                <div aria-hidden="true" className="w-10 md:w-12 h-px rounded-full bg-[rgba(139,149,163,0.22)]" />
-
                 {/* Composer surface: one restrained dark-glass panel. The
                     entered glyphs own the width; no fixed max-height, no inner
                     scroll, no transition/animation tied to typing. */}
@@ -3464,8 +4222,23 @@ export default function Memorize({ state, setState, onComplete, onGoToFlashcards
                       itself, glyphs keep their own advances, and the caret
                       rides the real insertion point. The composer still wraps
                       on its own entered content — its line breaks are NOT
-                      coupled to the map's, and nothing is scaled to match. */}
-                  <div className="w-full text-center font-serif font-normal text-cool-white text-[20px] min-[390px]:text-[22px] md:text-[26px] xl:text-[28px] leading-[1.45] break-words [font-optical-sizing:auto]">
+                      coupled to the map's, and nothing is scaled to match.
+
+                      LIGATURES ARE DISABLED HERE (and only here). Colour is a
+                      paint-time property, not a shaping property, so Fraunces
+                      was free to fuse a Clue `f` and an adjacent typed `f`
+                      across their separate spans into one `ff` ligature glyph
+                      painted in a single colour — making an ordinary typed
+                      glyph read as Ember. Disabling standard + contextual
+                      ligatures inside the composer keeps every logical index
+                      independently colourable (`ff`, `fi`, `fl`, `ffi`, `ffl`)
+                      while Fraunces, proportional advances, spacing, and
+                      wrapping stay untouched. Scripture, titles, references
+                      and reveals elsewhere keep their normal ligatures. */}
+                  <div
+                    className="w-full text-center font-serif font-normal text-cool-white text-[20px] min-[390px]:text-[22px] md:text-[26px] xl:text-[28px] leading-[1.45] break-words [font-optical-sizing:auto]"
+                    style={{ fontVariantLigatures: "none", fontFeatureSettings: '"liga" 0, "clig" 0' }}
+                  >
                     {activeLanguage === 'es'
                       ? renderRecallComposerBody(esText, userInputEs, 'es', true)
                       : renderRecallComposerBody(enText, userInputEn, 'en', true)}

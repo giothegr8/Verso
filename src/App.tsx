@@ -533,9 +533,10 @@ function AppInner() {
   const activeAttemptInProgress = !!state.activeAttempt && state.activeAttempt.started === true;
   const handleSetActiveTab = (tab: string) => {
     if (activeAttemptInProgress && state.activeAttempt) {
-      const activeVerseId = state.activeAttempt.verseId;
-      const currentStage = state.progress.verseStages?.[activeVerseId] || 1;
-      const safeTab = currentStage === 6 ? "flashcards" : "memorize";
+      // Phase 3C: Citation is Step 6 of Memorize, so an in-progress attempt is
+      // always safe on the Memorize tab — including stage 6, which previously
+      // routed to Cards.
+      const safeTab = "memorize";
       if (tab !== safeTab) {
         setPendingAttempt({ type: "navigate", destinationTab: tab });
         return;
@@ -803,6 +804,9 @@ function AppInner() {
 
   const startMemorizing = (verseId: string, source: ActiveVerseSource = "daily", reviewPair?: AttemptReviewPair) => {
     localStorage.removeItem(`memorize_failed_${verseId}`);
+    // Phase 3C: the legacy citation failure flag must never survive into a new
+    // or resumed attempt, or the Citation Step would open with zero attempts.
+    localStorage.removeItem(`citation_failed_${verseId}`);
 
     const resolvedVerse = resolveVerseForAttempt(state, verseId, source);
     const expectedAttempt = buildAttemptSnapshot(state, resolvedVerse, source, reviewPair);
@@ -1379,8 +1383,18 @@ function AppInner() {
           setState={setState} 
           onStartMemorizing={(id, src, reviewPair) => startMemorizing(id, src || "saved", reviewPair)}
           onGoToFlashcards={(verseId) => {
-            setState(s => ({ ...s, selectedVerseId: verseId }));
-            setActiveTab("flashcards");
+            // Phase 3C: the Saved "challenge: citation" affordance is unchanged,
+            // but its destination is now Memorize Step 6. Latch citationStarted
+            // so the attempt opens directly in the Citation Step rather than the
+            // stage-6 handoff screen.
+            setState(s => ({
+              ...s,
+              selectedVerseId: verseId,
+              activeAttempt: s.activeAttempt && s.activeAttempt.verseId === verseId
+                ? { ...s.activeAttempt, citationStarted: true }
+                : s.activeAttempt,
+            }));
+            setActiveTab("memorize");
           }}
         />
       );
@@ -1587,12 +1601,9 @@ function AppInner() {
                       const activeVerseId = state.activeAttempt?.verseId;
                       setPendingAttempt(null);
                       if (activeVerseId) {
-                        const currentStage = state.progress.verseStages?.[activeVerseId] || 1;
-                        if (currentStage === 6) {
-                          setActiveTab("flashcards");
-                        } else {
-                          setActiveTab("memorize");
-                        }
+                        // Phase 3C: every in-progress stage, including stage 6
+                        // Citation, continues inside Memorize.
+                        setActiveTab("memorize");
                       }
                     }}
                     className="w-full h-14 bg-teal text-white hover:bg-teal-600 rounded-3xl font-black uppercase tracking-widest text-xs transition-colors shadow-md shadow-teal/10"
