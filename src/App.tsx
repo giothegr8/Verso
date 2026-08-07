@@ -16,17 +16,27 @@ import {
 } from "lucide-react";
 import {
   ACTIVE_ATTEMPT_SCHEMA_VERSION,
+  REVIEW_SCHEMA_VERSION,
   ActiveAttemptSnapshot,
   ActiveVerseSource,
   AppState,
   LanguageMode,
   MemorizeLanguage,
+  ReviewSource,
   Translation,
   TRANSLATION_PAIRS,
   Verse
 } from "./types";
 import { MOCK_VERSES, getVerseByDate, PATHS } from "./constants";
 import { getLocalDateString, getLocalizedBookName } from "./utils/verseUtils";
+import {
+  ensureReviewRecords,
+  isDue,
+  passageKeyForVerse,
+  scopeToMemorizeMode,
+  selectReviewQueue
+} from "./utils/reviewQueue";
+import { sanitizeReviewRecord, toIso } from "./utils/reviewSchedule";
 import { rotateReminder } from "./utils/reminderRotation";
 import { getVerseFromApiBible, BIBLE_VERSIONS } from "./services/apiBible";
 
@@ -36,6 +46,7 @@ import { AuthProvider, useAuth } from "./contexts/AuthContext";
 // Components
 import Home from "./components/Home";
 import Memorize from "./components/Memorize";
+import Review from "./components/Review";
 import Flashcards from "./components/Flashcards";
 import Saved from "./components/Saved";
 import Onboarding from "./components/Onboarding";
@@ -147,6 +158,9 @@ const INITIAL_STATE: AppState = {
   anotherVerseError: null,
   loadingTranslations: {},
   activeAttempt: null,
+  reviewRecords: {},
+  activeReview: null,
+  lastReviewCompletion: null,
 };
 
 const ES_TRANSLATIONS = ["RVR1960", "NVI", "NBLA"];
@@ -308,6 +322,53 @@ const sanitizeHydratedAttemptState = (merged: AppState) => {
   merged.progress.verseStages = nextStages;
 };
 
+/**
+ * PHASE 4A — hydration repair for the review layer. Nothing here can throw, and
+ * nothing here deletes a review record: a malformed field is clamped or reset
+ * to its neutral value so real mastery is never silently lost.
+ */
+const sanitizeHydratedReviewState = (merged: AppState) => {
+  const nowMs = Date.now();
+
+  const rawRecords = merged.reviewRecords;
+  if (!rawRecords || typeof rawRecords !== "object") {
+    merged.reviewRecords = {};
+  } else {
+    const repaired: AppState["reviewRecords"] = {};
+    Object.entries(rawRecords).forEach(([key, value]) => {
+      if (!key) return;
+      repaired![key] = sanitizeReviewRecord(value as any, key, nowMs);
+    });
+    merged.reviewRecords = repaired;
+  }
+
+  const draft = merged.activeReview;
+  const validDraft =
+    !!draft &&
+    typeof draft.sessionId === "string" &&
+    !!draft.sessionId &&
+    typeof draft.passageKey === "string" &&
+    !!draft.passageKey &&
+    typeof draft.verseId === "string" &&
+    (draft.source === "queue" || draft.source === "practice") &&
+    typeof draft.wasDueAtStart === "boolean" &&
+    (draft.currentStage === "recall" || draft.currentStage === "citation");
+
+  // A review draft is only meaningful alongside the attempt snapshot that owns
+  // its Scripture. If the attempt did not survive hydration, the draft is
+  // dropped rather than left pointing at nothing.
+  merged.activeReview =
+    validDraft && merged.activeAttempt?.reviewSessionId === draft!.sessionId ? draft! : null;
+
+  const completion = merged.lastReviewCompletion;
+  const validCompletion =
+    !!completion &&
+    typeof completion.sessionId === "string" &&
+    typeof completion.passageKey === "string" &&
+    typeof completion.nextReviewAt === "string";
+  merged.lastReviewCompletion = validCompletion ? completion! : null;
+};
+
 const resolveVerseForAttempt = (
   state: AppState,
   verseId: string,
@@ -363,9 +424,21 @@ const buildAttemptSnapshot = (
   const reference = `${resolvedVerse.book} ${resolvedVerse.chapter}:${resolvedVerse.verse}`;
   const languageOrder = getAttemptLanguageOrder(effMode, state.primaryLanguage);
 
+  // PHASE 4A. Every attempt — review or ordinary Memorize — carries the
+  // canonical passage identity and whether the passage was already due at the
+  // MOMENT this session began. Capturing it here (never at completion) is what
+  // stops voluntary early practice from farming mastery, and what lets an
+  // ordinary Memorize session on an already-acquired passage update its
+  // existing review record under the same rules.
+  const reviewPassageKey = passageKeyForVerse(resolvedVerse) || undefined;
+  const reviewRecord = reviewPassageKey ? state.reviewRecords?.[reviewPassageKey] : undefined;
+  const wasDueAtStart = reviewRecord ? isDue(reviewRecord, Date.now()) : true;
+
   return {
     schemaVersion: ACTIVE_ATTEMPT_SCHEMA_VERSION,
     attemptId: createAttemptId(),
+    reviewPassageKey,
+    wasDueAtStart,
     verseId: resolvedVerse.id,
     reference,
     translations,
@@ -502,7 +575,8 @@ function AppInner() {
           merged.customPathProgress.previouslyCompletedPathIds = [];
         }
         sanitizeHydratedAttemptState(merged);
-        
+        sanitizeHydratedReviewState(merged);
+
         return merged;
       } catch (e) {
         localStorage.removeItem("verso_state");
@@ -659,7 +733,12 @@ function AppInner() {
       const yesterdayStr = `${yesterdayDate.getFullYear()}-${String(yesterdayDate.getMonth() + 1).padStart(2, '0')}-${String(yesterdayDate.getDate()).padStart(2, '0')}`;
 
       setState(prev => {
-        if (prev.activeAttempt) {
+        // MIDNIGHT / DATE-ROLLOVER PROTECTION. While any session owns the
+        // screen — an ordinary Memorize attempt OR a Phase 4A review — the
+        // daily refresh is frozen, so the active passage, its Scripture and its
+        // Citation can never be replaced mid-flow. Queue eligibility refreshes
+        // separately and never touches active session content.
+        if (prev.activeAttempt || prev.activeReview) {
           return prev;
         }
 
@@ -724,7 +803,50 @@ function AppInner() {
     checkDailyUpdate();
     const interval = setInterval(checkDailyUpdate, 60000);
     return () => clearInterval(interval);
-  }, [state.onboarded, !!state.activeAttempt]);
+  }, [state.onboarded, !!state.activeAttempt, !!state.activeReview]);
+
+  // =========================================================================
+  // PHASE 4A — review clock, lazy initialization and controlled refresh.
+  //
+  // `reviewNowMs` is the ONLY clock the queue reads. It advances at four
+  // defined moments — app start, Review screen open, window focus regained,
+  // and immediately after a review finalizes — never on a per-second tick.
+  // Refreshing it recomputes eligibility only; it can never swap the Scripture
+  // of a session already in flight.
+  // =========================================================================
+  const [reviewNowMs, setReviewNowMs] = useState(() => Date.now());
+  const refreshReviewClock = React.useCallback(() => setReviewNowMs(Date.now()), []);
+
+  useEffect(() => {
+    const onFocus = () => refreshReviewClock();
+    const onVisibility = () => {
+      if (!document.hidden) refreshReviewClock();
+    };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [refreshReviewClock]);
+
+  // Lazy initialization: create one review record per unique acquired passage
+  // that has none. Never a destructive or all-at-once migration — it adds
+  // bookkeeping only, and `ensureReviewRecords` returns null when nothing
+  // changed, so this can never loop.
+  useEffect(() => {
+    if (!state.onboarded) return;
+    setState(s => {
+      const next = ensureReviewRecords(s, Date.now());
+      return next ? { ...s, reviewRecords: next } : s;
+    });
+  }, [
+    state.onboarded,
+    state.progress.completedVerses,
+    state.customVerses,
+    state.selectedTranslations.es,
+    state.selectedTranslations.en
+  ]);
 
   useEffect(() => {
     // V1 ships dark-only. Force the dark theme regardless of the persisted
@@ -767,6 +889,12 @@ function AppInner() {
     };
     setState(s => {
       if (!s.activeAttempt) return s;
+      // PHASE 4A. A Review session's languages are fixed by its own saved scope,
+      // not by the global memorize preference, so this compatibility check does
+      // not apply to it. Dropping the attempt here would let an interface-
+      // language change end an in-flight review — exactly what the immutable
+      // session snapshot exists to prevent.
+      if (s.activeReview && s.activeAttempt.reviewSessionId === s.activeReview.sessionId) return s;
       if (isAttemptCompatibleWithCurrentConfig(s.activeAttempt, s)) return s;
 
       const nextStages = { ...(s.progress.verseStages || {}) };
@@ -875,6 +1003,99 @@ function AppInner() {
         }
       };
     });
+    setActiveTab("memorize");
+  };
+
+  /**
+   * PHASE 4A — launch a review of one already-acquired passage.
+   *
+   * The session opens directly in the approved Step 5 Recall Workspace and
+   * continues to the approved Step 6 Citation. It creates NO new Saved passage
+   * and NO new acquisition: `completedVerses`, `savedVerses`, `completionCounts`
+   * and `verseStages` are all left exactly as they are, and the passage stays
+   * acquired throughout.
+   *
+   * The attempt snapshot it builds is the immutable session content — canonical
+   * passage key, localized reference, valid Scripture, translations and
+   * language availability — so midnight, a focus change, a Home refresh, a
+   * queue refresh, a rerender or a reload cannot replace the passage.
+   */
+  const startReview = (
+    passageKey: string,
+    source: ReviewSource,
+    /**
+     * OPTIONAL SINGLE-LANGUAGE PRACTICE of a bilingual passage. When present
+     * the session runs that one language and can NEVER satisfy the bilingual
+     * due review — nothing is scheduled, cleared or advanced by it.
+     */
+    practiceLanguage?: MemorizeLanguage
+  ) => {
+    const queue = selectReviewQueue(state, Date.now());
+    const row =
+      queue.due.find(r => r.passage.passageKey === passageKey) ||
+      queue.upcoming.find(r => r.passage.passageKey === passageKey) ||
+      null;
+    if (!row) return;
+
+    const resolvedVerse = row.passage.verse;
+    const verseId = row.passage.verseId;
+
+    // The SAVED scope decides the session's languages — never the interface
+    // language, and never the user's global memorize preference. A practice
+    // language, when chosen, narrows this one session only.
+    const sessionMode: LanguageMode = practiceLanguage
+      ? practiceLanguage
+      : scopeToMemorizeMode(row.scope);
+    const qualifiesAsReview = !practiceLanguage;
+
+    // A stale failure flag would otherwise open Step 5 or the Citation Step
+    // with zero attempts left.
+    try {
+      localStorage.removeItem(`memorize_failed_${verseId}`);
+      localStorage.removeItem(`citation_failed_${verseId}`);
+    } catch (e) {
+      console.warn("[Review] Failed to clear stale failure keys", e);
+    }
+
+    const sessionId = createAttemptId();
+
+    setState(s => {
+      // The session's languages ride the IMMUTABLE attempt snapshot, so a
+      // reload, a midnight rollover or an interface-language change can never
+      // turn a bilingual review into monolingual practice, or one practice
+      // language into the other.
+      const snapshot = buildAttemptSnapshot(s, resolvedVerse, "saved", { mode: sessionMode });
+      return {
+        ...s,
+        selectedVerseId: verseId,
+        activeSource: "saved",
+        activeAttempt: {
+          ...snapshot,
+          reviewSessionId: sessionId,
+          reviewSource: source,
+          reviewPassageKey: passageKey,
+          reviewPracticeLanguage: practiceLanguage,
+          reviewQualifies: qualifiesAsReview,
+          // Captured once, at the moment the session begins.
+          wasDueAtStart: isDue(row.record, Date.now()),
+          reviewFinalized: false,
+        },
+        activeReview: {
+          schemaVersion: REVIEW_SCHEMA_VERSION,
+          sessionId,
+          passageKey,
+          verseId,
+          startedAt: toIso(Date.now()),
+          source,
+          wasDueAtStart: isDue(row.record, Date.now()),
+          currentStage: "recall",
+          practiceLanguage,
+          qualifiesAsReview,
+        },
+        lastReviewCompletion: null,
+      };
+    });
+
     setActiveTab("memorize");
   };
 
@@ -1270,9 +1491,24 @@ function AppInner() {
           onChangeTranslation={changeActiveTranslation}
           onStartMemorizing={(id) => startMemorizing(id, state.activeSource)}
           onGetAnotherVerse={getAnotherVerse}
-          onGoToSaved={() => handleSetActiveTab('saved')} 
+          onGoToSaved={() => handleSetActiveTab('saved')}
           onGoToPaths={(path) => handleGoToPaths(path)}
           onCompletePathDay={handleCompletePathDay}
+          reviewNowMs={reviewNowMs}
+          onOpenReview={() => handleSetActiveTab('review')}
+        />
+      );
+      // Phase 4A: the Review screen is reached from the compact Home module.
+      // It is deliberately NOT added to `navItems` — no permanent navigation
+      // tab is introduced in this phase.
+      case "review": return (
+        <Review
+          state={state}
+          setState={setState}
+          nowMs={reviewNowMs}
+          onLaunchReview={startReview}
+          onGoHome={() => handleSetActiveTab("home")}
+          onRefresh={refreshReviewClock}
         />
       );
       case "paths": 
@@ -1318,10 +1554,17 @@ function AppInner() {
           />
         );
       case "memorize": return (
-        <Memorize 
-          state={state} 
-          setState={setState} 
-          onComplete={() => handleSetActiveTab("saved")} 
+        <Memorize
+          state={state}
+          setState={setState}
+          onComplete={() => handleSetActiveTab("saved")}
+          onReviewFinalized={() => {
+            // The review finalizer has already cleared activeAttempt and
+            // activeReview in the same commit; the raw setter is used so the
+            // challenge-in-progress guard cannot re-prompt on stale state.
+            refreshReviewClock();
+            setActiveTab("review");
+          }}
           onGoToFlashcards={(verseId) => {
             setState(s => {
               let nextAttempt = s.activeAttempt;
@@ -1355,6 +1598,10 @@ function AppInner() {
               return {
                 ...s,
                 activeAttempt: null,
+                // An explicit abandon ends the review session too. Merely
+                // navigating away does not: the draft and the Step 5/6 state
+                // both survive so the exact original passage resumes.
+                activeReview: null,
                 progress: nextProgress
               };
             });
@@ -1631,6 +1878,9 @@ function AppInner() {
                         return {
                           ...s,
                           activeAttempt: null,
+                          // Quitting is an explicit exit, so any review session
+                          // riding this attempt ends with it.
+                          activeReview: null,
                           progress: nextProgress
                         };
                       });

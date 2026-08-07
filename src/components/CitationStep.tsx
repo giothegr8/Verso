@@ -3,6 +3,7 @@ import React from "react";
 import { Sparkles, AlertCircle, CheckCircle2 } from "lucide-react";
 import { LanguageMode, MemorizeLanguage, Verse } from "../types";
 import { getLocalizedBookName } from "../utils/verseUtils";
+import { reviewCopy } from "../data/reviewCopy";
 
 /**
  * Phase 3C — Citation Step (Memorize Step 6).
@@ -53,6 +54,13 @@ interface CitationStepProps {
   onCorrect: () => void;
   /** Third attempt spent and the user acknowledged → acquire with citationCorrect = false. */
   onExhaustedAcknowledge: () => void;
+  // --- Phase 4A ------------------------------------------------------------
+  // Both optional and additive: an ordinary Memorize Citation Step is
+  // completely unchanged when they are omitted.
+  /** Swaps the active-workspace accents from Royal to Verdant. */
+  reviewMode?: boolean;
+  /** The persistent compact Review-mode status strip, supplied by Memorize. */
+  modeStrip?: React.ReactNode;
 }
 
 const MAX_CITATION_ATTEMPTS = 3;
@@ -302,6 +310,28 @@ function decodeLangState(raw: string, logicalLen: number): LangState {
   };
 }
 
+/**
+ * PHASE 4A — reads the Clue count already carried by a persisted Citation
+ * draft. Pure, read-only, and deliberately narrow: it holds no state, performs
+ * no grading, reveals nothing, and cannot influence Clue availability,
+ * protection, attempts or the random Clue 2 position. It exists only so the
+ * review scheduler can tell a clean success from a recovered one.
+ *
+ * A legacy free-text draft carries no Clue data and correctly reports 0.
+ */
+export function readCitationClueCount(raw: string | null | undefined): number {
+  if (!raw) return 0;
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed.c === "number" && Number.isFinite(parsed.c)) {
+      return Math.max(0, Math.min(MAX_CLUES_PER_LANGUAGE, Math.floor(parsed.c)));
+    }
+  } catch {
+    // Not JSON -> legacy free-text draft: no Clue was recorded.
+  }
+  return 0;
+}
+
 export default function CitationStep({
   verse,
   esText,
@@ -312,6 +342,8 @@ export default function CitationStep({
   onPersist,
   onCorrect,
   onExhaustedAcknowledge,
+  reviewMode = false,
+  modeStrip = null,
 }: CitationStepProps) {
   const isEs = primaryLanguage === "es";
 
@@ -814,7 +846,10 @@ export default function CitationStep({
                   shadow = "0 0 7px rgba(209,78,92,0.30), inset 0 1px 0 rgba(231,236,242,0.10)";
                 } else if (isCurrent) {
                   h = BOARD_TILE_H; radius = "2px";
-                  bg = "#8FA2FF";
+                  // Phase 4A: Review mode carries no Royal. A lighter Verdant
+                  // keeps the CURRENT marker clearly distinct from the darker
+                  // occupied teal beside it.
+                  bg = reviewMode ? "#4FA88F" : "#8FA2FF";
                   shadow = "0 0 9px rgba(62,143,123,0.36), inset 0 1px 0 rgba(231,236,242,0.18)";
                 } else if (occupied) {
                   h = BOARD_TILE_H; radius = "2px";
@@ -924,11 +959,17 @@ export default function CitationStep({
       border: `1px solid ${
         hasReview ? "rgba(209,78,92,0.55)" : focused ? "rgba(62,143,123,0.62)" : "rgba(62,143,123,0.30)"
       }`,
+      // Phase 4A: in Review mode the Royal atmosphere in these glows becomes
+      // Verdant. The rose review state and the glass itself are unchanged.
       boxShadow: hasReview
         ? "0 0 10px rgba(209,78,92,0.14), inset 0 1px 0 rgba(231,236,242,0.03)"
         : focused
-          ? "0 0 0 1px rgba(62,143,123,0.08), 0 0 18px rgba(91,120,255,0.22), 0 0 30px rgba(62,143,123,0.09), inset 0 1px 0 rgba(231,236,242,0.04)"
-          : "0 0 10px rgba(91,120,255,0.08), inset 0 1px 0 rgba(231,236,242,0.025)",
+          ? `0 0 0 1px rgba(62,143,123,0.08), 0 0 18px ${
+              reviewMode ? "rgba(62,143,123,0.26)" : "rgba(91,120,255,0.22)"
+            }, 0 0 30px rgba(62,143,123,0.09), inset 0 1px 0 rgba(231,236,242,0.04)`
+          : `0 0 10px ${
+              reviewMode ? "rgba(62,143,123,0.10)" : "rgba(91,120,255,0.08)"
+            }, inset 0 1px 0 rgba(231,236,242,0.025)`,
     };
   };
 
@@ -940,38 +981,73 @@ export default function CitationStep({
           Citation title, never the canonical reference. */}
       <div className="mb-[18px] md:mb-[22px] flex-shrink-0">
         <div className="space-y-2 sm:space-y-3">
-          <div className="flex items-center justify-between gap-3 w-full">
-            <span
-              className="font-hanken text-[11.5px] font-semibold uppercase tracking-[0.22em] leading-none"
-              style={{ color: "#3E8F7B" }}
-            >
-              {isEs ? "MEMORIZA" : "MEMORIZE"}
-            </span>
-            <div
-              className="flex-shrink-0 inline-flex items-center h-8 px-[10px] rounded-[12px] select-none"
-              style={{
-                background: "rgba(15,20,27,0.58)",
-                border: "1px solid rgba(62,143,123,0.22)",
-                boxShadow: "0 0 8px rgba(91,120,255,0.10)",
-              }}
-            >
-              <span className="font-hanken text-[11px] font-semibold uppercase tracking-widest leading-none text-cold-grey">
-                {isEs ? "Paso " : "Step "}
-                <span style={{ color: "#3E8F7B" }}>6</span>
-                {isEs ? " de 6" : " of 6"}
+          {/* Eyebrow + step pill — ORDINARY MEMORIZE ONLY. Review mode shows no
+              step pill and no replacement badge, pill or progress counter, and
+              the whole row is dropped rather than left empty. */}
+          {!reviewMode && (
+            <div className="flex items-center justify-between gap-3 w-full">
+              <span
+                className="font-hanken text-[11.5px] font-semibold uppercase tracking-[0.22em] leading-none"
+                style={{ color: "#3E8F7B" }}
+              >
+                {isEs ? "MEMORIZA" : "MEMORIZE"}
+              </span>
+              <div
+                className="flex-shrink-0 inline-flex items-center h-8 px-[10px] rounded-[12px] select-none"
+                style={{
+                  background: "rgba(15,20,27,0.58)",
+                  border: "1px solid rgba(62,143,123,0.22)",
+                  boxShadow: "0 0 8px rgba(91,120,255,0.10)",
+                }}
+              >
+                <span className="font-hanken text-[11px] font-semibold uppercase tracking-widest leading-none text-cold-grey">
+                  {isEs ? "Paso " : "Step "}
+                  <span style={{ color: "#3E8F7B" }}>6</span>
+                  {isEs ? " de 6" : " of 6"}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* REVIEW-MODE STATUS STRIP — the same element Step 5 renders, so the
+              mode stays unmistakable across the whole review and after a
+              reload. Centred, and the first content element in Review mode,
+              directly above the Citation heading. The INTERNAL stage is
+              unchanged — this is still Step 6. */}
+          {reviewMode && modeStrip}
+
+          {/* CITATION HEADING ROW. In Review mode the compact ACTIVE-PASS pill
+              rides this row, right aligned — never a separate row beneath it.
+              It is driven by this step's own `activeLang`, so it follows the
+              language the user is actually working in. */}
+          {reviewMode ? (
+            <div className="w-full flex flex-wrap items-start justify-between gap-x-3 gap-y-1.5">
+              <h2 className="min-w-0 flex-1 font-fraunces text-[clamp(1.50rem,6.8vw,1.78rem)] min-[390px]:text-[clamp(1.78rem,6.5vw,2.15rem)] md:text-[42px] font-normal text-cool-white leading-[1.06] break-words [text-wrap:balance]">
+                {isEs ? "La cita" : "The citation"}
+              </h2>
+              {/* Plain text, not a pill — the same quiet metadata treatment
+                  Step 5 uses beside its passage reference. */}
+              <span className="shrink-0 mt-2 font-hanken text-[10px] font-semibold uppercase tracking-[0.2em] leading-none text-faint select-none">
+                {reviewCopy.activePassLabel(activeLang, isEs ? "es" : "en")}
               </span>
             </div>
-          </div>
+          ) : (
+            <h2 className="w-full font-fraunces text-[clamp(1.50rem,6.8vw,1.78rem)] min-[390px]:text-[clamp(1.78rem,6.5vw,2.15rem)] md:text-[42px] font-normal text-cool-white leading-[1.06] break-words [text-wrap:balance]">
+              {isEs ? "La cita" : "The citation"}
+            </h2>
+          )}
 
-          <h2 className="w-full font-fraunces text-[clamp(1.50rem,6.8vw,1.78rem)] min-[390px]:text-[clamp(1.78rem,6.5vw,2.15rem)] md:text-[42px] font-normal text-cool-white leading-[1.06] break-words [text-wrap:balance]">
-            {isEs ? "La cita" : "The citation"}
-          </h2>
-
-          <p className="font-hanken text-[15px] text-cold-grey antialiased">
-            {isEs
-              ? "Escribe la referencia de memoria — nosotros ponemos los espacios y la puntuación"
-              : "Write the reference from memory — we place the spaces and punctuation"}
-          </p>
+          {/* Introductory helper sentence — ORDINARY MEMORIZE ONLY. In Review
+              mode the status strip already names the order of work, so this
+              line would restate it. Error, attempt, Clue, exhaustion,
+              translation-unavailable and completion messages are untouched. */}
+          {!reviewMode && (
+            <p className="font-hanken text-[15px] text-cold-grey antialiased">
+              {isEs
+                ? "Escribe la referencia de memoria — nosotros ponemos los espacios y la puntuación"
+                : "Write the reference from memory — we place the spaces and punctuation"}
+            </p>
+          )}
         </div>
 
         <div className="w-full flex justify-center items-center pt-[18px] md:pt-[22px]" aria-hidden="true">

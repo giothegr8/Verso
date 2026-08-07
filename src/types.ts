@@ -32,6 +32,7 @@ export type LanguageMode = "es" | "en" | "both";
 export type MemorizeLanguage = "es" | "en";
 export const ACTIVE_ATTEMPT_SCHEMA_VERSION = 2;
 export const MEMORIZE_TYPING_STATE_SCHEMA_VERSION = 2;
+export const REVIEW_SCHEMA_VERSION = 1;
 
 // Where a share originated, used to choose the provenance/footer line.
 export type ShareSource = "daily" | "custom" | "saved";
@@ -192,6 +193,131 @@ export interface ReminderRotationState {
   blockerPointer: number;
 }
 
+// ---------------------------------------------------------------------------
+// PHASE 4A — SMART REVIEW QUEUE
+//
+// One review record per unique acquired passage, keyed by the canonical
+// passage identity (see utils/reviewQueue.passageKeyForVerse). No hidden
+// mastery scores, no SM-2 data, no AI scores, no popularity weights, no streak
+// data and no monetization flags live here.
+// ---------------------------------------------------------------------------
+
+export type ReviewOutcome =
+  | "never_reviewed"
+  | "clean_success"
+  | "recovered_success"
+  | "recall_exhausted"
+  | "citation_exhausted"
+  | "both_exhausted"
+  /**
+   * Reserved by the domain vocabulary. The current architecture never writes
+   * it: an abandoned session preserves its resumable state and records no
+   * completed review at all, so no descriptive marker is required.
+   */
+  | "incomplete";
+
+export type UnresolvedStage = "none" | "recall" | "citation" | "both";
+
+/**
+ * WHICH Scripture language(s) a passage's due review requires.
+ *
+ * Interface language and review language are separate concepts. Scope is
+ * derived ONCE from how the passage was genuinely learned and then persisted;
+ * changing the app's interface language never silently rewrites it.
+ */
+export type ReviewScope = "english" | "spanish" | "bilingual";
+
+export interface ReviewRecord {
+  /** Canonical passage identity, e.g. "HEB 11:1". */
+  passageKey: string;
+  /** Mastery level, 0-5 inclusive. */
+  reviewLevel: number;
+  /** Timezone-safe ISO instant. */
+  nextReviewAt: string;
+  /** Timezone-safe ISO instant, or null before the first completed review. */
+  lastReviewedAt: string | null;
+  lastOutcome: ReviewOutcome;
+  unresolvedStage: UnresolvedStage;
+  /**
+   * Derived once at lazy initialization (verse.addedAt when present, otherwise
+   * the moment of initialization) and then persisted, so the never-reviewed
+   * tie-break stays stable. The repository stores no other per-passage
+   * acquisition timestamp.
+   */
+  acquiredAt: string;
+  /**
+   * Which language(s) this passage's due review requires. Derived once from
+   * how it was actually learned (per-language completion history, falling back
+   * to validated acquired text) and then persisted. Optional so records written
+   * before Phase 4A Correction 11 stay valid; lazy initialization backfills it.
+   */
+  reviewScope?: ReviewScope;
+  /** Most recent verse id representing this passage; a launch hint only. */
+  verseId?: string;
+  /**
+   * The one persisted exactly-once guard. A session id already recorded here
+   * can never apply its result a second time — across rerenders, remounts,
+   * route changes, reloads or a midnight rollover.
+   */
+  lastFinalizedSessionId?: string | null;
+}
+
+export type ReviewSource = "queue" | "practice";
+
+/**
+ * The lightweight active-review draft. Detailed Recall and Citation state is
+ * NOT duplicated here: Step 5 and Step 6 keep their own existing persistence,
+ * and the immutable Scripture snapshot stays on ActiveAttemptSnapshot.
+ */
+export interface ActiveReviewSession {
+  schemaVersion?: number;
+  sessionId: string;
+  passageKey: string;
+  verseId: string;
+  /** ISO instant. */
+  startedAt: string;
+  source: ReviewSource;
+  /** Captured when the session began; never recomputed at completion. */
+  wasDueAtStart: boolean;
+  currentStage: "recall" | "citation";
+  /**
+   * Set only for OPTIONAL SINGLE-LANGUAGE PRACTICE of a bilingual passage: the
+   * one language this session runs. Absent for every normal review.
+   */
+  practiceLanguage?: MemorizeLanguage;
+  /**
+   * False for subset-language practice. Such a session can never satisfy the
+   * bilingual due review: it must not clear it, advance mastery, postpone
+   * `nextReviewAt`, or touch `unresolvedStage` / `lastOutcome`. Optional so
+   * drafts written before this field stay valid; only an explicit `false`
+   * disqualifies.
+   */
+  qualifiesAsReview?: boolean;
+}
+
+/** What the Review completion screen renders after a finalized session. */
+export interface ReviewCompletionSummary {
+  sessionId: string;
+  passageKey: string;
+  verseId: string;
+  outcome: ReviewOutcome;
+  /** Deterministic wink trigger: flawless Recall and Citation. */
+  flawless: boolean;
+  reviewLevel: number;
+  /** ISO instant. */
+  nextReviewAt: string;
+  /** Latches true once the smiley has drawn, so it never replays. */
+  smileyPlayed?: boolean;
+  /**
+   * True when this was subset-language practice rather than a due review. The
+   * completion screen then says so plainly and NOTHING was scheduled: the
+   * bilingual review is still waiting.
+   */
+  isPractice?: boolean;
+  /** The single language a practice session ran in. */
+  practiceLanguage?: MemorizeLanguage;
+}
+
 export interface AppState {
   primaryLanguage: "es" | "en";
   memorizeMode: LanguageMode;
@@ -219,6 +345,15 @@ export interface AppState {
   anotherVerseError?: string | null;
   loadingTranslations?: Record<string, boolean>;
   activeAttempt?: ActiveAttemptSnapshot | null;
+  // --- Phase 4A Smart Review Queue -----------------------------------------
+  // All optional and additive, so state persisted before Phase 4A stays valid
+  // and no migration or schema-version bump is required.
+  /** One record per unique acquired passage, keyed by canonical passageKey. */
+  reviewRecords?: Record<string, ReviewRecord>;
+  /** The single in-flight review draft, or null. */
+  activeReview?: ActiveReviewSession | null;
+  /** The last finalized review, consumed by the Review completion screen. */
+  lastReviewCompletion?: ReviewCompletionSummary | null;
 }
 
 export interface ActiveAttemptSnapshot {
@@ -262,4 +397,31 @@ export interface ActiveAttemptSnapshot {
   // the challenge-in-progress guard so protection survives reviewing back to
   // Step 1. Optional/undefined for older saved attempts (treated as not started).
   started?: boolean;
+  // --- Phase 4A review linkage ---------------------------------------------
+  // All optional and additive; attempts persisted before Phase 4A stay valid.
+  /** Canonical passage identity for this attempt, stamped at build time. */
+  reviewPassageKey?: string;
+  /**
+   * Whether the passage was already due at the MOMENT this session began.
+   * Captured once and never recomputed, so voluntary early practice can never
+   * farm mastery and a session that crosses its own due time is judged by when
+   * it started.
+   */
+  wasDueAtStart?: boolean;
+  /** Set only for queue-driven Review sessions; absent for ordinary Memorize. */
+  reviewSessionId?: string;
+  reviewSource?: ReviewSource;
+  /** Mirrors the review draft so a reload cannot change a session's language. */
+  reviewPracticeLanguage?: MemorizeLanguage;
+  /** Mirrors the draft's qualification; only an explicit `false` disqualifies. */
+  reviewQualifies?: boolean;
+  /** Latched once this session's review result has been applied exactly once. */
+  reviewFinalized?: boolean;
+  // Step 5 outcome facts, latched when the Recall stage concludes so they
+  // survive the per-attempt localStorage cleanup and any later reload. Without
+  // this latch a reload between Step 5 and Step 6 would lose the wrong-submission
+  // and Clue counts that separate a clean success from a recovered one.
+  recallWrongSubmissions?: number;
+  recallCluesUsed?: number;
+  recallExhausted?: boolean;
 }

@@ -17,7 +17,17 @@ import { CheckCircle2, RotateCcw, Eye, EyeOff, ArrowRight, ArrowLeft, Trophy, Sp
 import React from "react";
 import confetti from "canvas-confetti";
 import { getCurrentTranslationPair, getValidatedVerse, getLocalizedBookName, getLocalDateString, removeAccents, validateVerseTranslation } from "../utils/verseUtils";
-import CitationStep, { CitationPersistPatch } from "./CitationStep";
+import CitationStep, { CitationPersistPatch, readCitationClueCount } from "./CitationStep";
+import { passageKeyForVerse } from "../utils/reviewQueue";
+import {
+  SessionOutcome,
+  classifySessionOutcome,
+  computeReviewUpdate,
+  createReviewRecord,
+  sanitizeReviewRecord,
+  toIso,
+} from "../utils/reviewSchedule";
+import { reviewCopy } from "../data/reviewCopy";
 
 interface MemorizeProps {
   state: AppState;
@@ -26,6 +36,8 @@ interface MemorizeProps {
   onGoToFlashcards?: (verseId: string) => void;
   onAbandon?: () => void;
   tourStepId?: string | null;
+  /** Phase 4A: a queue-driven Review session has finalized exactly once. */
+  onReviewFinalized?: () => void;
 }
 
 const STAGES = [
@@ -75,7 +87,37 @@ type MemorizeTypingStateV2 = {
 // the locked Citation/Cita name reaches the rendered DOM.
 const STAGE_RAIL_STAGES = ["Seed", "Water", "Root", "Sprout", "Bloom", "Citation"] as const;
 
-const StageProgressRail = ({ stage }: { stage: number }) => (
+// =============================================================================
+// PHASE 4A — REVIEW MODE IDENTITY.
+//
+// A Review session runs on the Memorize engine, so without a distinct identity
+// it is indistinguishable from starting a fresh memorization. `REVIEW_ACCENT`
+// replaces ordinary Memorize's Royal Blue on the ACTIVE-WORKSPACE accents only
+// — the banner, the step indicator, the current progress segment, the Recall
+// frame, the forward control, and the current Recall marker. Scripture,
+// references, Composer text, empty rails, inactive segments, dark-glass
+// surfaces, Ember Clues and corrective rose are all untouched, and ordinary
+// Memorize keeps its Royal identity exactly as shipped.
+// =============================================================================
+const REVIEW_ACCENT = "#3E8F7B";
+
+/**
+ * THE AUTHORITATIVE REVIEW ENTRY STAGE.
+ *
+ * A review always opens in the Step 5 Recall Workspace. This constant is the
+ * single source of that truth: it is never derived from `verseStages`, from a
+ * persisted `currentStep`, from prior acquisition state, or from anything else
+ * an ordinary Memorize session may have left behind.
+ *
+ * That derivation is exactly what failed. `verseStages` is ORDINARY-Memorize
+ * progress: Review never writes it, and App's quit-challenge handler deletes
+ * the entry unconditionally — even for a passage still in `completedVerses`.
+ * With the entry absent, `verseStages[verse.id] || 1` produced 1, so a review
+ * opened at Step 1 and played Steps 1-4.
+ */
+const REVIEW_ENTRY_STAGE = 5;
+
+const StageProgressRail = ({ stage, accent }: { stage: number; accent?: string }) => (
   <div className="w-full max-w-[236px] md:max-w-[280px] flex items-center gap-1.5 md:gap-2">
     {STAGE_RAIL_STAGES.map((name, i) => {
       const milestone = i + 1;
@@ -87,20 +129,73 @@ const StageProgressRail = ({ stage }: { stage: number }) => (
           className="flex-1 h-1 rounded-full"
           style={{
             // Completed → earned Ember Gold; current → Verdant Teal identity
-            // with a restrained Royal Blue atmospheric halo; upcoming → Cold
-            // Grey at low opacity. (Locked Memorize accent system.)
+            // with a restrained atmospheric halo (Royal in ordinary Memorize,
+            // Verdant in Review mode); upcoming → Cold Grey at low opacity.
             background:
               status === "completed" ? "rgba(232,179,75,0.76)"
               : status === "current" ? "#3E8F7B"
               : "rgba(139,149,163,0.20)",
             boxShadow:
-              status === "current" ? "0 0 7px rgba(91,120,255,0.22)"
+              status === "current"
+                ? (accent ? "0 0 7px rgba(62,143,123,0.30)" : "0 0 7px rgba(91,120,255,0.22)")
               : status === "completed" ? "0 0 4px rgba(232,179,75,0.18)"
               : undefined,
           }}
         />
       );
     })}
+  </div>
+);
+
+/**
+ * The persistent Review-mode STATUS STRIP.
+ *
+ * A full-width dark-glass strip carrying ONE continuous, CENTRED sentence.
+ * It replaced a two-level banner whose stacked label and subtitle competed with
+ * the passage reference and the Step 5 instruction for the same attention —
+ * three text layers saying overlapping things. Now a single quiet line names
+ * the mode, and the left-aligned reference leads the content beneath it.
+ *
+ * WIDTH. `w-full` inside the header column resolves to the same edges as the
+ * Recall workspace frame, the progress rail and the Citation workspace, so the
+ * strip reads as a structured header element. A `fit-content` version was tried
+ * and looked like an isolated floating label detached from those wider blocks.
+ * The column's own max-width and gutters keep it off the viewport edges.
+ *
+ * `REVIEW MODE:` carries the Verdant emphasis; the remainder stays neutral, so
+ * colour is never the only signal. At narrow widths the sentence wraps
+ * naturally and every wrapped line stays centred. One soft rim/glow emphasis on
+ * entry that settles immediately — no repeat, no scale, no movement, no screen
+ * effect.
+ */
+const REVIEW_STRIP_STYLE = `
+.vrevb {
+  box-shadow: 0 0 10px -5px rgba(62,143,123,0.20), inset 0 0 10px rgba(62,143,123,0.06);
+}
+@keyframes vrevb-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(62,143,123,0), inset 0 0 0 rgba(62,143,123,0); }
+  35%  { box-shadow: 0 0 14px -3px rgba(62,143,123,0.36), inset 0 0 12px rgba(62,143,123,0.13); }
+  100% { box-shadow: 0 0 10px -5px rgba(62,143,123,0.20), inset 0 0 10px rgba(62,143,123,0.06); }
+}
+.vrevb-enter { animation: vrevb-pulse 900ms ease-out 80ms 1 both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .vrevb-enter { animation: none !important; }
+}
+`;
+
+export const ReviewModeStrip = ({ label, hint }: { label: string; hint: string }) => (
+  <div
+    className="vrevb vrevb-enter w-full rounded-[10px] px-3 py-1.5 border text-center"
+    style={{ background: "rgba(15,20,27,0.58)", borderColor: "rgba(62,143,123,0.42)" }}
+  >
+    <style>{REVIEW_STRIP_STYLE}</style>
+    {/* One sentence, wrapping naturally at narrow widths with every line
+        centred — never a separate label line and supporting-copy line. */}
+    <span className="font-hanken text-[12px] leading-snug text-cold-grey">
+      <span className="font-semibold" style={{ color: REVIEW_ACCENT }}>{label}:</span>{" "}
+      {hint}
+    </span>
   </div>
 );
 
@@ -423,7 +518,7 @@ const isValidTypingState = (
 // `onGoToFlashcards` remains on the props interface for call-site compatibility
 // but is no longer consumed: Phase 3C moved Citation into Step 6 of this flow,
 // so Memorize never hands stage-6 acquisition off to Cards.
-export default function Memorize({ state, setState, onComplete, onAbandon, tourStepId }: MemorizeProps) {
+export default function Memorize({ state, setState, onComplete, onAbandon, tourStepId, onReviewFinalized }: MemorizeProps) {
   const today = getLocalDateString();
   const votd = getVerseByDate(today);
   
@@ -487,6 +582,23 @@ export default function Memorize({ state, setState, onComplete, onAbandon, tourS
   const activeAttempt = isValidMemorizeAttempt(state.activeAttempt, verse.id) ? state.activeAttempt : null;
 
   // ==========================================================================
+  // PHASE 4A — REVIEW MODE.
+  //
+  // A Review session is an attempt whose snapshot carries the review session id
+  // that the persisted review draft names. Both must agree, so a stale draft or
+  // a stale attempt can never put Memorize into review mode by itself.
+  //
+  // In review mode this component is TENDING an already-acquired passage, not
+  // acquiring one: it must not append to savedVerses, must not touch
+  // completedVerses or completionCounts, and must leave verseStages at 7.
+  // ==========================================================================
+  const reviewSession =
+    state.activeReview && activeAttempt?.reviewSessionId === state.activeReview.sessionId
+      ? state.activeReview
+      : null;
+  const isReviewMode = !!reviewSession;
+
+  // ==========================================================================
   // THE CONTENT-INTEGRITY GATE.
   //
   // A failed translation must never become Scripture. Because bibleService
@@ -522,8 +634,15 @@ export default function Memorize({ state, setState, onComplete, onAbandon, tourS
 
   const usableEsText = usableTextFor('es');
   const usableEnText = usableTextFor('en');
-  const requestedEs = state.memorizeMode === 'es' || state.memorizeMode === 'both';
-  const requestedEn = state.memorizeMode === 'en' || state.memorizeMode === 'both';
+  // THE SESSION'S OWN MODE, from the immutable attempt snapshot rather than the
+  // global preference. A Review runs the languages its SAVED SCOPE requires, so
+  // a bilingual review still runs both passes while the user's global setting
+  // says otherwise — without rewriting that setting. For an ordinary session
+  // the two values are identical, so nothing changes there.
+  const sessionMemorizeMode: AppState["memorizeMode"] =
+    activeAttempt?.memorizeMode || state.memorizeMode;
+  const requestedEs = sessionMemorizeMode === 'es' || sessionMemorizeMode === 'both';
+  const requestedEn = sessionMemorizeMode === 'en' || sessionMemorizeMode === 'both';
 
   let resolvedEsText = requestedEs ? usableEsText : null;
   let resolvedEnText = requestedEn ? usableEnText : null;
@@ -543,7 +662,7 @@ export default function Memorize({ state, setState, onComplete, onAbandon, tourS
   // "verse unavailable" guard further down.
   const requestedLanguageOrder = activeAttempt?.languageOrder && activeAttempt.languageOrder.length > 0
     ? activeAttempt.languageOrder
-    : getExpectedLanguageOrder(state.memorizeMode, state.primaryLanguage);
+    : getExpectedLanguageOrder(sessionMemorizeMode, state.primaryLanguage);
   const availableLanguageOrder = requestedLanguageOrder.filter(lang => (lang === 'es' ? esText : enText));
   const rescueLanguageOrder: MemorizeLanguage[] = enText ? ['en'] : esText ? ['es'] : [];
   const attemptLanguageOrder = availableLanguageOrder.length > 0
@@ -615,15 +734,29 @@ export default function Memorize({ state, setState, onComplete, onAbandon, tourS
   ]);
 
   const globalVerseStage = state.progress.verseStages[verse.id] || 1;
-  const [stage, setStage] = useState(() => Math.min(5, savedTypingState?.currentStep || globalVerseStage));
+  const [stage, setStage] = useState(() => {
+    // A Review session opens in the Recall Workspace, full stop. It never
+    // consults `verseStages` or a persisted `currentStep`, so no stale ordinary
+    // Memorize progress, absent stage entry, prior acquisition state, hydration
+    // order or remount can pull it back to Step 1.
+    if (isReviewMode) return REVIEW_ENTRY_STAGE;
+    return Math.min(5, savedTypingState?.currentStep || globalVerseStage);
+  });
   const [isRevealed, setIsRevealed] = useState(false);
   const [isAlmostDone, setIsAlmostDone] = useState(() => {
+    let failed = false;
     try {
-      const failed = localStorage.getItem(`memorize_failed_${verse.id}`) === "true";
-      return (globalVerseStage === 6 && activeAttempt?.cardsReady === true) || failed;
+      failed = localStorage.getItem(`memorize_failed_${verse.id}`) === "true";
     } catch {
-      return globalVerseStage === 6 && activeAttempt?.cardsReady === true;
+      failed = false;
     }
+    // Review resume reads the ATTEMPT, not `verseStages` (which a review never
+    // writes): a reload after Recall finished must return to the Citation
+    // handoff or the Citation Step, never to a blank Recall Workspace.
+    if (isReviewMode) {
+      return !!activeAttempt?.citationStarted || !!activeAttempt?.cardsReady || failed;
+    }
+    return (globalVerseStage === 6 && activeAttempt?.cardsReady === true) || failed;
   });
   const [showAbandonConfirm, setShowAbandonConfirm] = useState(false);
   const [showSparkles, setShowSparkles] = useState(false);
@@ -923,6 +1056,31 @@ export default function Memorize({ state, setState, onComplete, onAbandon, tourS
     ? (didFailFlowEs || didFailFlowEn)
     : (effectiveMemorizeMode === 'es' ? didFailFlowEs : didFailFlowEn)) || sessionFailed;
 
+  // PHASE 4A. In an ordinary session an exhausted Recall genuinely blocks the
+  // Citation Step: the passage cannot be acquired without the text. A Review
+  // session acquires nothing, so the same block would leave the review
+  // unfinishable and the `recall_exhausted` outcome unreachable. Review
+  // therefore continues to Citation, and both stages resolve as the scheduling
+  // contract requires.
+  const recallBlocksCitation = isAnyPartFailed && !isReviewMode;
+
+  // PHASE 4A — the Review-mode active-workspace accents. Each pair keeps the
+  // ordinary Memorize value verbatim on the right, so a non-review session is
+  // byte-identical to what shipped.
+  const frameAccentClass = isReviewMode
+    ? "border-[rgba(62,143,123,0.34)] shadow-[0_0_18px_rgba(62,143,123,0.09)]"
+    : "border-[rgba(91,120,255,0.32)] shadow-[0_0_18px_rgba(91,120,255,0.08)]";
+  const forwardAccentClass = isReviewMode
+    ? "border-[rgba(62,143,123,0.55)] text-[#3E8F7B] shadow-[0_0_4px_rgba(62,143,123,0.30)]"
+    : "border-(--rim-royal) text-royal shadow-[0_0_4px_rgba(91,120,255,0.30)]";
+  const forwardFocusClass = isReviewMode
+    ? "focus-visible:outline-[rgba(62,143,123,0.6)]"
+    : "focus-visible:outline-[rgba(91,120,255,0.6)]";
+  /** Halo behind the CURRENT Recall marker. Occupied tiles stay Royal (locked). */
+  const currentTileShadow = isReviewMode
+    ? "0 0 9px rgba(62,143,123,0.42), inset 0 1px 0 rgba(231,236,242,0.18)"
+    : "0 0 9px rgba(91,120,255,0.38), inset 0 1px 0 rgba(231,236,242,0.18)";
+
   const activeClueCount = activeLanguage === 'es' ? clueCountEs : clueCountEn;
   const activeAttempts = activeLanguage === 'es' ? attemptsEs : attemptsEn;
   const activeDidFailFlow = activeLanguage === 'es' ? didFailFlowEs : didFailFlowEn;
@@ -979,6 +1137,10 @@ export default function Memorize({ state, setState, onComplete, onAbandon, tourS
   // below, because those live after this component's early returns and a hook
   // must never be called conditionally.
   const citationAcquiredRef = useRef(false);
+  // PHASE 4A — in-session half of the exactly-once guard. The durable half is
+  // `lastFinalizedSessionId` persisted on the review record itself, so a reload
+  // or a remount can never apply the same review result twice.
+  const reviewFinalizedRef = useRef(false);
   const isInputComposingRef = useRef(false);
   
   const esDetail = TRANSLATION_DETAILS[activePair?.es || "RVR1960"] || TRANSLATION_DETAILS["RVR1960"];
@@ -1182,9 +1344,13 @@ export default function Memorize({ state, setState, onComplete, onAbandon, tourS
 
     if (contentConfigChanged || attemptChanged) {
       const dbStage = state.progress.verseStages[verse.id] || 1;
-      const nextStage = activeAttempt
-        ? Math.min(5, savedTypingState?.currentStep || dbStage)
-        : 1;
+      // Same authoritative rule as the initializer: a Review session re-enters
+      // at Step 5 regardless of what ordinary Memorize progress says.
+      const nextStage = isReviewMode
+        ? REVIEW_ENTRY_STAGE
+        : activeAttempt
+          ? Math.min(5, savedTypingState?.currentStep || dbStage)
+          : 1;
       setStage(nextStage);
       setIsRevealed(false);
       setDidFailFlowEs(false);
@@ -1201,7 +1367,11 @@ export default function Memorize({ state, setState, onComplete, onAbandon, tourS
         setCurrentPassIndex(0);
         setShowHalfwayTransition(false);
       }
-      setIsAlmostDone(dbStage === 6 && activeAttempt?.cardsReady === true);
+      setIsAlmostDone(
+        isReviewMode
+          ? (!!activeAttempt?.citationStarted || !!activeAttempt?.cardsReady)
+          : (dbStage === 6 && activeAttempt?.cardsReady === true)
+      );
       
       // Preserve attempts if it's the same verse and translations
       if (prevConfig.verseId !== verse.id ||
@@ -1758,11 +1928,39 @@ export default function Memorize({ state, setState, onComplete, onAbandon, tourS
         }
         setShowHalfwayTransition(true);
       } else {
+        // PHASE 4A — latch the Step 5 outcome facts onto the attempt BEFORE the
+        // per-attempt keys below are cleared. Without this latch a reload
+        // between Step 5 and Step 6 would lose the wrong-submission and Clue
+        // counts that separate a clean success from a recovered one, and the
+        // scheduler would silently over-reward the session.
+        const recallWrongSubmissions = attemptLanguageOrder.reduce(
+          (n, lang) => n + (lang === 'es' ? attemptsEs : attemptsEn),
+          0
+        );
+        const recallCluesUsed = attemptLanguageOrder.reduce(
+          (n, lang) => n + (lang === 'es' ? clueCountEs : clueCountEn),
+          0
+        );
+        const recallExhaustedNow = forceFailed !== undefined ? forceFailed : isAnyPartFailed;
+        setState(s => (
+          s.activeAttempt && s.activeAttempt.attemptId === attemptId
+            ? {
+                ...s,
+                activeAttempt: {
+                  ...s.activeAttempt,
+                  recallWrongSubmissions,
+                  recallCluesUsed,
+                  recallExhausted: recallExhaustedNow,
+                },
+              }
+            : s
+        ));
+
         // Clear attempts and typing state on level exit
         if (attemptsKeyEs) localStorage.removeItem(attemptsKeyEs);
         if (attemptsKeyEn) localStorage.removeItem(attemptsKeyEn);
         if (typingStateKey) localStorage.removeItem(typingStateKey);
-        
+
         // Success Persistence Fix: Save verse when successfully completed
         const effectiveFailed = forceFailed !== undefined ? forceFailed : isAnyPartFailed;
         if (!effectiveFailed) {
@@ -1790,14 +1988,21 @@ export default function Memorize({ state, setState, onComplete, onAbandon, tourS
                     textComplete: allRequiredComplete,
                   }
                 : s.activeAttempt,
-              savedVerses: allRequiredComplete && !s.savedVerses.includes(verse.id) ? [...s.savedVerses, verse.id] : s.savedVerses,
-              progress: {
-                ...s.progress,
-                verseStages: {
-                  ...s.progress.verseStages,
-                  [verse.id]: allRequiredComplete ? 6 : (s.progress.verseStages[verse.id] || 1)
-                }
-              }
+              // PHASE 4A — a Review session tends an ALREADY acquired passage.
+              // It must not add a Saved entry it already has, and it must not
+              // demote its completed stage 7 back to 6.
+              savedVerses: (!isReviewMode && allRequiredComplete && !s.savedVerses.includes(verse.id))
+                ? [...s.savedVerses, verse.id]
+                : s.savedVerses,
+              progress: isReviewMode
+                ? s.progress
+                : {
+                    ...s.progress,
+                    verseStages: {
+                      ...s.progress.verseStages,
+                      [verse.id]: allRequiredComplete ? 6 : (s.progress.verseStages[verse.id] || 1)
+                    }
+                  }
             };
           });
         } else {
@@ -1815,7 +2020,9 @@ export default function Memorize({ state, setState, onComplete, onAbandon, tourS
   const handleHalfwayContinue = () => {
     const nextIndex = clampPassIndex(currentPassIndex + 1, attemptLanguageOrder);
     setCurrentPassIndex(nextIndex);
-    setStage(1);
+    // PHASE 4A — a Review session skips Steps 1-4 on EVERY pass, including the
+    // second language of a bilingual review. An ordinary session is unchanged.
+    setStage(isReviewMode ? 5 : 1);
     setShowHalfwayTransition(false);
     setDidFailFlowEs(false);
     setDidFailFlowEn(false);
@@ -1847,6 +2054,16 @@ export default function Memorize({ state, setState, onComplete, onAbandon, tourS
       setIsCorrectEn(false);
       setRevealedIndicesEn([]);
       setCursorIndexEnLive(0);
+    }
+    // Entering Step 5 directly means the slot buffer is not initialized by the
+    // stage-advance path, so the Recall Workspace is sized here instead.
+    if (isReviewMode) {
+      if (nextLang === 'es' && esText) {
+        setUserInputEs(new Array(getCleanLetters(esText).length).fill(""));
+      }
+      if (nextLang === 'en' && enText) {
+        setUserInputEn(new Array(getCleanLetters(enText).length).fill(""));
+      }
     }
     setFeedback(null);
   };
@@ -1901,6 +2118,13 @@ export default function Memorize({ state, setState, onComplete, onAbandon, tourS
   };
 
   const reset = () => {
+    // PHASE 4A — a Review session never resets an acquired passage. Reset
+    // rewinds verseStages to 1 and rebuilds the attempt, which would demote a
+    // completed passage out of Saved's completed state. Review mode reaches
+    // this function through no reachable control (its halfway screen always
+    // continues and its failure screen is bypassed); this is the guard.
+    if (isReviewMode) return;
+
     // If this attempt actually runs both languages, check for a partial retry.
     if (effectiveMemorizeMode === 'both') {
       const enPassed = isCorrectEn && !didFailFlowEn;
@@ -2597,11 +2821,199 @@ export default function Memorize({ state, setState, onComplete, onAbandon, tourS
     frame();
   };
 
+  // ===========================================================================
+  // PHASE 4A — review outcome and finalization.
+  //
+  // The outcome is read from what genuinely happened in both stages. Recall
+  // facts come from the latch written when Step 5 concluded (so they survive a
+  // reload); Citation facts come from the attempt's own persisted Citation
+  // fields plus the Clue count already carried inside the persisted draft.
+  // ===========================================================================
+  const buildSessionOutcome = (citationCorrect: boolean): SessionOutcome => {
+    const attempt =
+      state.activeAttempt && state.activeAttempt.attemptId === attemptId ? state.activeAttempt : null;
+
+    const recallExhausted = attempt?.recallExhausted ?? isAnyPartFailed;
+    const recallWrong =
+      attempt?.recallWrongSubmissions ??
+      attemptLanguageOrder.reduce((n, lang) => n + (lang === 'es' ? attemptsEs : attemptsEn), 0);
+    const recallClues =
+      attempt?.recallCluesUsed ??
+      attemptLanguageOrder.reduce((n, lang) => n + (lang === 'es' ? clueCountEs : clueCountEn), 0);
+
+    const citationWrong = attempt?.citationAttemptsUsed || 0;
+    // An unused language's draft is empty and correctly contributes zero.
+    const citationClues =
+      readCitationClueCount(attempt?.citationDraftEs) +
+      readCitationClueCount(attempt?.citationDraftEn);
+
+    return {
+      recall: {
+        completed: !recallExhausted,
+        exhausted: recallExhausted,
+        wrongSubmissions: recallWrong,
+        cluesUsed: recallClues,
+      },
+      citation: {
+        // The Citation Step resolves either by a correct submission or by the
+        // exhausted acknowledgment — there is no third ending.
+        completed: citationCorrect,
+        exhausted: !citationCorrect,
+        wrongSubmissions: citationWrong,
+        cluesUsed: citationClues,
+      },
+    };
+  };
+
+  /**
+   * Applies a finished session's result to the single review record for this
+   * passage. Idempotent by construction: the session id is compared against the
+   * PERSISTED `lastFinalizedSessionId` inside the state updater, so double
+   * clicks, repeated effects, rerenders, remounts, route changes, reloads,
+   * focus changes and a midnight rollover all resolve to one write.
+   */
+  const applyReviewOutcome = (
+    citationCorrect: boolean,
+    sessionId: string,
+    passageKey: string,
+    wasDueAtStart: boolean,
+    writeCompletionSummary: boolean
+  ) => {
+    const classified = classifySessionOutcome(buildSessionOutcome(citationCorrect));
+    const completedAtMs = Date.now();
+
+    setState(s => {
+      const records = s.reviewRecords || {};
+      const raw = records[passageKey];
+      const existing = raw
+        ? sanitizeReviewRecord(raw, passageKey, completedAtMs)
+        : createReviewRecord(passageKey, completedAtMs, verse.id);
+
+      if (existing.lastFinalizedSessionId === sessionId) return s;
+
+      const updated = computeReviewUpdate({
+        record: { ...existing, verseId: verse.id },
+        classified,
+        completedAtMs,
+        wasDueAtStart,
+      });
+
+      const nextRecords = {
+        ...records,
+        [passageKey]: { ...updated, lastFinalizedSessionId: sessionId },
+      };
+
+      if (!writeCompletionSummary) {
+        return { ...s, reviewRecords: nextRecords };
+      }
+
+      return {
+        ...s,
+        reviewRecords: nextRecords,
+        lastReviewCompletion: {
+          sessionId,
+          passageKey,
+          verseId: verse.id,
+          outcome: classified.outcome,
+          flawless: classified.flawless,
+          reviewLevel: updated.reviewLevel,
+          nextReviewAt: updated.nextReviewAt,
+          smileyPlayed: false,
+        },
+      };
+    });
+  };
+
+  /**
+   * Ends a queue-driven Review session. It records the review result and
+   * NOTHING else: no acquisition, no Saved entry, no completion count, no
+   * totalMemorized increment, no verse-stage change and no acquisition
+   * celebration. The passage was already acquired.
+   */
+  const completeReviewSession = (citationCorrect: boolean) => {
+    if (!reviewSession) return;
+    if (reviewFinalizedRef.current) return;
+    reviewFinalizedRef.current = true;
+
+    // SUBSET-LANGUAGE PRACTICE. A bilingual passage practised in one language
+    // is NOT its due review, so this path never reaches the scheduler: the
+    // record keeps its level, its due time, its unresolved stage, its last
+    // outcome and its finalization marker, and the passage stays due exactly as
+    // it was. This rule deliberately overrides ordinary early-practice
+    // scheduling — `wasDueAtStart` cannot qualify it for mastery.
+    const isPractice = reviewSession.qualifiesAsReview === false;
+
+    if (isPractice) {
+      setState(s => ({
+        ...s,
+        activeAttempt: null,
+        activeReview: null,
+        lastReviewCompletion: {
+          sessionId: reviewSession.sessionId,
+          passageKey: reviewSession.passageKey,
+          verseId: verse.id,
+          // Descriptive only — nothing was scheduled from it.
+          outcome: "never_reviewed",
+          flawless: false,
+          reviewLevel: 0,
+          nextReviewAt: toIso(Date.now()),
+          smileyPlayed: false,
+          isPractice: true,
+          practiceLanguage: reviewSession.practiceLanguage,
+        },
+      }));
+
+      try {
+        localStorage.removeItem(`memorize_failed_${verse.id}`);
+        localStorage.removeItem(`citation_failed_${verse.id}`);
+        if (attemptsKeyEs) localStorage.removeItem(attemptsKeyEs);
+        if (attemptsKeyEn) localStorage.removeItem(attemptsKeyEn);
+        if (typingStateKey) localStorage.removeItem(typingStateKey);
+      } catch (e) {
+        console.warn("[Review] Failed to clear practice session keys", e);
+      }
+
+      onReviewFinalized?.();
+      return;
+    }
+
+    applyReviewOutcome(
+      citationCorrect,
+      reviewSession.sessionId,
+      reviewSession.passageKey,
+      reviewSession.wasDueAtStart,
+      true
+    );
+
+    // Retire the session. The snapshot and draft are released together so the
+    // daily-rollover freeze lifts at the same moment the session ends.
+    setState(s => ({ ...s, activeAttempt: null, activeReview: null }));
+
+    try {
+      localStorage.removeItem(`memorize_failed_${verse.id}`);
+      localStorage.removeItem(`citation_failed_${verse.id}`);
+      if (attemptsKeyEs) localStorage.removeItem(attemptsKeyEs);
+      if (attemptsKeyEn) localStorage.removeItem(attemptsKeyEn);
+      if (typingStateKey) localStorage.removeItem(typingStateKey);
+    } catch (e) {
+      console.warn("[Review] Failed to clear session keys", e);
+    }
+
+    onReviewFinalized?.();
+  };
+
   // ONE acquisition-accounting path for BOTH Citation outcomes. Each caller
   // supplies a truthful `citationCorrect`; the accounting itself is identical,
   // so a correct citation and an exhausted acknowledgment acquire the passage
   // exactly once and record the same completion fields.
   const completeCitationAcquisition = (citationCorrect: boolean) => {
+    // PHASE 4A — a Review session never acquires. It finalizes the review
+    // record instead, leaving Saved counts and acquisition history untouched.
+    if (isReviewMode) {
+      completeReviewSession(citationCorrect);
+      return;
+    }
+
     if (citationAcquiredRef.current) return;
     if (state.progress.verseStages[verse.id] === 7) return;
     citationAcquiredRef.current = true;
@@ -2701,6 +3113,25 @@ export default function Memorize({ state, setState, onComplete, onAbandon, tourS
       localStorage.removeItem(`citation_failed_${verse.id}`);
     } catch (e) {
       console.warn("Failed to clear failure keys", e);
+    }
+
+    // PHASE 4A — an ordinary Memorize session on an ALREADY-acquired passage
+    // updates that passage's existing review record under the same scheduling
+    // rules. A first-ever acquisition deliberately does nothing here: lazy
+    // initialization creates the record at level 0 and makes the first
+    // POST-acquisition review immediately due, so the acquisition session is
+    // never counted as that first review.
+    const ordinaryPassageKey = activeAttempt?.reviewPassageKey || passageKeyForVerse(verse);
+    if (ordinaryPassageKey && state.reviewRecords?.[ordinaryPassageKey] && attemptId) {
+      applyReviewOutcome(
+        citationCorrect,
+        // The attempt id is this session's stable identity, so the same
+        // exactly-once guard covers ordinary sessions too.
+        attemptId,
+        ordinaryPassageKey,
+        activeAttempt?.wasDueAtStart !== false,
+        false
+      );
     }
 
     if (!wasFailedSession) runFinalCelebration();
@@ -2981,7 +3412,7 @@ export default function Memorize({ state, setState, onComplete, onAbandon, tourS
                     } else if (isCurrent) {
                       tileHeight = BOARD_TILE_H; tileRadius = "2px";
                       tileBg = "#3E8F7B";
-                      tileShadow = "0 0 9px rgba(91,120,255,0.38), inset 0 1px 0 rgba(231,236,242,0.18)";
+                      tileShadow = currentTileShadow;
                     } else if (isOccupied) {
                       tileHeight = BOARD_TILE_H; tileRadius = "2px";
                       tileBg = "rgba(91,120,255,0.82)";
@@ -3326,7 +3757,10 @@ export default function Memorize({ state, setState, onComplete, onAbandon, tourS
     );
   };
 
-  if (state.progress.verseStages[verse.id] === 7) {
+  // PHASE 4A — a Review session runs ON an already-acquired passage, whose
+  // stage is 7. Without this bypass the completed "Verse Learned!" screen would
+  // render instead of the Recall Workspace. Ordinary sessions are unchanged.
+  if (state.progress.verseStages[verse.id] === 7 && !isReviewMode) {
     // Renders the fully completed display of Memorize
     return (
       <motion.div 
@@ -3431,7 +3865,7 @@ export default function Memorize({ state, setState, onComplete, onAbandon, tourS
   // Phase 3C: Citation is Step 6 of Memorize. Once entered from the stage-6
   // handoff (and on every reload thereafter) the Citation Step renders here
   // instead of switching to Cards. The handoff screen below is unchanged.
-  if (isAlmostDone && citationActive && !isAnyPartFailed) {
+  if (isAlmostDone && citationActive && !recallBlocksCitation) {
     return (
       <CitationStep
         verse={verse}
@@ -3443,6 +3877,16 @@ export default function Memorize({ state, setState, onComplete, onAbandon, tourS
         onPersist={persistCitation}
         onCorrect={() => completeCitationAcquisition(true)}
         onExhaustedAcknowledge={() => completeCitationAcquisition(false)}
+        reviewMode={isReviewMode}
+        // The SAME strip element Step 5 renders, handed down rather than
+        // duplicated — one definition, no import cycle, identical appearance
+        // across both review steps.
+        modeStrip={isReviewMode ? (
+          <ReviewModeStrip
+            label={reviewCopy.modeBannerLabel(state.primaryLanguage === 'es' ? 'es' : 'en')}
+            hint={reviewCopy.modeBannerHint(state.primaryLanguage === 'es' ? 'es' : 'en')}
+          />
+        ) : null}
       />
     );
   }
@@ -3487,8 +3931,8 @@ export default function Memorize({ state, setState, onComplete, onAbandon, tourS
         transition={{ type: "spring", damping: 15 }}
       >
         <div className="relative">
-          <div className={`w-32 h-32 rounded-full bg-(--glass-fill) border flex items-center justify-center ${isAnyPartFailed ? 'border-(--line)' : 'border-(--rim-gold) shadow-glow-gold'}`}>
-            {isAnyPartFailed ? (
+          <div className={`w-32 h-32 rounded-full bg-(--glass-fill) border flex items-center justify-center ${recallBlocksCitation ? 'border-(--line)' : 'border-(--rim-gold) shadow-glow-gold'}`}>
+            {recallBlocksCitation ? (
               <BookOpen size={64} className="text-cold-grey" fill="none" strokeWidth={1.5} />
             ) : (
               <CheckCircle2 size={64} className="text-ember" fill="none" strokeWidth={1.2} />
@@ -3503,7 +3947,7 @@ export default function Memorize({ state, setState, onComplete, onAbandon, tourS
             transition={{ delay: 0.3 }}
             className="text-3xl sm:text-4xl font-fraunces font-medium text-cool-white leading-tight text-center"
           >
-            {isAnyPartFailed
+            {recallBlocksCitation
               ? failureContent.title
               : (effectiveMemorizeMode === 'both'
                   ? (activeLanguage === 'es'
@@ -3520,19 +3964,23 @@ export default function Memorize({ state, setState, onComplete, onAbandon, tourS
             transition={{ delay: 0.4 }}
             className="font-hanken text-lg text-cold-grey max-w-sm mx-auto"
           >
-            {isAnyPartFailed
+            {recallBlocksCitation
               ? failureContent.body
-              : (effectiveMemorizeMode === 'both'
-                  ? (state.primaryLanguage === 'es' 
-                      ? 'Ambos idiomas listos. Ya casi. Ahora falta el último paso: la cita bíblica.' 
-                      : 'Both languages locked in. Almost there. Now for the final step: the citation.')
-                  : (state.primaryLanguage === 'es' 
-                      ? 'Texto completo. Ahora falta el último paso: la cita bíblica.' 
-                      : 'Text complete. Now for the final step: the citation.')
+              : (isReviewMode && isAnyPartFailed
+                  // A review whose Recall ran out of attempts still continues to
+                  // Citation, so the copy must not claim the text is complete.
+                  ? reviewCopy.recallStillSettlingHandoff(state.primaryLanguage === 'es' ? 'es' : 'en')
+                  : effectiveMemorizeMode === 'both'
+                    ? (state.primaryLanguage === 'es'
+                        ? 'Ambos idiomas listos. Ya casi. Ahora falta el último paso: la cita bíblica.'
+                        : 'Both languages locked in. Almost there. Now for the final step: the citation.')
+                    : (state.primaryLanguage === 'es'
+                        ? 'Texto completo. Ahora falta el último paso: la cita bíblica.'
+                        : 'Text complete. Now for the final step: the citation.')
                 )
             }
           </motion.p>
-          {!isAnyPartFailed && (
+          {!recallBlocksCitation && (
             <motion.p
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -3546,9 +3994,9 @@ export default function Memorize({ state, setState, onComplete, onAbandon, tourS
 
         <div className="w-full max-w-sm space-y-8 px-6">
           <div className="flex flex-col items-center gap-6">
-            {!isAnyPartFailed ? (
+            {!recallBlocksCitation ? (
               <>
-                <motion.button 
+                <motion.button
                   ref={challengeCitationRef}
                   initial={{ y: 20, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
@@ -3650,6 +4098,10 @@ export default function Memorize({ state, setState, onComplete, onAbandon, tourS
     // Small logic fix: use proper failure check for the transition screen
     // If we're halfway, we check if the just-finished language failed
     const currentPassFailed = activeLanguage === 'es' ? didFailFlowEs : didFailFlowEn;
+    // PHASE 4A — a Review session never offers "try again" here: retrying calls
+    // reset(), which rewinds an acquired passage. A review simply continues to
+    // its next language and lets the outcome stand.
+    const halfwayShowsRetry = currentPassFailed && !isReviewMode;
 
     return (
       <motion.div 
@@ -3701,7 +4153,7 @@ export default function Memorize({ state, setState, onComplete, onAbandon, tourS
         </div>
 
         <div className="w-full max-w-[280px] px-6 space-y-4">
-          {!currentPassFailed ? (
+          {!halfwayShowsRetry ? (
             <button
               ref={halfwayContinueRef}
               onClick={handleHalfwayContinue}
@@ -3733,44 +4185,66 @@ export default function Memorize({ state, setState, onComplete, onAbandon, tourS
         <div className="space-y-2 sm:space-y-3">
           {/* Row 1: eyebrow + language chip (left) and step status (right).
               The step indicator lives here so the reference below always gets
-              the full column width and never competes with it. */}
-          <div className="flex items-center justify-between gap-3 w-full">
-            <div className="flex flex-wrap items-center gap-3 min-w-0">
-              {/* Section identity — Verdant Teal, no containing pill, no glow. */}
-              <span
-                className="font-hanken text-[11.5px] font-semibold uppercase tracking-[0.22em] leading-none"
-                style={{ color: "#3E8F7B" }}
-              >
-                {state.primaryLanguage === 'es' ? 'MEMORIZA' : 'MEMORIZE'}
-              </span>
-
-              {state.memorizeMode === 'both' && (
-                <span className="vchip text-[10px] sm:text-[11px] uppercase tracking-[0.2em] min-h-0 py-1.5 select-none">
-                  {activeLanguage === 'es'
-                    ? (state.primaryLanguage === 'es' ? 'Español' : 'Spanish')
-                    : (state.primaryLanguage === 'es' ? 'Inglés' : 'English')}
+              the full column width and never competes with it.
+              ORDINARY MEMORIZE ONLY. In Review mode the eyebrow is gone, the
+              step pill is gone, and the language chip moves below the status
+              strip — so the whole row is dropped rather than left empty, and
+              the passage reference becomes the first content element beneath
+              the global header. */}
+          {!isReviewMode && (
+            <div className="flex items-center justify-between gap-3 w-full">
+              <div className="flex flex-wrap items-center gap-3 min-w-0">
+                {/* Section identity — Verdant Teal, no containing pill, no glow. */}
+                <span
+                  className="font-hanken text-[11.5px] font-semibold uppercase tracking-[0.22em] leading-none"
+                  style={{ color: "#3E8F7B" }}
+                >
+                  {state.primaryLanguage === 'es' ? 'MEMORIZA' : 'MEMORIZE'}
                 </span>
-              )}
-            </div>
 
-            {/* Step-status utility pill — one line, all numerals on one
-                baseline (no floating gold numeral); Cold Grey label with the
-                current numeral in Verdant Teal, and a restrained Royal halo. */}
-            <div
-              className="flex-shrink-0 inline-flex items-center h-8 px-[10px] rounded-[12px] select-none"
-              style={{
-                background: "rgba(15,20,27,0.58)",
-                border: "1px solid rgba(62,143,123,0.22)",
-                boxShadow: "0 0 8px rgba(91,120,255,0.10)",
-              }}
-            >
-              <span className="font-hanken text-[11px] font-semibold uppercase tracking-widest leading-none text-cold-grey">
-                {state.primaryLanguage === 'es' ? 'Paso ' : 'Step '}
-                <span style={{ color: "#3E8F7B" }}>{Math.min(5, stage)}</span>
-                {state.primaryLanguage === 'es' ? ' de 6' : ' of 6'}
-              </span>
+                {state.memorizeMode === 'both' && (
+                  <span className="vchip text-[10px] sm:text-[11px] uppercase tracking-[0.2em] min-h-0 py-1.5 select-none">
+                    {activeLanguage === 'es'
+                      ? (state.primaryLanguage === 'es' ? 'Español' : 'Spanish')
+                      : (state.primaryLanguage === 'es' ? 'Inglés' : 'English')}
+                  </span>
+                )}
+              </div>
+
+              {/* Step-status utility pill — ORDINARY MEMORIZE ONLY. One line,
+                  all numerals on one baseline (no floating gold numeral); Cold
+                  Grey label with the current numeral in Verdant Teal, and a
+                  restrained Royal halo. Review mode omits it and shows no
+                  replacement badge, pill or progress counter of any kind. */}
+              <div
+                className="flex-shrink-0 inline-flex items-center h-8 px-[10px] rounded-[12px] select-none"
+                style={{
+                  background: "rgba(15,20,27,0.58)",
+                  border: "1px solid rgba(62,143,123,0.22)",
+                  boxShadow: "0 0 8px rgba(91,120,255,0.10)",
+                }}
+              >
+                <span className="font-hanken text-[11px] font-semibold uppercase tracking-widest leading-none text-cold-grey">
+                  {state.primaryLanguage === 'es' ? 'Paso ' : 'Step '}
+                  <span style={{ color: "#3E8F7B" }}>{Math.min(5, stage)}</span>
+                  {state.primaryLanguage === 'es' ? ' de 6' : ' of 6'}
+                </span>
+              </div>
             </div>
-          </div>
+          )}
+
+          {/* REVIEW-MODE STATUS STRIP — the first content element in Review
+              mode, centred above the left-aligned passage reference. Persistent
+              through Step 5 and Step 6 and restored after a reload, because it
+              derives from the live session rather than any transient flag. The
+              INTERNAL stage is untouched: Review still runs Step 5 then
+              Step 6. */}
+          {isReviewMode && (
+            <ReviewModeStrip
+              label={reviewCopy.modeBannerLabel(state.primaryLanguage === 'es' ? 'es' : 'en')}
+              hint={reviewCopy.modeBannerHint(state.primaryLanguage === 'es' ? 'es' : 'en')}
+            />
+          )}
 
           {/* Row 2: the verse reference owns the full row. Long and Spanish
               references wrap naturally; never truncated or ellipsized. */}
@@ -3781,10 +4255,42 @@ export default function Memorize({ state, setState, onComplete, onAbandon, tourS
               Spanish one. (The previous expression fell back to the interface
               language whenever the mode was bilingual, which is how a Spanish
               memorization came to show an English book name.) */}
-          <h2 className="w-full font-fraunces text-[clamp(1.50rem,6.8vw,1.78rem)] min-[390px]:text-[clamp(1.78rem,6.5vw,2.15rem)] md:text-[42px] font-normal text-cool-white leading-[1.06] break-words [text-wrap:balance]">
-            {getLocalizedBookName(verse.book, activeLanguage)} {verse.chapter}:{verse.verse}
-          </h2>
+          {/* REFERENCE ROW. In Review mode the compact ACTIVE-PASS pill rides
+              this row, right aligned — it no longer occupies a row of its own
+              beneath the reference. The reference stays dominant and is never
+              truncated; the row wraps only when genuinely necessary, and the
+              pill stays compact rather than becoming a full-width badge.
+              The pill reports the language CURRENTLY on screen and is driven by
+              `activeLanguage`, which derives from the attempt snapshot's own
+              language order — never from the global memorize preference. */}
+          {isReviewMode ? (
+            <div className="w-full flex flex-wrap items-start justify-between gap-x-3 gap-y-1.5">
+              <h2 className="min-w-0 flex-1 font-fraunces text-[clamp(1.50rem,6.8vw,1.78rem)] min-[390px]:text-[clamp(1.78rem,6.5vw,2.15rem)] md:text-[42px] font-normal text-cool-white leading-[1.06] break-words [text-wrap:balance]">
+                {getLocalizedBookName(verse.book, activeLanguage)} {verse.chapter}:{verse.verse}
+              </h2>
+              {/* Plain text, not a pill. The workspace is already dense with
+                  containers; this is a quiet metadata label subordinate to the
+                  reference — no capsule, border, fill, glow, shadow, icon or
+                  separator. */}
+              <span className="shrink-0 mt-2 font-hanken text-[10px] font-semibold uppercase tracking-[0.2em] leading-none text-faint select-none">
+                {reviewCopy.activePassLabel(
+                  activeLanguage,
+                  state.primaryLanguage === 'es' ? 'es' : 'en'
+                )}
+              </span>
+            </div>
+          ) : (
+            <h2 className="w-full font-fraunces text-[clamp(1.50rem,6.8vw,1.78rem)] min-[390px]:text-[clamp(1.78rem,6.5vw,2.15rem)] md:text-[42px] font-normal text-cool-white leading-[1.06] break-words [text-wrap:balance]">
+              {getLocalizedBookName(verse.book, activeLanguage)} {verse.chapter}:{verse.verse}
+            </h2>
+          )}
 
+          {/* Stage instruction — ORDINARY MEMORIZE ONLY. In Review mode the
+              status strip already names the order of work and the Recall
+              Workspace makes the current task obvious, so this line would be a
+              third overlapping message. Removing the element removes its
+              spacing with it; no gap is left behind. */}
+          {!isReviewMode && (
           <motion.p
             key={`${stage}-${state.primaryLanguage}`}
             initial={{ opacity: 0, y: 5 }}
@@ -3808,6 +4314,7 @@ export default function Memorize({ state, setState, onComplete, onAbandon, tourS
               )
             }
           </motion.p>
+          )}
 
           {/* Translation-unavailable notice. Deliberately OUTSIDE the Scripture
               stage and styled as interface chrome, so it can never be mistaken
@@ -3836,7 +4343,7 @@ export default function Memorize({ state, setState, onComplete, onAbandon, tourS
             "Step N / 5" text above is the accessible equivalent). Sits
             between the instruction and the Scripture stage. */}
         <div className="w-full flex justify-center items-center pt-[18px] md:pt-[22px]" aria-hidden="true">
-          <StageProgressRail stage={Math.min(5, stage)} />
+          <StageProgressRail stage={Math.min(5, stage)} accent={isReviewMode ? REVIEW_ACCENT : undefined} />
         </div>
       </div>
 
@@ -3848,10 +4355,13 @@ export default function Memorize({ state, setState, onComplete, onAbandon, tourS
           className="w-full relative overflow-visible rounded-[14px] md:rounded-[18px] bg-[rgba(15,20,27,0.28)]"
         >
           {/* Open corner frame: only the two relevant sides of each mark render */}
-          <span aria-hidden="true" className="pointer-events-none absolute top-0 left-0 w-[26px] h-[26px] md:w-[34px] md:h-[34px] border-t border-l border-[rgba(91,120,255,0.32)] rounded-tl-[14px] md:rounded-tl-[18px] shadow-[0_0_18px_rgba(91,120,255,0.08)]" />
-          <span aria-hidden="true" className="pointer-events-none absolute top-0 right-0 w-[26px] h-[26px] md:w-[34px] md:h-[34px] border-t border-r border-[rgba(91,120,255,0.32)] rounded-tr-[14px] md:rounded-tr-[18px] shadow-[0_0_18px_rgba(91,120,255,0.08)]" />
-          <span aria-hidden="true" className="pointer-events-none absolute bottom-0 left-0 w-[26px] h-[26px] md:w-[34px] md:h-[34px] border-b border-l border-[rgba(91,120,255,0.32)] rounded-bl-[14px] md:rounded-bl-[18px] shadow-[0_0_18px_rgba(91,120,255,0.08)]" />
-          <span aria-hidden="true" className="pointer-events-none absolute bottom-0 right-0 w-[26px] h-[26px] md:w-[34px] md:h-[34px] border-b border-r border-[rgba(91,120,255,0.32)] rounded-br-[14px] md:rounded-br-[18px] shadow-[0_0_18px_rgba(91,120,255,0.08)]" />
+          {/* Open corner frame — Royal atmosphere in ordinary Memorize, Verdant
+              in Review mode. Only the rim colour changes; the geometry, radii
+              and Scripture stage are identical. */}
+          <span aria-hidden="true" className={`pointer-events-none absolute top-0 left-0 w-[26px] h-[26px] md:w-[34px] md:h-[34px] border-t border-l rounded-tl-[14px] md:rounded-tl-[18px] ${frameAccentClass}`} />
+          <span aria-hidden="true" className={`pointer-events-none absolute top-0 right-0 w-[26px] h-[26px] md:w-[34px] md:h-[34px] border-t border-r rounded-tr-[14px] md:rounded-tr-[18px] ${frameAccentClass}`} />
+          <span aria-hidden="true" className={`pointer-events-none absolute bottom-0 left-0 w-[26px] h-[26px] md:w-[34px] md:h-[34px] border-b border-l rounded-bl-[14px] md:rounded-bl-[18px] ${frameAccentClass}`} />
+          <span aria-hidden="true" className={`pointer-events-none absolute bottom-0 right-0 w-[26px] h-[26px] md:w-[34px] md:h-[34px] border-b border-r rounded-br-[14px] md:rounded-br-[18px] ${frameAccentClass}`} />
           {/* Stage body - content-sized in-flow column (label, verse, utility
               controls); the Phase 1 shell is the only scroll owner */}
           <div
@@ -4482,7 +4992,7 @@ export default function Memorize({ state, setState, onComplete, onAbandon, tourS
                 }
               }}
               aria-label={state.primaryLanguage === 'es' ? 'Continuar' : 'Continue'}
-              className="group h-11 min-w-11 flex items-center justify-center rounded-[13px] outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[rgba(91,120,255,0.6)]"
+              className={`group h-11 min-w-11 flex items-center justify-center rounded-[13px] outline-none focus-visible:outline-2 focus-visible:outline-offset-2 ${forwardFocusClass}`}
             >
               <span className={`w-11 h-[34px] rounded-[11px] border flex items-center justify-center bg-[rgba(15,20,27,0.55)] backdrop-blur-[10px] group-active:translate-y-px ${
                 stage === 5
@@ -4490,8 +5000,8 @@ export default function Memorize({ state, setState, onComplete, onAbandon, tourS
                       ? 'border-(--rim-gold) text-ember shadow-[0_0_4px_rgba(232,179,75,0.30)]'
                       : (hasSubmitted && isWrong && attempts < 3
                           ? 'border-[rgba(209,78,92,0.55)] text-[#F0A6A0]'
-                          : 'border-(--rim-royal) text-royal shadow-[0_0_4px_rgba(91,120,255,0.30)]'))
-                  : 'border-(--rim-royal) text-royal shadow-[0_0_4px_rgba(91,120,255,0.30)]'
+                          : forwardAccentClass))
+                  : forwardAccentClass
               }`}>
                 <ArrowRight size={18} strokeWidth={2.25} className="group-hover:translate-x-0.5 transition-transform" />
               </span>

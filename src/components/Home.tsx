@@ -13,6 +13,7 @@ import { searchVerse, loadVerseAndMerge } from "../services/bibleService";
 import { BIBLE_VERSIONS } from "../services/apiBible";
 import { BrandIcon, Button, IconButton } from "./ui";
 import CoachCard from "./CoachCard";
+import HomeReviewModule from "./HomeReviewModule";
 
 const ES_TRANSLATIONS = ["RVR1960", "NVI", "NBLA"];
 const isEsTranslation = (t: string) => ES_TRANSLATIONS.includes(t);
@@ -53,9 +54,12 @@ interface HomeProps {
   onGoToSaved: () => void;
   onGoToPaths: (path?: Path | CustomPath) => void;
   onCompletePathDay: () => boolean;
+  /** Phase 4A: controlled review clock, refreshed at defined moments only. */
+  reviewNowMs: number;
+  onOpenReview: () => void;
 }
 
-export default function Home({ state, setState, onChangeTranslation, onStartMemorizing, onGetAnotherVerse, onGoToSaved, onGoToPaths, onCompletePathDay }: HomeProps) {
+export default function Home({ state, setState, onChangeTranslation, onStartMemorizing, onGetAnotherVerse, onGoToSaved, onGoToPaths, onCompletePathDay, reviewNowMs, onOpenReview }: HomeProps) {
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
@@ -980,10 +984,62 @@ export default function Home({ state, setState, onChangeTranslation, onStartMemo
         </div>
       </div>
 
-      {/* Main Content Area - Order: Path (if active) -> Votd -> Custom */}
+      {/* ===================================================================
+          LOCKED HOME ORDER (Phase 4A):
+            1. Review              — supports the return habit
+            2. Verse of the Day    — the heart of Verso
+            3. Today / Tip         — a light daily nudge
+            4. Paths               — longer-term direction
+            5. Choose Your Own Verse — the exploratory action
+          The sections below were RELOCATED, not redesigned: the daily Scripture
+          layout, bilingual ordering, localized references, translation
+          safeguards, the Share control, the Tip, the Paths content and the
+          search behaviour are all unchanged.
+          =================================================================== */}
+
+      {/* 1. Review — the compact Review container. It reuses the one queue
+          calculation, renders nothing until a passage has been acquired, and
+          sits outside every Scripture block so it can never overlap or compete
+          with the bilingual verse content below. */}
+      <HomeReviewModule
+        state={state}
+        nowMs={reviewNowMs}
+        onOpenReview={onOpenReview}
+      />
+
+      {/* 2. Verse of the Day. The two branches keep their own DOM ids and their
+          own path-completed sentence, exactly as before. */}
+      {selectedPath
+        ? renderVerseSection(
+            "another-verse-loader-1",
+            "another-verse-err-1",
+            isEs ? "Día completado." : "Day completed."
+          )
+        : renderVerseSection(
+            "another-verse-loader-2",
+            "another-verse-err-2",
+            isEs ? "Día completado de la serie." : "Series day completed."
+          )}
+
+      {/* 3. Today - the tend-your-verse coach card, fed by the live active verse */}
+      <section className="flex flex-col gap-2.5">
+        <h2 className={EYEBROW}>
+          {isEs ? "Hoy" : "Today"}
+        </h2>
+        <CoachCard
+          state={state}
+          type="tip"
+          verseReference={displayedReference}
+          verseText={esText || enText || ""}
+          stage={0}
+          status={isCurrentVerseCompleted ? "completed" : "succeeding"}
+        />
+      </section>
+
+      {/* 4. Paths */}
       {selectedPath ? (
         <>
-          {/* Current-path section - First priority when active */}
+          {/* Current-path section */}
           <section className="flex flex-col gap-2.5">
             <div className="flex items-center justify-between gap-3">
               <h2 className={`${EYEBROW} min-w-0 break-words`}>
@@ -1180,17 +1236,10 @@ export default function Home({ state, setState, onChangeTranslation, onStartMemo
               </div>
             )}
           </section>
-
-          {/* Verse of the Day Card - Second priority when path is active */}
-          {renderVerseSection(
-            "another-verse-loader-1",
-            "another-verse-err-1",
-            isEs ? "Día completado." : "Day completed."
-          )}
         </>
       ) : (
         <>
-          {/* Paths Selection Prompt - Consistently at the top */}
+          {/* Paths selection prompt when no series is active */}
           <section className="flex flex-col gap-2.5">
             <h2 className={EYEBROW}>
               {isEs ? "Tu serie" : "Your path"}
@@ -1218,32 +1267,10 @@ export default function Home({ state, setState, onChangeTranslation, onStartMemo
               </div>
             </motion.button>
           </section>
-
-          {/* Verse of the Day Card - Primary when NO path is active */}
-          {renderVerseSection(
-            "another-verse-loader-2",
-            "another-verse-err-2",
-            isEs ? "Día completado de la serie." : "Series day completed."
-          )}
         </>
       )}
 
-      {/* Today - the tend-your-verse coach card, fed by the live active verse */}
-      <section className="flex flex-col gap-2.5">
-        <h2 className={EYEBROW}>
-          {isEs ? "Hoy" : "Today"}
-        </h2>
-        <CoachCard
-          state={state}
-          type="tip"
-          verseReference={displayedReference}
-          verseText={esText || enText || ""}
-          stage={0}
-          status={isCurrentVerseCompleted ? "completed" : "succeeding"}
-        />
-      </section>
-
-      {/* Custom Verse Selection */}
+      {/* 5. Choose Your Own Verse */}
       <section className="flex flex-col gap-2.5 pt-2">
         <h2 className={EYEBROW}>
           {isEs ? "Elige tu propio versículo" : "Choose your own verse"}
